@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, FileText, Folder, House } from "lucide-react";
+import { ArrowUp, FileText, Folder, FolderPlus, House } from "lucide-react";
 
 import "./DirectoryBrowser.css";
 
@@ -34,11 +34,15 @@ function childPath(parent: string, name: string): string {
  */
 export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowserProps) {
   const t = useT();
-  const { fetchDirectories } = useMachineApi();
+  const { fetchDirectories, createDirectory } = useMachineApi();
   const [listing, setListing] = useState<DirectoryListing | null>(null);
   const [hidden, setHidden] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const request = useRef(0);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -65,6 +69,26 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
 
   useEffect(() => { void open(start, false, true); }, []);
 
+  const create = async (): Promise<void> => {
+    const name = newName.trim();
+    if (name === "" || busy || listing === null) return;
+    setBusy(true);
+    setCreateError(null);
+    try {
+      const made = await createDirectory(listing.path, name);
+      setCreating(false);
+      setNewName("");
+      // step into the folder just made, so the next pick starts there
+      await open(made, hidden, false);
+    } catch (reason: unknown) {
+      setCreateError(reason instanceof ApiError && reason.code === "exists" ? t("A folder with that name already exists.")
+        : reason instanceof ApiError && reason.code === "invalid_name" ? t("That name cannot be used.")
+        : t("The folder could not be created."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const path = listing?.path ?? "";
   const shown = listing ? homeRelative(listing.path, listing.home) : start || "~";
 
@@ -78,7 +102,33 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
           <House aria-hidden="true" />
         </button>
         <span className="dir-browser-path" title={path}><span dir="ltr">{shown}</span></span>
+        <button type="button" className="icon-button" aria-label={t("New folder")} title={t("New folder")} disabled={loading || listing === null} onClick={() => { setCreating((open) => !open); setCreateError(null); }}>
+          <FolderPlus aria-hidden="true" />
+        </button>
       </div>
+      {creating && (
+        <div className="dir-browser-new">
+          <div className="dir-browser-new-row">
+            <input
+              className="input"
+              aria-label={t("Folder name")}
+              placeholder={t("Folder name")}
+              autoFocus
+              value={newName}
+              disabled={busy}
+              onChange={(event) => setNewName(event.target.value)}
+              onKeyDown={(event) => {
+                // an IME's Enter and Escape are the composition's, not the field's
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+                if (event.key === "Enter") { event.preventDefault(); void create(); }
+                if (event.key === "Escape") { event.preventDefault(); setCreating(false); setNewName(""); setCreateError(null); }
+              }}
+            />
+            <button type="button" className="btn btn-primary" disabled={busy || newName.trim() === ""} onClick={() => void create()}>{t("Create")}</button>
+          </div>
+          {createError !== null && <p className="dir-browser-error dir-browser-new-error" role="alert">{createError}</p>}
+        </div>
+      )}
       {error !== null ? <p className="dir-browser-note dir-browser-error" role="alert">{error}</p> : (
         <ul className="dir-browser-list" ref={listRef}>
           {listing === null && <li className="dir-browser-note" role="status">{t("Loading…")}</li>}

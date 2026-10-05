@@ -27,6 +27,7 @@ export function useMachineApi() {
     moveWorkspace: (workspace: string, index: number) => api.moveWorkspace(workspace, index, id),
     fetchAgentKinds: () => api.fetchAgentKinds(id),
     fetchDirectories: (path: string, hidden: boolean, files = false, pane: string | null = null) => api.fetchDirectories(path, hidden, id, files, pane),
+    createDirectory: (path: string, name: string, pane: string | null = null) => api.createDirectory(path, name, id, pane),
     fetchFileInfo: (path: string, pane: string | null) => api.fetchFileInfo(path, pane, id),
     fileUrl: (path: string, pane: string | null, download = false) => api.fileUrl(path, pane, id, download),
     writeFile: (path: string, pane: string | null, content: string) => api.writeFile(path, pane, content, id),

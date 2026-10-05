@@ -86,6 +86,28 @@
   color: var(--status-blocked);
 }
 
+.dir-browser-new {
+  padding: var(--space-2);
+  border-bottom: var(--hairline) solid var(--border);
+  background: var(--bg-panel);
+}
+
+.dir-browser-new-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dir-browser-new-row .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dir-browser-new-error {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+
 .dir-browser-footer {
   display: flex;
   align-items: center;

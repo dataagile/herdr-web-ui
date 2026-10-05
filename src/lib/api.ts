@@ -312,6 +312,13 @@ export async function fetchDirectories(path: string, hidden: boolean, machineId 
   return getJson<DirectoryListing>(machinePath(machineId, `workspace/directories?${query.toString()}`));
 }
 
+/** POST /api/workspace/directories: makes one folder inside `path`; resolves to its absolute path. */
+export async function createDirectory(path: string, name: string, machineId = "local", paneId: string | null = null): Promise<string> {
+  const query = paneId ? `?${new URLSearchParams({ pane_id: paneId }).toString()}` : "";
+  const response = await sendJson(`${machinePath(machineId, "workspace/directories")}${query}`, "POST", { path, name });
+  return ((await response.json()) as { path: string }).path;
+}
+
 function fileQuery(path: string, paneId: string | null): string {
   return new URLSearchParams({ path, ...(paneId ? { pane_id: paneId } : {}) }).toString();
 }

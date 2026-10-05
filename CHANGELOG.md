@@ -12,6 +12,9 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   content, Save and Discard, Mod+S to save, and a prompt before closing with unsaved changes.
   A file past 2 MB, or anything that is not text, stays read-only.
   ([#1](https://github.com/dataagile/herdr-web-ui/pull/1) by @tbc-joaovitor)
+- The folder browser (New workspace/tab's Directory and the Files dialog) can create a folder:
+  a New folder button, a name field, and Create, which steps into the folder it just made.
+  Empty names, separators and `.`/`..` are refused, and an existing name answers clearly.
 
 ## [0.3.49] - 2026-10-04
 

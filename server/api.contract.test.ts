@@ -2149,3 +2149,17 @@ it("edits a text file over /api/fs/write, and refuses what it must not touch", a
     expect((await fetch(`${base()}/api/fs/write`)).status).toBe(400);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+it("creates a folder over /api/workspace/directories and refuses bad input", async () => {
+  const root = mkdtempSync(join(tmpdir(), "herdr-mkdir-api-"));
+  const post = (body: unknown) => fetch(`${base()}/api/workspace/directories`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    const made = await post({ path: root, name: "feita" });
+    expect(made.status).toBe(201);
+    expect(await made.json()).toEqual({ path: join(root, "feita") });
+    expect(existsSync(join(root, "feita"))).toBe(true);
+    expect((await post({ path: root, name: "feita" })).status).toBe(409);
+    expect((await post({ path: root, name: "a/b" })).status).toBe(400);
+    expect((await fetch(`${base()}/api/workspace/directories`)).status).toBe(200);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

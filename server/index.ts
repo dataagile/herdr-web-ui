@@ -23,7 +23,7 @@ import { omoRuns, omoTasks } from "./omo-tasks.ts";
 import { CompletionTracker } from "./completion.ts";
 import { freeAgentName } from "./agent-name.ts";
 import { SHELL_AGENTS, isShellAgentKind, shellAgentExecutable, startShellAgent } from "./shell-agent.ts";
-import { listDirectories } from "./directories.ts";
+import { createDirectory, listDirectories } from "./directories.ts";
 import { FileWriteError, fileResponse, locateFile, writeTextFile } from "./file-view.ts";
 import {
   agentManifests,
@@ -1136,18 +1136,39 @@ export function createServer(
       }
 
       if (pathname === "/api/workspace/directories") {
-        if (request.method !== "GET") return badRequest("method_not_allowed", "use GET");
-        // a folder a pane's chat names is read from that pane's folder, as a file it names is
+        if (request.method !== "GET" && request.method !== "POST") return badRequest("method_not_allowed", "use GET or POST");
+        // a folder a pane's chat names is read from — or made inside — that pane's folder, as a file it names is
         const paneId = url.searchParams.get("pane_id");
         let base: string | undefined;
         if (paneId) {
-          try { base = (await paneContext(paneId)).cwd; } catch { /* an absolute path still lists */ }
+          try { base = (await paneContext(paneId)).cwd; } catch { /* an absolute path still lists and writes */ }
           // a relative path whose pane is gone has no folder to be read from: not the server's own
           const path = (url.searchParams.get("path") ?? "").trim();
           if (base === undefined && path !== "" && path !== "~" && !path.startsWith("~/") && !isAbsolute(path)) return badRequest("invalid_cwd", "the pane a relative path belongs to is gone");
         }
-        const listing = listDirectories(url.searchParams.get("path") ?? "", url.searchParams.get("hidden") === "1", url.searchParams.get("files") === "1", base);
-        return listing === null ? badRequest("invalid_cwd", "path must be a directory this user can read") : jsonResponse(listing);
+        if (request.method === "GET") {
+          const listing = listDirectories(url.searchParams.get("path") ?? "", url.searchParams.get("hidden") === "1", url.searchParams.get("files") === "1", base);
+          return listing === null ? badRequest("invalid_cwd", "path must be a directory this user can read") : jsonResponse(listing);
+        }
+        let payload: { path?: unknown; name?: unknown };
+        try {
+          payload = (await request.json()) as typeof payload;
+        } catch {
+          return badRequest("invalid_json", "request body must be JSON");
+        }
+        if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
+        if (typeof payload.path !== "string") return badRequest("invalid_path", "path must be a string");
+        if (typeof payload.name !== "string" || payload.name.trim() === "") return badRequest("invalid_name", "name must be a folder name");
+        const made = createDirectory(payload.path, payload.name, base);
+        if ("error" in made) {
+          const status = made.error === "exists" ? 409 : made.error === "not_found" ? 404 : made.error === "invalid_name" ? 400 : 500;
+          const message = made.error === "exists" ? "a folder with that name is already there"
+            : made.error === "not_found" ? "the parent must be a directory this user can read"
+            : made.error === "invalid_name" ? "name must be a single folder name"
+            : "the folder could not be created";
+          return jsonResponse({ error: { code: made.error, message } }, status);
+        }
+        return jsonResponse({ path: made.path }, 201);
       }
 
       // A tab is made the way a workspace is: herdr opens it with a shell in its root pane, and

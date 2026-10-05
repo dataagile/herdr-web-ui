@@ -2160,6 +2160,9 @@ it("creates a folder over /api/workspace/directories and refuses bad input", asy
     expect(existsSync(join(root, "feita"))).toBe(true);
     expect((await post({ path: root, name: "feita" })).status).toBe(409);
     expect((await post({ path: root, name: "a/b" })).status).toBe(400);
+    // a relative parent with no pane to read it from must not fall back to the server's own cwd
+    const orphan = await fetch(`${base()}/api/workspace/directories?pane_id=gone`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "rel", name: "x" }) });
+    expect(orphan.status).toBe(400);
     expect((await fetch(`${base()}/api/workspace/directories`)).status).toBe(200);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

@@ -25,6 +25,13 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   dialog, kept per agent.
   ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
 
+### Fixed
+- The folder browser's POST no longer resolves a relative parent against the server's own
+  folder when the pane it belonged to is gone: that path is refused like the listing already
+  refuses it.
+- `/api/fs/write` refuses an oversized body by `content-length` before reading it, instead of
+  buffering and parsing it first.
+
 ## [0.3.49] - 2026-10-04
 
 ### Added

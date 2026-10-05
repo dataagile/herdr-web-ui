@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright-core";
+import { appFaces } from "./app-faces.ts";
 import { herdrRpc, tabCreate, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
 
 type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
@@ -23,7 +24,8 @@ async function box(page: Page, selector: string): Promise<Box> {
 
 /** The header keeps the pane's title and the strip sits right under it, whatever the lens. */
 async function assertShell(page: Page, label: string, titleRoom = 60): Promise<void> {
-  assert.equal(await page.locator(".new-tab-button").isVisible(), false, `${label}: the header's New tab is a desktop button`);
+  assert.equal(await page.locator(".app-header").getByRole("button", { name: "New tab" }).count(), 0, `${label}: the header has no New tab button of its own`);
+  assert.equal(await page.locator(".app-header .header-more-button").isVisible(), true, `${label}: New tab is an item of the header's More menu`);
   const title = await box(page, ".context-title-text");
   assert.ok(title.width >= titleRoom, `${label}: the pane's title keeps its room in the header (${title.width}px)`);
   const header = await box(page, ".app-header");
@@ -127,6 +129,31 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await assertShell(page, "a 320px phone", 0);
     await screenshot("narrow");
     assert.deepEqual(errors, []);
+
+    // The app's faces come after the first paint (src/fonts/fonts.css, font-display: swap) and
+    // every tab's name is redrawn with them, wider or narrower: the strip that brought the open
+    // tab into view in the fallback brings it into view again. The font files are held here until
+    // the fallback drawing is seen; no service worker, so that nothing answers them from a cache.
+    const slow = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "en-US", serviceWorkers: "block" });
+    try {
+      await slow.addInitScript(() => localStorage.setItem("herdr-web-ui:settings", JSON.stringify({ language: "en" })));
+      const late = await slow.newPage();
+      const lateErrors: string[] = [];
+      late.on("pageerror", (error) => lateErrors.push(error.message));
+      let release = (): void => undefined;
+      const released = new Promise<void>((done) => { release = done; });
+      await late.route("**/*.woff2", async (route) => { await released; await route.continue().catch(() => undefined); });
+      try {
+        await late.goto(`${origin}/?pane=${encodeURIComponent(last)}`);
+        await late.locator(".conn-live").waitFor();
+        await late.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "docs" }).waitFor();
+        assert.equal(await late.evaluate(() => [...document.fonts].filter((face) => face.family.replace(/["']/g, "") === "Pretendard Variable" && face.status === "loaded").length), 0, "the strip is first drawn before its face comes");
+        await activeTabInView(late, "the last tab, before the faces came");
+      } finally { release(); }
+      await appFaces(late);
+      await activeTabInView(late, "the last tab, after the faces came");
+      assert.deepEqual(lateErrors, []);
+    } finally { await slow.close(); }
     console.log("PASS a phone keeps the pane's title in the header and the open tab and the + in the strip, in both lenses and with the keyboard up");
   } finally {
     await context.close();

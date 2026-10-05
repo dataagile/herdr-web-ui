@@ -75,7 +75,8 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *         session-changed broadcast removes it from every client's sidebar)
  *  POST   /api/pane/rename { pane_id, label } -> { ok: true } (pane.rename; empty label clears it)
  *  POST   /api/pane/image  { pane_id, content_type, data_base64 } -> { ok: true, path }
- *         pasted image -> file under <pane cwd>/.herdr-web-ui/, path for the prompt
+ *         pasted image -> file under <pane cwd>/.herdr-web-ui/ (under HERDR_WEB_PASTE_DIR when the
+ *         server's environment sets it), path for the prompt
  *  GET    /api/pane/commands?pane_id=   -> { commands: SlashCommand[] } (the agent's slash
  *         commands: built-ins per agent kind + the user's and the project's custom commands)
  *  GET    /api/pane/omo-tasks?pane_id=  -> OmoActivity (the background tasks and workflows the
@@ -525,8 +526,12 @@ export interface SlashCommand {
 /**
  * GET /api/pane/prompt: an agent's interactive TUI menu currently on the pane's screen
  * (Claude/omp/codex question, approval or plan prompts), parsed server-side from the
- * visible text. `id` is a content hash: an answer names it, so a prompt that changed
- * between the read and the click is refused (409 prompt_changed) instead of misfired.
+ * visible text. `id` names what the prompt says and which asking of it this is: an answer
+ * names it, and one whose prompt changed between the read and the click is refused (409
+ * prompt_changed) instead of misfired. The same question asked again has another id only where
+ * the server saw the first asking end (a read without it, an answer through this route, the
+ * agent back at work); a prompt answered outside the app and asked again unseen keeps its id.
+ * The client tells one prompt from the next by the id alone.
  */
 export interface InteractivePrompt {
   id: string;

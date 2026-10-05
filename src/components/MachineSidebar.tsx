@@ -45,8 +45,7 @@ export function MachineSidebar(props: Props) {
         <UsageMeters />
       </div>
       <div className="sidebar-brandline">
-        <span className="sidebar-app-name">herdr web ui v{__APP_VERSION__}</span>
-        {props.version && <span className="pill">herdr {props.version}</span>}
+        <span className="sidebar-app-name">Portal Dev Data Agile v{__APP_VERSION__}</span>
       </div>
     </footer>
   </div>;

@@ -32,6 +32,10 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 - `/api/fs/write` refuses an oversized body by `content-length` before reading it, instead of
   buffering and parsing it first.
 
+### Changed
+- The sidebar footer names our brand ("Portal Dev Data Agile v…") instead of the raw
+  "herdr web ui v…" and "herdr …" badges; the component versions are read in the portal admin.
+
 ## [0.3.49] - 2026-10-04
 
 ### Added

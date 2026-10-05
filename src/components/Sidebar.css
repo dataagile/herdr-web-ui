@@ -444,3 +444,39 @@
     transition: none;
   }
 }
+
+/* the Spaces and Agents sections, as herdr's own sidebar: a small caps header with a fold chevron */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sidebar-section-header:hover,
+.sidebar-section-header:focus-visible {
+  color: var(--text-strong);
+}
+
+.sidebar-section-header > svg {
+  flex: 0 0 auto;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+/* an agent row is one line shorter than a workspace row: no grip, no actions */
+.agent-item .pane-row {
+  height: auto;
+  min-height: 42px;
+  padding-right: var(--space-2);
+}

@@ -809,7 +809,7 @@ export function App() {
           <><Brand /><span className="machine-context-name">{selectedMachine?.name ?? selectedMachineId}</span></>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost" title={t("New tab")} onClick={() => actions.openNewTab()}>
+          <button type="button" className="btn btn-ghost" title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
             <Plus aria-hidden="true" />
             <span className="header-desktop-only">{t("New tab")}</span>
           </button>

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { fileInfo, fileResponse, resolveFilePath } from "./file-view.ts";
+import { FileWriteError, MAX_TEXT_WRITE_BYTES, fileInfo, fileResponse, resolveFilePath, writeTextFile } from "./file-view.ts";
 
 describe("file view", () => {
   const roots: string[] = [];
@@ -40,6 +40,46 @@ describe("file view", () => {
     expect(response.headers.get("content-security-policy")).toStartWith("sandbox");
     expect(response.headers.get("content-disposition")).toBe("attachment; filename*=UTF-8''page.html");
     expect(await response.text()).toBe("<script>alert(1)</script>");
+  });
+
+  it("rewrites a text file in place and answers its fresh info", () => {
+    const root = temp();
+    const file = join(root, "notes.md");
+    writeFileSync(file, "before\n");
+    const info = writeTextFile(file, null, "after\n");
+    expect(readFileSync(file, "utf8")).toBe("after\n");
+    expect(info).toMatchObject({ path: file, name: "notes.md", kind: "text", size: 6 });
+  });
+
+  it("reads a relative path from the pane's folder", () => {
+    const root = temp();
+    mkdirSync(join(root, "docs"), { recursive: true });
+    writeFileSync(join(root, "docs", "a.txt"), "x");
+    writeTextFile("docs/a.txt", root, "y");
+    expect(readFileSync(join(root, "docs", "a.txt"), "utf8")).toBe("y");
+  });
+
+  it("refuses a missing file, a binary file and an oversized body, leaving the file untouched", () => {
+    const root = temp();
+    const blob = join(root, "blob");
+    writeFileSync(blob, Buffer.from([1, 0, 2]));
+    const big = join(root, "big.txt");
+    writeFileSync(big, "small");
+    const cases: Array<[() => unknown, string, number]> = [
+      [() => writeTextFile(join(root, "missing.txt"), null, "x"), "not_found", 404],
+      [() => writeTextFile(blob, null, "x"), "not_text", 415],
+      [() => writeTextFile(big, null, "a".repeat(MAX_TEXT_WRITE_BYTES + 1)), "too_large", 413],
+      [() => writeTextFile("", null, "x"), "invalid_path", 400],
+    ];
+    for (const [run, code, status] of cases) {
+      try { run(); throw new Error("the write should have been refused"); }
+      catch (error) {
+        expect(error).toBeInstanceOf(FileWriteError);
+        expect((error as FileWriteError).code).toBe(code);
+        expect((error as FileWriteError).status).toBe(status);
+      }
+    }
+    expect(readFileSync(big, "utf8")).toBe("small");
   });
 });
 

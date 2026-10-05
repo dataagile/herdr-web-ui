@@ -401,6 +401,12 @@ export interface FileInfo {
   kind: FileKind;
 }
 
+/** POST /api/fs/write: replaces a text file's contents; the fresh FileInfo comes back. */
+export interface FileWriteRequest {
+  path: string;
+  content: string;
+}
+
 export interface AgentKind {
   kind: string;
   label: string;

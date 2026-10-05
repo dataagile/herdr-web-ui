@@ -1,4 +1,4 @@
-import { closeSync, openSync, readSync, statSync } from "node:fs";
+import { closeSync, openSync, readSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, isAbsolute, resolve } from "node:path";
 
@@ -104,4 +104,42 @@ export function fileResponse(info: FileInfo, download: boolean): Response {
   const type = info.kind === "text" && info.mime !== "image/svg+xml" ? "text/plain; charset=utf-8" : info.mime;
   const file = Bun.file(info.path, { type });
   return new Response(file, { headers });
+}
+
+/** A refused edit: the `/api/fs/write` route answers `code`/`message` with this `status`. */
+export class FileWriteError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+/** Editing ceiling: a source file or a config; a huge log stays read-only in the viewer. */
+export const MAX_TEXT_WRITE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Replaces a text file's contents, for the viewer's editor. The file must already exist and
+ * be text: this never creates one, and never rewrites media or a binary. It writes in place,
+ * so the file keeps its mode and any symlink it is behind, exactly as an editor on the same
+ * machine would. Resolves to the file's fresh FileInfo.
+ */
+export function writeTextFile(input: string, cwd: string | null, content: string): FileInfo {
+  const path = resolveFilePath(input, cwd);
+  if (path === null) throw new FileWriteError("invalid_path", "path must name a file", 400);
+  const before = fileInfo(path);
+  if (before === null) throw new FileWriteError("not_found", "no writable file at that path", 404);
+  if (before.kind !== "text") throw new FileWriteError("not_text", "only a text file can be edited here", 415);
+  if (Buffer.byteLength(content, "utf8") > MAX_TEXT_WRITE_BYTES) {
+    throw new FileWriteError("too_large", `content exceeds ${MAX_TEXT_WRITE_BYTES} bytes`, 413);
+  }
+  try {
+    writeFileSync(path, content, "utf8");
+  } catch {
+    // a permission or space failure is the same answer as an unreadable file
+    throw new FileWriteError("write_failed", "the file could not be written", 500);
+  }
+  return fileInfo(path) ?? before;
 }

@@ -292,6 +292,14 @@ export const ZH: Record<string, string> = {
   "Close file": "关闭文件",
   "No readable file at this path.": "此路径下没有可读取的文件。",
   "The file could not be opened.": "无法打开该文件。",
+  "Edit": "编辑",
+  "Save": "保存",
+  "Saving…": "保存中…",
+  "Discard unsaved changes?": "要放弃未保存的更改吗？",
+  "Unsaved changes": "未保存的更改",
+  "Only a text file can be edited here.": "此处只能编辑文本文件。",
+  "The file could not be saved.": "无法保存该文件。",
+  "This file is too large to edit here; download it instead.": "该文件太大，无法在此编辑；请下载后再编辑。",
   "Open {path}": "打开 {path}",
 
   // ---- PC dialog ----

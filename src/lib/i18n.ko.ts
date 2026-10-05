@@ -288,6 +288,14 @@ export const KO: Record<string, string> = {
   "Close file": "파일 닫기",
   "No readable file at this path.": "이 경로에 읽을 수 있는 파일이 없습니다.",
   "The file could not be opened.": "파일을 열 수 없습니다.",
+  "Edit": "편집",
+  "Save": "저장",
+  "Saving…": "저장 중…",
+  "Discard unsaved changes?": "저장하지 않은 변경 사항을 버릴까요?",
+  "Unsaved changes": "저장하지 않은 변경 사항",
+  "Only a text file can be edited here.": "여기서는 텍스트 파일만 편집할 수 있습니다.",
+  "The file could not be saved.": "파일을 저장할 수 없습니다.",
+  "This file is too large to edit here; download it instead.": "이 파일은 너무 커서 여기서 편집할 수 없습니다. 대신 내려받으세요.",
   "Open {path}": "{path} 열기",
 
   // ---- PC dialog ----

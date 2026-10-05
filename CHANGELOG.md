@@ -23,6 +23,8 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   `claude --dangerously-skip-permissions`): an Arguments field in the new session/tab
   dialog, kept per agent.
   ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
+- Settings → Appearance → Sidebar rows: one row per workspace (the default) or one per agent,
+  which brings back the agents in a workspace's other tabs; a row opens its own pane.
 
 ### Changed
 - The browser shows one pane at a time, so a split made there only looked like a new pane

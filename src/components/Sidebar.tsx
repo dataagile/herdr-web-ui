@@ -388,9 +388,9 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     moveVisible(workspaceId, event.key === "ArrowUp" ? -1 : 1);
   };
 
-  const renderWorkspace = (workspace: WorkspaceInfo, visiblePanes: PaneInfo[], scope = "") => {
-    if (visiblePanes.length === 0) return null;
-    const pane = currentPane(workspace, visiblePanes);
+  // One row of a workspace. By workspace it stands for all `visiblePanes` and shows the current
+  // one; with `perPane` it is that one pane's own row, and the others have rows of their own.
+  const renderRow = (workspace: WorkspaceInfo, visiblePanes: PaneInfo[], scope: string, pane: PaneInfo, perPane: boolean, first: boolean) => {
     const fullTitle = paneTitle(pane);
     const displayTitle = displayPaneTitle(pane);
     // Under a folder header the row names the workspace. By workspace it names the workspace
@@ -398,14 +398,14 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     const folder = cwdBasename(pane.cwd);
     const said = folder === displayTitle || folder === workspace.label;
     const place = byFolder ? workspace.label : placeLine(workspace.label === displayTitle ? "" : workspace.label, said ? "" : folder);
-    const selected = visiblePanes.some((candidate) => candidate.pane_id === selectedPaneId);
+    const selected = perPane ? pane.pane_id === selectedPaneId : visiblePanes.some((candidate) => candidate.pane_id === selectedPaneId);
     const editingPane = editingPaneId === pane.pane_id;
     const editingWorkspace = editingWorkspaceId === `${scope}\u0000${workspace.workspace_id}`;
     const menuOpen = menu?.workspace.workspace_id === workspace.workspace_id && menu.scope === scope;
     return (
       <li
         className={`workspace pane-item${dragWorkspaceId === workspace.workspace_id ? " is-dragging" : ""}${selected ? " is-selected" : ""}`}
-        key={workspace.workspace_id}
+        key={perPane ? `${workspace.workspace_id}\u0000${pane.pane_id}` : workspace.workspace_id}
         onDragOver={(event) => {
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";
@@ -479,7 +479,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
                 />
               ) : (
                 <span className="pane-meta">
-                  {pane.restore_error ? <RestoreErrorBadge reason={pane.restore_error} /> : <StatusBadge status={rollupStatus(visiblePanes.map((candidate) => candidate.agent_status))} />}
+                  {pane.restore_error ? <RestoreErrorBadge reason={pane.restore_error} /> : <StatusBadge status={perPane ? pane.agent_status : rollupStatus(visiblePanes.map((candidate) => candidate.agent_status))} />}
                   <BackgroundBadge count={(pane as HerdrPane).background_tasks} />
                   {place && <span className="pane-subtitle">{place}</span>}
                 </span>
@@ -492,9 +492,16 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
             </button>
           </div>
         </div>
-        {inlineError?.workspaceId === workspace.workspace_id && <p className="sidebar-inline-error" role="alert">{inlineError.message}</p>}
+        {first && inlineError?.workspaceId === workspace.workspace_id && <p className="sidebar-inline-error" role="alert">{inlineError.message}</p>}
       </li>
     );
+  };
+
+  const renderWorkspace = (workspace: WorkspaceInfo, visiblePanes: PaneInfo[], scope = "") => {
+    if (visiblePanes.length === 0) return null;
+    if (settings.sidebarRows !== "pane") return renderRow(workspace, visiblePanes, scope, currentPane(workspace, visiblePanes), false, true);
+    // the pane id joins the scope so each row's menu and workspace rename are its own
+    return <Fragment key={workspace.workspace_id}>{visiblePanes.map((pane, index) => renderRow(workspace, visiblePanes, `${scope}\u0001${pane.pane_id}`, pane, true, index === 0))}</Fragment>;
   };
 
   return (

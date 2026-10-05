@@ -24,7 +24,7 @@ import { CompletionTracker } from "./completion.ts";
 import { freeAgentName } from "./agent-name.ts";
 import { SHELL_AGENTS, isShellAgentKind, shellAgentExecutable, startShellAgent } from "./shell-agent.ts";
 import { createDirectory, listDirectories } from "./directories.ts";
-import { FileWriteError, fileResponse, locateFile, writeTextFile } from "./file-view.ts";
+import { FileWriteError, MAX_TEXT_WRITE_BYTES, fileResponse, locateFile, writeTextFile } from "./file-view.ts";
 import {
   agentManifests,
   agentPrompt,
@@ -1113,6 +1113,12 @@ export function createServer(
 
       if (pathname === "/api/fs/write") {
         if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        // recusa cedo pelo content-length: sem isso um corpo enorme seria lido e parseado inteiro
+        // antes da checagem de tamanho em writeTextFile
+        const declared = Number(request.headers.get("content-length") ?? "");
+        if (Number.isFinite(declared) && declared > MAX_TEXT_WRITE_BYTES + 64 * 1024) {
+          return jsonResponse({ error: { code: "too_large", message: `content exceeds ${MAX_TEXT_WRITE_BYTES} bytes` } }, 413);
+        }
         const paneId = url.searchParams.get("pane_id");
         let cwd: string | null = null;
         if (paneId) {
@@ -1160,6 +1166,11 @@ export function createServer(
         if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
         if (typeof payload.path !== "string") return badRequest("invalid_path", "path must be a string");
         if (typeof payload.name !== "string" || payload.name.trim() === "") return badRequest("invalid_name", "name must be a folder name");
+        // a relative parent with no pane to read it from must not fall back to the server's own cwd
+        const requested = payload.path.trim();
+        if (base === undefined && requested !== "" && requested !== "~" && !requested.startsWith("~/") && !isAbsolute(requested)) {
+          return badRequest("invalid_cwd", "the pane a relative path belongs to is gone");
+        }
         const made = createDirectory(payload.path, payload.name, base);
         if ("error" in made) {
           const status = made.error === "exists" ? 409 : made.error === "not_found" ? 404 : made.error === "invalid_name" ? 400 : 500;

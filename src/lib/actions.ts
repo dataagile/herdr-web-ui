@@ -3,6 +3,7 @@
  * to the header, the sidebar, the command palette and the settings dialog, so a
  * keyboard shortcut, a palette row and a sidebar button all run the same code.
  */
+import type { SplitDirection } from "../../shared/protocol.ts";
 
 export type PaneView = "chat" | "terminal";
 
@@ -32,4 +33,9 @@ export interface AppActions {
   refresh: () => void;
   /** null without a pane: the files of its folder, each opened in the file viewer */
   openFiles: (() => void) | null;
+  /**
+   * Splits the selected pane (same folder), optionally starting an agent in the new pane.
+   * A shell split is `agent` null.
+   */
+  splitPane: (direction: SplitDirection, agent?: { kind: string; args?: string[] } | null) => void;
 }

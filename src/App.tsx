@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Bell, FolderOpen, Lock, Menu, MessageSquare, PanelBottom, PanelLeft, PanelRight, Plus, Search, SquareTerminal, X } from "lucide-react";
 
-import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane } from "../shared/protocol.ts";
-import { ApiError, authenticate, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, pairDevice, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
+import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, SplitDirection } from "../shared/protocol.ts";
+import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, pairDevice, sendTestPush, signOut, splitPane, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { PaneTerminal } from "./components/PaneTerminal.tsx";
@@ -41,9 +41,13 @@ import { FileViewer } from "./components/FileViewer.tsx";
 import { OpenFileContext } from "./lib/filePaths.ts";
 import { useFileViewer } from "./lib/useFileViewer.ts";
 import { useT } from "./lib/i18n.ts";
+import { knownStatus } from "./lib/status.ts";
 import { useScreenWakeLock } from "./lib/wakeLock.ts";
 import { watchDrawerSwipe } from "./lib/edgeSwipe.ts";
 import { Droplet } from "./components/Droplet.tsx";
+import { RowMenu } from "./components/RowMenu.tsx";
+import { SplitMenu } from "./components/SplitMenu.tsx";
+import { ConfirmDialog } from "./components/ConfirmDialog.tsx";
 import { dropletAllows, endedTurn, showDroplet, trackTurn, type DropletKind } from "./lib/droplet.ts";
 import { playAlertSound, unlockAlertSound, type AlertSoundKind } from "./lib/alertSound.ts";
 
@@ -202,6 +206,13 @@ export function App() {
   const [newSessionOpen, setNewSessionOpen] = useState(false);
   // the dialog makes a tab in this workspace instead of a workspace, while set
   const [newTab, setNewTab] = useState<NewTabTarget | null>(null);
+  // the header's Split menu, anchored to its button
+  const [splitAnchor, setSplitAnchor] = useState<HTMLElement | null>(null);
+  // a pane's context menu (right-click or long-press), opened at the pointer
+  const [paneMenu, setPaneMenu] = useState<{ anchor: HTMLElement; point: { top: number; left: number } } | null>(null);
+  const [confirmClosePane, setConfirmClosePane] = useState(false);
+  const pressTimer = useRef<number | null>(null);
+  const pressPoint = useRef<{ x: number; y: number } | null>(null);
   const [connected, setConnected] = useState(false);
   const [outputStopped, setOutputStopped] = useState(false);
   // the connection's role: the server's role-ack confirms it (no UI control today)
@@ -586,6 +597,52 @@ export function App() {
     document.title = selectedTitle ? `${selectedTitle} · herdr` : APP_TITLE;
   }, [selectedTitle]);
 
+  // a split of the selected pane: same folder, the new pane focused; an agent may start in it
+  const doSplit = useCallback(async (direction: SplitDirection, agent?: { kind: string; args?: string[] } | null): Promise<void> => {
+    if (selectedPaneId === null) return;
+    const cwd = selectedPane?.foreground_cwd ?? selectedPane?.cwd ?? null;
+    try {
+      const result = await splitPane(selectedPaneId, direction, cwd, selectedMachineId, agent ?? undefined);
+      if (!result.agent_started && result.error?.message) setError(result.error.message);
+      else selectPane(result.pane_id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }, [selectedPaneId, selectedPane, selectedMachineId, selectPane]);
+
+  const doClosePane = useCallback(async (): Promise<void> => {
+    if (selectedPaneId === null) return;
+    try { await closePane(selectedPaneId, selectedMachineId); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  }, [selectedPaneId, selectedMachineId]);
+
+  // an agent still at work would die with the pane: ask first
+  const requestClosePane = useCallback((): void => {
+    const status = knownStatus(selectedPane?.agent_status);
+    if (status === "working" || status === "blocked") setConfirmClosePane(true);
+    else void doClosePane();
+  }, [selectedPane, doClosePane]);
+
+  const cancelPress = useCallback((): void => {
+    if (pressTimer.current !== null) { window.clearTimeout(pressTimer.current); pressTimer.current = null; }
+    pressPoint.current = null;
+  }, []);
+
+  const onPanePointerDown = (event: ReactPointerEvent<HTMLElement>): void => {
+    // a long press on a touch screen opens the same menu a right-click does
+    if (selectedPaneId === null || event.pointerType !== "touch") return;
+    cancelPress();
+    pressPoint.current = { x: event.clientX, y: event.clientY };
+    const anchor = event.currentTarget;
+    const point = { top: event.clientY, left: event.clientX };
+    pressTimer.current = window.setTimeout(() => { pressTimer.current = null; setPaneMenu({ anchor, point }); }, 500);
+  };
+
+  const onPanePointerMove = (event: ReactPointerEvent<HTMLElement>): void => {
+    const start = pressPoint.current;
+    if (pressTimer.current !== null && start && (Math.abs(event.clientX - start.x) > 8 || Math.abs(event.clientY - start.y) > 8)) cancelPress();
+  };
+
   const actions = useMemo<AppActions>(
     () => ({
       selectPane,
@@ -644,8 +701,9 @@ export function App() {
       enableNotifications: bellVisible && bell.run === enableNotifications ? () => void enableNotifications() : null,
       refresh: () => void load(),
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
+      splitPane: (direction, agent) => void doSplit(direction, agent),
     }),
-    [selectPane, selectedPaneId, selectedMachineId, setView, view, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.run, enableNotifications, load],
+    [selectPane, selectedPaneId, selectedMachineId, setView, view, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.run, enableNotifications, load, doSplit],
   );
 
   useShortcuts(actions, locked === false);
@@ -730,6 +788,19 @@ export function App() {
           </button>
         )}
         {selectedPane && (
+          <button
+            type="button"
+            className="btn btn-ghost split-button"
+            title={t("Split")}
+            aria-haspopup="menu"
+            aria-expanded={splitAnchor !== null}
+            onClick={(event) => setSplitAnchor(splitAnchor === null ? event.currentTarget : null)}
+          >
+            <PanelRight aria-hidden="true" />
+            <span className="header-desktop-only">{t("Split")}</span>
+          </button>
+        )}
+        {selectedPane && (
           <div className="segmented view-switch" role="group" aria-label="Pane view">
             <button type="button" aria-pressed={view === "chat"} onClick={() => setView("chat")} title={t("Chat transcript (⌘⇧J)")}>
               <MessageSquare />
@@ -796,7 +867,15 @@ export function App() {
         {snapshot && selectedPane && selectedWorkspace && (
           <TabStrip snapshot={snapshot} workspace={selectedWorkspace} selectedPane={selectedPane} onSelectPane={selectPane} onNewTab={() => actions.openNewTab()} />
         )}
-        <main className="terminal-host">
+        <main
+          className="terminal-host"
+          onContextMenu={selectedPaneId !== null ? (event) => { event.preventDefault(); setPaneMenu({ anchor: event.currentTarget, point: { top: event.clientY, left: event.clientX } }); } : undefined}
+          onPointerDown={onPanePointerDown}
+          onPointerMove={onPanePointerMove}
+          onPointerUp={cancelPress}
+          onPointerCancel={cancelPress}
+          onPointerLeave={cancelPress}
+        >
           <PaneTerminal
             key={selectedMachineId}
             paneId={selectedPane?.restore_error ? null : selectedPaneId}
@@ -849,6 +928,30 @@ export function App() {
       {viewing !== null && <MachineContext.Provider value={viewing.machineId}>
         <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={closeFile} onOpen={(path) => openFile({ ...viewing, path })} />
       </MachineContext.Provider>}
+      {splitAnchor && <SplitMenu anchor={splitAnchor} onClose={() => setSplitAnchor(null)} onSplit={(target) => { setSplitAnchor(null); void doSplit(target.direction, target.agent); }} />}
+      {paneMenu && (
+        <RowMenu
+          anchor={paneMenu.anchor}
+          point={paneMenu.point}
+          align="start"
+          title={t("Pane")}
+          onClose={() => setPaneMenu(null)}
+          items={[
+            { id: "split-right", label: t("Split right"), icon: PanelRight, run: () => void doSplit("right") },
+            { id: "split-down", label: t("Split down"), icon: PanelBottom, run: () => void doSplit("down") },
+            { id: "close-pane", label: t("Close pane"), icon: X, danger: true, divider: true, run: requestClosePane },
+          ]}
+        />
+      )}
+      {confirmClosePane && (
+        <ConfirmDialog
+          title={t("Close this pane?")}
+          body={t("An agent in it is still at work, and stops with the pane.")}
+          confirmLabel={t("Close pane")}
+          onConfirm={async () => { setConfirmClosePane(false); await doClosePane(); }}
+          onClose={() => setConfirmClosePane(false)}
+        />
+      )}
       <CommandPalette key={selectedMachineId} open={paletteOpen} onClose={() => setPaletteOpen(false)} snapshot={snapshot} selectedPaneId={selectedPaneId} view={view} actions={actions} />
     </div></MachineContext.Provider>
   );

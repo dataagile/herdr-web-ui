@@ -2163,3 +2163,16 @@ it("creates a folder over /api/workspace/directories and refuses bad input", asy
     expect((await fetch(`${base()}/api/workspace/directories`)).status).toBe(200);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+it("splits a pane over /api/pane/split and refuses a bad direction", async () => {
+  const created = await workspaceCreate({ cwd: tmpdir(), label: "herdr-web-ui-test-split" });
+  try {
+    const response = await fetch(`${base()}/api/pane/split`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pane_id: created.root_pane.pane_id, direction: "right" }) });
+    expect(response.status).toBe(200);
+    const body = await response.json() as { pane_id: string; agent_started: boolean };
+    expect(body.agent_started).toBe(false);
+    expect(body.pane_id).not.toBe(created.root_pane.pane_id);
+    const bad = await fetch(`${base()}/api/pane/split`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pane_id: created.root_pane.pane_id, direction: "sideways" }) });
+    expect(bad.status).toBe(400);
+  } finally { await workspaceClose(created.workspace.workspace_id); }
+});

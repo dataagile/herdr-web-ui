@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import * as api from "./api.ts";
-import type { CreateWorktreeRequest, OpenWorktreeRequest, RemoveWorktreeRequest } from "../../shared/protocol.ts";
+import type { CreateWorktreeRequest, OpenWorktreeRequest, RemoveWorktreeRequest, SplitDirection } from "../../shared/protocol.ts";
 export const MachineContext = createContext("local");
 export const useMachineId = () => useContext(MachineContext);
 /** Bound functions retain their owner across an async upload or a fast PC switch. */
@@ -28,6 +28,7 @@ export function useMachineApi() {
     fetchAgentKinds: () => api.fetchAgentKinds(id),
     fetchDirectories: (path: string, hidden: boolean, files = false, pane: string | null = null) => api.fetchDirectories(path, hidden, id, files, pane),
     createDirectory: (path: string, name: string, pane: string | null = null) => api.createDirectory(path, name, id, pane),
+    splitPane: (pane: string, direction: SplitDirection, cwd: string | null, agent?: { kind: string; args?: string[] }) => api.splitPane(pane, direction, cwd, id, agent),
     fetchFileInfo: (path: string, pane: string | null) => api.fetchFileInfo(path, pane, id),
     fileUrl: (path: string, pane: string | null, download = false) => api.fileUrl(path, pane, id, download),
     writeFile: (path: string, pane: string | null, content: string) => api.writeFile(path, pane, content, id),

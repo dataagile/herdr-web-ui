@@ -21,6 +21,8 @@ import type {
   RemoveWorktreeRequest,
   SessionSnapshot,
   SlashCommand,
+  SplitDirection,
+  SplitResult,
   TabCreated,
   UsageReport,
   WorkspaceCreated,
@@ -317,6 +319,20 @@ export async function createDirectory(path: string, name: string, machineId = "l
   const query = paneId ? `?${new URLSearchParams({ pane_id: paneId }).toString()}` : "";
   const response = await sendJson(`${machinePath(machineId, "workspace/directories")}${query}`, "POST", { path, name });
   return ((await response.json()) as { path: string }).path;
+}
+
+/**
+ * POST /api/pane/split: a new pane beside the given one (same folder), optionally starting an
+ * agent in it. Resolves with the new pane's id; `agent_started:false` carries an error.
+ */
+export async function splitPane(paneId: string, direction: SplitDirection, cwd: string | null, machineId = "local", agent?: { kind: string; args?: string[] }): Promise<SplitResult> {
+  const response = await sendJson(machinePath(machineId, "pane/split"), "POST", {
+    pane_id: paneId,
+    direction,
+    ...(cwd ? { cwd } : {}),
+    ...(agent ? { agent } : {}),
+  });
+  return (await response.json()) as SplitResult;
 }
 
 function fileQuery(path: string, paneId: string | null): string {

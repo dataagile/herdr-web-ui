@@ -37,6 +37,7 @@ import {
   paneScrollInfo,
   paneSelectionRead,
   paneRename,
+  paneSplit,
   paneSendKeys,
   paneSendText,
   ping,
@@ -1578,6 +1579,41 @@ export function createServer(
           // every client refetches and the pane leaves sidebars on its own
           await paneClose(payload.pane_id);
           return jsonResponse({ ok: true });
+        } catch (error) {
+          return errorResponse(error);
+        }
+      }
+
+      if (pathname === "/api/pane/split") {
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        let payload: { pane_id?: unknown; direction?: unknown; cwd?: unknown; agent?: AgentPayload | null };
+        try {
+          payload = (await request.json()) as typeof payload;
+        } catch {
+          return badRequest("invalid_json", "request body must be JSON");
+        }
+        if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
+        if (typeof payload.pane_id !== "string" || payload.pane_id.trim() === "") return badRequest("missing_pane_id", "pane_id is required");
+        if (payload.direction !== "right" && payload.direction !== "down") return badRequest("invalid_direction", "direction must be right or down");
+        const agent = payload.agent === null ? undefined : payload.agent;
+        const fault = agentFault(agent);
+        if (fault !== null) return badRequest("invalid_agent", fault);
+        // starting an agent can take a minute; Bun's default idle timeout is shorter
+        if (agent) bunServer.timeout(request, 75);
+        try {
+          // a split with no cwd keeps the calling pane's folder, as herdr's own agent guide asks
+          let cwd: string | null;
+          if (typeof payload.cwd === "string") {
+            cwd = expandedDirectory(payload.cwd);
+            if (cwd === null) return badRequest("invalid_cwd", "cwd must be an existing directory");
+          } else {
+            try { cwd = (await paneContext(payload.pane_id)).cwd; } catch { cwd = null; }
+          }
+          const split = await paneSplit({ targetPaneId: payload.pane_id, direction: payload.direction, cwd, focus: true });
+          const paneId = split.pane.pane_id;
+          // herdr emits pane.created -> session-changed, so the UI refetches and the new pane shows
+          if (!agent) return jsonResponse({ pane_id: paneId, agent_started: false });
+          return jsonResponse({ pane_id: paneId, ...(await agentLaunch(paneId, agent)) });
         } catch (error) {
           return errorResponse(error);
         }

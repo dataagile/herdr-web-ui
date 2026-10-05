@@ -12,6 +12,18 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   content, Save and Discard, Mod+S to save, and a prompt before closing with unsaved changes.
   A file past 2 MB, or anything that is not text, stays read-only.
   ([#1](https://github.com/dataagile/herdr-web-ui/pull/1) by @tbc-joaovitor)
+- The folder browser (New workspace/tab's Directory and the Files dialog) can create a folder:
+  a New folder button, a name field, and Create, which steps into the folder it just made.
+  Empty names, separators and `.`/`..` are refused, and an existing name answers clearly.
+  ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
+- Split panes from the browser: a Split menu beside New tab picks the edge (right or down)
+  and opens a shell or an agent there; a pane's right-click menu (or a long press) does the
+  same and closes the pane, asking first when an agent in it is still at work.
+  ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
+- An agent starts with extra command-line arguments (`opencode --auto`,
+  `claude --dangerously-skip-permissions`): an Arguments field in the new session/tab
+  dialog, kept per agent.
+  ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
 
 ## [0.3.49] - 2026-10-04
 

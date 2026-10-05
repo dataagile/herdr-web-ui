@@ -407,6 +407,15 @@ export interface FileWriteRequest {
   content: string;
 }
 
+/** POST /api/pane/split: the edge a new pane takes, and what herdr made of it. */
+export type SplitDirection = "right" | "down";
+
+export interface SplitResult {
+  pane_id: string;
+  agent_started: boolean;
+  error?: { code: string; message: string };
+}
+
 export interface AgentKind {
   kind: string;
   label: string;

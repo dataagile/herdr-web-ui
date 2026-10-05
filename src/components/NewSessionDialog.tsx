@@ -6,6 +6,7 @@ import "./NewSessionDialog.css";
 import type { AgentKind } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";
 import { AgentPicker, rememberAgent, rememberedAgent } from "./AgentPicker.tsx";
+import { parseAgentArgs, rememberAgentArgs, rememberedAgentArgs } from "../lib/agentArgs.ts";
 import { DirectoryBrowser } from "./DirectoryBrowser.tsx";
 import { useMachineApi, useMachineId } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
@@ -39,6 +40,7 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
   const { createTab, createWorkspace, fetchAgentKinds } = useMachineApi();
   const [agents, setAgents] = useState<AgentKind[]>([]);
   const [agentKind, setAgentKind] = useState(rememberedAgent);
+  const [args, setArgs] = useState("");
   const [cwd, setCwd] = useState(defaultCwd ?? "");
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
@@ -59,6 +61,7 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
     setBrowsing(false);
     const stored = rememberedAgent();
     setAgentKind(stored);
+    setArgs(rememberedAgentArgs(stored));
     let cancelled = false;
     void fetchAgentKinds()
       .then((next) => {
@@ -100,7 +103,9 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
     setError(null);
     try {
       rememberAgent(agentKind);
-      const agent = agentKind ? { kind: agentKind } : null;
+      rememberAgentArgs(agentKind, args);
+      const parsed = parseAgentArgs(args);
+      const agent = agentKind ? { kind: agentKind, ...(parsed.length > 0 ? { args: parsed } : {}) } : null;
       // a tab keeps the workspace's folder, which the dialog shows and does not ask for
       const result = tab
         ? await createTab({ workspace_id: tab.workspaceId, cwd: tab.cwd, label: name.trim() || null, agent })
@@ -138,8 +143,23 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
         <div className="modal-body">
           <div className="field">
             <span className="field-label" id="new-session-agent">{t("Agent")}</span>
-            <AgentPicker ref={firstFieldRef} agents={agents} value={agentKind} disabled={fieldsDisabled} labelledBy="new-session-agent" onChange={setAgentKind} />
+            <AgentPicker ref={firstFieldRef} agents={agents} value={agentKind} disabled={fieldsDisabled} labelledBy="new-session-agent" onChange={(kind) => { setAgentKind(kind); setArgs(rememberedAgentArgs(kind)); }} />
           </div>
+          {agentKind !== "" && (
+            <label className="field">
+              <span className="field-label">{t("Arguments")}</span>
+              <input
+                className="input"
+                value={args}
+                disabled={fieldsDisabled}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={t("e.g. --auto")}
+                onChange={(event) => setArgs(event.target.value)}
+              />
+              <span className="field-hint">{t("Extra flags for the agent. Remembered per agent.")}</span>
+            </label>
+          )}
           {tab ? (
             <div className="field">
               <span className="field-label">{t("Directory")}</span>

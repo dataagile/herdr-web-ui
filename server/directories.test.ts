@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { listDirectories, MAX_DIRECTORY_ENTRIES } from "./directories.ts";
+import { createDirectory, listDirectories, MAX_DIRECTORY_ENTRIES } from "./directories.ts";
 
 describe("listDirectories", () => {
   const roots: string[] = [];
@@ -39,5 +39,32 @@ describe("listDirectories", () => {
     const listing = listDirectories(root)!;
     expect(listing.directories).toHaveLength(MAX_DIRECTORY_ENTRIES);
     expect(listing.truncated).toBe(true);
+  });
+});
+
+describe("createDirectory", () => {
+  const roots: string[] = [];
+  afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
+  const temp = () => { const root = mkdtempSync(join(tmpdir(), "herdr-mkdir-")); roots.push(root); return root; };
+
+  it("makes one folder inside the parent and answers its path", () => {
+    const root = temp();
+    expect(createDirectory(root, "nova")).toEqual({ path: join(root, "nova") });
+    expect(listDirectories(root)!.directories).toContain("nova");
+  });
+
+  it("trims the name, and refuses separators, dot names and an empty one", () => {
+    const root = temp();
+    expect(createDirectory(root, "  spaced  ")).toEqual({ path: join(root, "spaced") });
+    for (const name of ["", "   ", ".", "..", "a/b", "a\\b", "x\0y"]) {
+      expect(createDirectory(root, name)).toEqual({ error: "invalid_name" });
+    }
+  });
+
+  it("refuses a missing parent and a name already there", () => {
+    const root = temp();
+    mkdirSync(join(root, "here"));
+    expect(createDirectory(join(root, "nope"), "x")).toEqual({ error: "not_found" });
+    expect(createDirectory(root, "here")).toEqual({ error: "exists" });
   });
 });

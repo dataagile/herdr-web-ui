@@ -31,6 +31,10 @@ export interface RowMenuItem {
 
 interface Props {
   anchor: HTMLElement;
+  /** drawn above the items, inside the popover/sheet (a split menu's direction toggle) */
+  header?: ReactNode;
+  /** opens here instead of under the anchor (a right-click at the cursor) */
+  point?: { top: number; left: number };
   /** the menu's accessible name, and the sheet's title */
   title: string;
   subtitle?: string;
@@ -47,7 +51,7 @@ const POPOVER_ITEMS = '[role="menuitem"]';
 // the sheet is modal: its Cancel is one of the stops
 const SHEET_ITEMS = '.row-sheet-item, .row-sheet-cancel';
 
-export function RowMenu({ anchor, title, subtitle, items, align = "end", onClose }: Props) {
+export function RowMenu({ anchor, header, point, title, subtitle, items, align = "end", onClose }: Props) {
   const t = useT();
   const [sheet] = useState(() => window.matchMedia(SHEET_QUERY).matches);
   const surface = useRef<HTMLDivElement>(null);
@@ -64,11 +68,14 @@ export function RowMenu({ anchor, title, subtitle, items, align = "end", onClose
     if (!menu || !anchor.isConnected) { onClose(); return; }
     const rect = anchor.getBoundingClientRect();
     placedAt.current = { top: rect.top, left: rect.left };
-    const left = Math.max(EDGE, Math.min(align === "start" ? rect.left : rect.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - EDGE));
-    const below = rect.bottom + GAP;
-    const top = below + menu.offsetHeight + EDGE <= window.innerHeight ? below : Math.max(EDGE, rect.top - GAP - menu.offsetHeight);
+    const desiredLeft = point ? point.left : align === "start" ? rect.left : rect.right - menu.offsetWidth;
+    const left = Math.max(EDGE, Math.min(desiredLeft, window.innerWidth - menu.offsetWidth - EDGE));
+    const below = point ? point.top : rect.bottom + GAP;
+    const top = point
+      ? Math.max(EDGE, Math.min(below, window.innerHeight - menu.offsetHeight - EDGE))
+      : (below + menu.offsetHeight + EDGE <= window.innerHeight ? below : Math.max(EDGE, rect.top - GAP - menu.offsetHeight));
     setPlace({ top, left });
-  }, [align, anchor, onClose, sheet]);
+  }, [align, anchor, onClose, point, sheet]);
 
   useEffect(() => {
     const first = surface.current?.querySelector<HTMLElement>(sheet ? SHEET_ITEMS : POPOVER_ITEMS);
@@ -150,6 +157,7 @@ export function RowMenu({ anchor, title, subtitle, items, align = "end", onClose
             <span className="row-sheet-title">{title}</span>
             {subtitle && <span className="row-sheet-subtitle">{subtitle}</span>}
           </div>
+          {header}
           {items.map((item) => (
             <button key={item.id} type="button" className={`row-sheet-item${item.danger ? " is-danger" : ""}${item.divider ? " has-divider" : ""}`} aria-current={item.current ? "true" : undefined} onMouseDown={keepFocus} onClick={() => run(item)}>
               {item.glyph ?? <item.icon aria-hidden="true" />}
@@ -165,6 +173,7 @@ export function RowMenu({ anchor, title, subtitle, items, align = "end", onClose
 
   return createPortal(
     <div ref={surface} className="menu row-menu" role="menu" aria-label={title} style={place ?? { visibility: "hidden" }} onKeyDown={onKeyDown} onBlur={onBlur}>
+      {header}
       {items.map((item) => (
         <Fragment key={item.id}>
           {item.divider && <span className="row-menu-divider" role="separator" />}

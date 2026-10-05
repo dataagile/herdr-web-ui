@@ -24,7 +24,7 @@ import { CompletionTracker } from "./completion.ts";
 import { freeAgentName } from "./agent-name.ts";
 import { SHELL_AGENTS, isShellAgentKind, shellAgentExecutable, startShellAgent } from "./shell-agent.ts";
 import { listDirectories } from "./directories.ts";
-import { fileResponse, locateFile } from "./file-view.ts";
+import { FileWriteError, fileResponse, locateFile, writeTextFile } from "./file-view.ts";
 import {
   agentManifests,
   agentPrompt,
@@ -1108,6 +1108,31 @@ export function createServer(
         // several files end in that name: the viewer lists them to choose from
         if ("candidates" in found) return jsonResponse({ error: { code: "ambiguous_path", message: "several files have that name", candidates: found.candidates } }, 409);
         return pathname === "/api/fs/stat" ? jsonResponse(found.info) : fileResponse(found.info, url.searchParams.get("download") === "1");
+      }
+
+      if (pathname === "/api/fs/write") {
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        const paneId = url.searchParams.get("pane_id");
+        let cwd: string | null = null;
+        if (paneId) {
+          try { cwd = (await paneContext(paneId)).cwd; } catch { /* an absolute path still writes */ }
+        }
+        let payload: { path?: unknown; content?: unknown };
+        try {
+          payload = (await request.json()) as typeof payload;
+        } catch {
+          return badRequest("invalid_json", "request body must be JSON");
+        }
+        if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
+        if (typeof payload.path !== "string" || payload.path.trim() === "") return badRequest("invalid_path", "path is required");
+        if (typeof payload.content !== "string") return badRequest("invalid_content", "content must be a string");
+        try {
+          return jsonResponse(writeTextFile(payload.path, cwd, payload.content));
+        } catch (error) {
+          // a refusal the viewer can read (not a file, not text, too large) is its own envelope
+          if (error instanceof FileWriteError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
+          return errorResponse(error);
+        }
       }
 
       if (pathname === "/api/workspace/directories") {

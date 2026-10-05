@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, existsSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { createServer } from "./index.ts";
-import type { AgentKind, AgentStatus, ApiError, HealthAuth, PushKey, RemoteAccess, SessionSnapshot, PaneReadResult, UsageReport, WorkspaceCreated, WorktreeListing, WorktreeOpened, WorktreeRemoved } from "../shared/protocol.ts";
+import type { AgentKind, AgentStatus, ApiError, FileInfo, HealthAuth, PushKey, RemoteAccess, SessionSnapshot, PaneReadResult, UsageReport, WorkspaceCreated, WorktreeListing, WorktreeOpened, WorktreeRemoved } from "../shared/protocol.ts";
 import { HerdrUpdater } from "./herdr-update.ts";
 import type { HerdrUpdateStatus } from "../shared/update.ts";
 import { UsageService } from "./usage.ts";
@@ -2131,4 +2131,21 @@ it("refuses cross-origin changes while allowing same-origin and CLI requests", a
       expect(response.status).toBe(200);
     }
   } finally { instance.stop(); await workspaceClose(created.workspace.workspace_id); rmSync(root, { recursive: true, force: true }); }
+});
+
+it("edits a text file over /api/fs/write, and refuses what it must not touch", async () => {
+  const root = mkdtempSync(join(tmpdir(), "herdr-fs-write-"));
+  const post = (body: unknown) => fetch(`${base()}/api/fs/write`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    const file = join(root, "notes.txt");
+    writeFileSync(file, "before");
+    const saved = await post({ path: file, content: "after" });
+    expect(saved.status).toBe(200);
+    expect(await saved.json() as FileInfo).toMatchObject({ path: file, name: "notes.txt", kind: "text", size: 5 });
+    expect(readFileSync(file, "utf8")).toBe("after");
+    // a file that is not there, a body without content, and a GET are each their own refusal
+    expect((await post({ path: join(root, "missing.txt"), content: "x" })).status).toBe(404);
+    expect((await post({ path: file })).status).toBe(400);
+    expect((await fetch(`${base()}/api/fs/write`)).status).toBe(400);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

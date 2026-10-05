@@ -290,6 +290,14 @@ export const JA: Record<string, string> = {
   "Close file": "ファイルを閉じる",
   "No readable file at this path.": "このパスに読み取り可能なファイルはありません。",
   "The file could not be opened.": "ファイルを開けませんでした。",
+  "Edit": "編集",
+  "Save": "保存",
+  "Saving…": "保存中…",
+  "Discard unsaved changes?": "保存していない変更を破棄しますか？",
+  "Unsaved changes": "未保存の変更",
+  "Only a text file can be edited here.": "ここではテキストファイルのみ編集できます。",
+  "The file could not be saved.": "ファイルを保存できませんでした。",
+  "This file is too large to edit here; download it instead.": "このファイルは大きすぎてここでは編集できません。代わりにダウンロードしてください。",
   "Open {path}": "{path} を開く",
 
   // ---- PC dialog ----

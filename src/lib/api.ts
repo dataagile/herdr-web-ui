@@ -7,6 +7,7 @@ import type {
   CreateWorkspaceRequest,
   DirectoryListing,
   FileInfo,
+  FileWriteRequest,
   HealthAuth,
   InteractivePrompt,
   OmoActivity,
@@ -333,6 +334,18 @@ export async function fetchFileInfo(path: string, paneId: string | null, machine
 /** GET /api/fs/file: the file itself, streamed (ranges for media); `download` saves it instead. */
 export function fileUrl(path: string, paneId: string | null, machineId = "local", download = false): string {
   return machinePath(machineId, `fs/file?${fileQuery(path, paneId)}${download ? "&download=1" : ""}`);
+}
+
+/**
+ * POST /api/fs/write: replaces a text file's contents (the file must already exist and be
+ * text; the fresh FileInfo comes back). ApiError 415 `not_text`, 413 `too_large`, 404
+ * `not_found` on the refusals.
+ */
+export async function writeFile(path: string, paneId: string | null, content: string, machineId = "local"): Promise<FileInfo> {
+  const query = paneId ? `?${new URLSearchParams({ pane_id: paneId }).toString()}` : "";
+  const request: FileWriteRequest = { path, content };
+  const response = await sendJson(`${machinePath(machineId, "fs/write")}${query}`, "POST", request);
+  return (await response.json()) as FileInfo;
 }
 
 export type { CreateTabRequest, CreateWorkspaceRequest } from "../../shared/protocol.ts";

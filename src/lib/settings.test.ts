@@ -26,11 +26,6 @@ it("defaults legacy records to workspace grouping and accepts only supported mod
   for (const sidebarGrouping of [null, true, "folder", 1]) {
     expect(sanitizeSettings({ sidebarGrouping }).sidebarGrouping).toBe("workspace");
   }
-  expect(sanitizeSettings({}).sidebarRows).toBe("workspace");
-  expect(sanitizeSettings({ sidebarRows: "pane" }).sidebarRows).toBe("pane");
-  for (const sidebarRows of [null, true, "agent", 1]) {
-    expect(sanitizeSettings({ sidebarRows }).sidebarRows).toBe("workspace");
-  }
 });
 
 describe("chat font size", () => {

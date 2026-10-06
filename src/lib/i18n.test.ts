@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { JA } from "./i18n.ja.ts";
 import { KO } from "./i18n.ko.ts";
+import { PT } from "./i18n.pt.ts";
 import { ZH } from "./i18n.zh.ts";
 import { resolveLanguage, translate } from "./i18n.ts";
 
@@ -76,7 +77,7 @@ function labelMapKeys(): string[] {
   ];
 }
 
-const DICTIONARIES = { Korean: KO, Japanese: JA, Chinese: ZH };
+const DICTIONARIES = { Korean: KO, Japanese: JA, Chinese: ZH, Portuguese: PT };
 
 describe.each(Object.entries(DICTIONARIES))("%s dictionary", (_name, dictionary) => {
   const inCode = keysInCode();
@@ -103,7 +104,7 @@ describe.each(Object.entries(DICTIONARIES))("%s dictionary", (_name, dictionary)
 
   it("is not just the English repeated", () => {
     // names and key caps read the same in every language; Chinese UIs leave "Shell" and "Agent" in English
-    const sameOnPurpose = new Set(["PC {name}", "Control C", "Control D", "Control Z", "Shift Tab", "Shell", "Agent", "Catppuccin"]);
+    const sameOnPurpose = new Set(["PC {name}", "Control C", "Control D", "Control Z", "Shift Tab", "Shell", "Agent", "Catppuccin", "Terminal", "Chat", "Host", "Branch", "Zoom", "Plugins", "Skills", "Workflows", "Auto", "zoom {n}/{total}", "{n} skill", "{n} skills", "{n} tokens"]);
     const same = Object.entries(dictionary).filter(([en, text]) => en === text && /[a-z]{3}/i.test(en) && !sameOnPurpose.has(en));
     expect(same.map(([en]) => en)).toEqual([]);
   });
@@ -116,6 +117,7 @@ describe("translate", () => {
     expect(translate("ko", "not a key", { x: 1 })).toBe("not a key");
     expect(translate("ja", "Settings")).toBe(JA["Settings"]!);
     expect(translate("zh", "Settings")).toBe(ZH["Settings"]!);
+    expect(translate("pt", "Settings")).toBe("Configurações");
     expect(translate("en", "{a} and {b}", { a: 1 })).toBe("1 and {b}");
   });
 
@@ -130,6 +132,9 @@ describe("translate", () => {
     expect(resolveLanguage("system", ["en-US", "zh-CN", "ko"])).toBe("en");
     expect(resolveLanguage("system", ["zh-TW"])).toBe("zh");
     expect(resolveLanguage("ja", ["zh-CN"])).toBe("ja");
+    expect(resolveLanguage("system", ["pt-BR", "en-US"])).toBe("pt");
+    expect(resolveLanguage("system", ["pt-PT"])).toBe("pt");
+    expect(resolveLanguage("system", ["pt"])).toBe("pt");
   });
 
   it("respects English priority regardless of region or later preferences", () => {

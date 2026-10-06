@@ -53,6 +53,43 @@ async function until(check: () => boolean | Promise<boolean>, label: string): Pr
   }
 }
 
+/** The Agents section lists a pane once an agent is reported in it, never a plain shell, and live. */
+async function checkAgentsSection(browser: Awaited<ReturnType<typeof chromium.launch>>, origin: string): Promise<void> {
+  const cwd = join(root, "agents");
+  mkdirSync(cwd);
+  const created = await workspaceCreate({ cwd, label: "herdr-web-ui-test-agents" });
+  workspaces.push(created.workspace.workspace_id);
+  const agentPane = created.root_pane.pane_id;
+  const shellPane = (await herdrRpc<{ pane: { pane_id: string } }>("pane.split", { target_pane_id: agentPane, direction: "down", focus: false, cwd })).pane.pane_id;
+  await herdrRpc("pane.report_agent", { pane_id: agentPane, source: "manual", agent: "claude", state: "idle" });
+  const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+  try {
+    const row = (paneId: string) => page.locator(`.agent-item:has(.agent-select[title^="${paneId} —"])`);
+    await page.goto(`${origin}/?pane=${encodeURIComponent(shellPane)}`);
+    await page.locator(".conn-live").waitFor();
+    await row(agentPane).waitFor();
+    assert.equal(await row(shellPane).count(), 0, "a plain shell has no Agents row");
+    assert.equal(await row(agentPane).locator(".badge").count(), 1, "the agent row shows its state");
+    await row(agentPane).locator(".agent-select").click();
+    await page.locator(`.agent-item.is-selected .agent-select[title^="${agentPane} —"]`).waitFor();
+    assert.equal(await page.locator(".agent-item.is-selected").count(), 1, "only the selected pane's Agents row is highlighted");
+    // an Agents row renames its pane in place, through its own menu
+    const renamed = "agents-row-renamed";
+    await row(agentPane).hover();
+    await row(agentPane).locator(".row-menu-toggle").click();
+    await page.getByRole("menuitem", { name: "Rename pane", exact: true }).click();
+    const input = row(agentPane).getByRole("textbox", { name: "Pane name" });
+    await input.fill(renamed);
+    await input.press("Enter");
+    await row(agentPane).locator(".pane-title", { hasText: renamed }).waitFor();
+    await until(async () => (await sessionSnapshot()).panes.find((pane) => pane.pane_id === agentPane)?.label === renamed, "the pane label reaches herdr");
+    // an agent detected in the shell later shows up in the next snapshot, with no reload
+    await herdrRpc("pane.report_agent", { pane_id: shellPane, source: "manual", agent: "codex", state: "idle" });
+    await row(shellPane).waitFor();
+    console.log("PASS the Agents section lists agent panes, not shells, and picks up a new agent live");
+  } finally { await page.context().close(); }
+}
+
 try {
   const panes: string[] = [];
   for (const suffix of ["a", "b"]) {
@@ -353,6 +390,7 @@ try {
   await checkNotificationStartup(browser, origin, paneA, paneB);
   await checkMobileViewport(browser, origin, paneB);
   await checkMobileTabs(browser, origin);
+  await checkAgentsSection(browser, origin);
   await checkDefaultView(browser, origin);
   await checkComposerReconnect(browser, origin, paneB);
   await checkDroplet(browser, origin);
@@ -728,7 +766,7 @@ try {
   await childRow.locator(".row-menu-toggle").click();
   const childMenu = page.getByRole("menu");
   await childMenu.waitFor();
-  assert.deepEqual(await childMenu.getByRole("menuitem").allTextContents(), ["Rename workspace", "Rename pane", "New tab", "Close", "Delete worktree checkout…"], "a worktree row's menu");
+  assert.deepEqual(await childMenu.getByRole("menuitem").allTextContents(), ["Rename workspace", "New tab", "Close", "Delete worktree checkout…"], "a worktree row's menu");
   await childMenu.getByRole("menuitem", { name: "Delete worktree checkout…", exact: true }).click();
   const deleteConfirm = page.getByRole("alertdialog");
   await deleteConfirm.waitFor();

@@ -681,23 +681,6 @@ button {
   display: contents;
 }
 
-/* Split sits beside New tab; like New tab it hides on a phone, where the palette and the
-   pane's long-press menu carry it */
-.split-button {
-  flex: 0 0 auto;
-}
-
-.split-button[aria-expanded="true"] {
-  background: var(--accent-tint);
-  color: var(--text-strong);
-}
-
-@media (max-width: 768px) {
-  .app-header .split-button {
-    display: none;
-  }
-}
-
 .header-meta {
   display: inline-flex;
   align-items: center;

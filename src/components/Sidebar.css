@@ -39,7 +39,8 @@
 .tree-state-empty .tree-state { padding: 0; }
 
 /* one row per workspace, as herdr's Spaces sidebar; the row's menu and strip reach its panes */
-.workspace-list {
+.workspace-list,
+.agent-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -210,12 +211,14 @@
   list-style: none;
 }
 
-.pane-item {
+.pane-item,
+.agent-item {
   position: relative;
   border-radius: var(--radius-md);
 }
 
-.pane-row {
+.pane-row,
+.agent-row {
   position: relative;
   display: flex;
   align-items: center;
@@ -228,13 +231,17 @@
 
 .pane-item:hover .pane-row,
 .pane-item:focus-within .pane-row,
-.pane-item.is-selected .pane-row {
+.pane-item.is-selected .pane-row,
+.agent-item:hover .agent-row,
+.agent-item:focus-within .agent-row,
+.agent-item.is-selected .agent-row {
   background: var(--bg-hover);
 }
 
 /* the selected rail: a straight bar outside the rounded box, not an inset shadow that
    would follow the corners */
-.pane-item.is-selected .pane-row::before {
+.pane-item.is-selected .pane-row::before,
+.agent-item.is-selected .agent-row::before {
   content: "";
   position: absolute;
   top: var(--space-3);
@@ -245,7 +252,8 @@
   background: var(--accent);
 }
 
-.pane-select {
+.pane-select,
+.agent-select {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -276,7 +284,8 @@
   color: var(--text-strong);
 }
 
-.pane-item.is-selected .agent-mark-holder {
+.pane-item.is-selected .agent-mark-holder,
+.agent-item.is-selected .agent-mark-holder {
   border-color: var(--accent);
   background: var(--accent-tint);
 }
@@ -376,6 +385,9 @@
 .pane-item:hover .pane-actions,
 .pane-item:focus-within .pane-actions,
 .pane-item.is-selected .pane-actions,
+.agent-item:hover .pane-actions,
+.agent-item:focus-within .pane-actions,
+.agent-item.is-selected .pane-actions,
 .pane-actions:has([aria-expanded="true"]) {
   opacity: 1;
 }
@@ -440,7 +452,44 @@
 @media (prefers-reduced-motion: reduce) {
   .workspace,
   .pane-row,
+  .agent-row,
   .pane-actions {
     transition: none;
   }
+}
+
+/* the Spaces and Agents sections, as herdr's own sidebar: a small caps header with a fold chevron */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sidebar-section-header:hover,
+.sidebar-section-header:focus-visible {
+  color: var(--text-strong);
+}
+
+.sidebar-section-header > svg {
+  flex: 0 0 auto;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+/* an agent row is a compact workspace row (three quarters of --row-h, so compact density
+   shrinks it too): no grip, no + */
+.agent-item .agent-row {
+  height: auto;
+  min-height: calc(var(--row-h) * 3 / 4);
 }

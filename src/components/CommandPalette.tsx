@@ -1,6 +1,6 @@
 import { useMachineId } from "../lib/machineContext.tsx";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { Bell, FolderOpen, LockKeyhole, MessageSquarePlus, Monitor, PanelBottom, PanelLeft, PanelRight, Plus, RefreshCw, Settings, SunMoon, SwitchCamera, X } from "lucide-react";
+import { Bell, FolderOpen, LockKeyhole, MessageSquarePlus, Monitor, PanelLeft, Plus, RefreshCw, Settings, SunMoon, SwitchCamera, X } from "lucide-react";
 
 import "./CommandPalette.css";
 
@@ -104,10 +104,6 @@ export function CommandPalette({ open, onClose, snapshot, selectedPaneId, view, 
     { id: "new", label: t("New workspace"), icon: MessageSquarePlus, shortcut: "new-session", run: actions.openNewSession },
     // in the selected pane's workspace: nothing to add a tab to without one
     ...(selectedPaneId !== null ? [{ id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab() }] : []),
-    ...(selectedPaneId !== null ? [
-      { id: "split-right", label: t("Split right"), icon: PanelRight, run: () => actions.splitPane("right") },
-      { id: "split-down", label: t("Split down"), icon: PanelBottom, run: () => actions.splitPane("down") },
-    ] : []),
     { id: "view", label: t(view === "chat" ? "Switch to terminal" : "Switch to chat"), icon: SwitchCamera, shortcut: "toggle-view", run: actions.toggleView },
     { id: "sidebar", label: t("Toggle sidebar"), icon: PanelLeft, shortcut: "toggle-sidebar", run: actions.toggleSidebar },
     { id: "theme", label: t("Toggle theme"), icon: SunMoon, run: actions.toggleTheme },

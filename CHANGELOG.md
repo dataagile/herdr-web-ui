@@ -16,14 +16,20 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   a New folder button, a name field, and Create, which steps into the folder it just made.
   Empty names, separators and `.`/`..` are refused, and an existing name answers clearly.
   ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
-- Split panes from the browser: a Split menu beside New tab picks the edge (right or down)
-  and opens a shell or an agent there; a pane's right-click menu (or a long press) does the
-  same and closes the pane, asking first when an agent in it is still at work.
-  ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
+- A pane's right-click menu (or a long press) and a New tab button in the header open a new
+  tab, and the menu closes the pane, asking first when an agent in it is still at work.
+  ([#3](https://github.com/dataagile/herdr-web-ui/pull/3),
+  [#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 - An agent starts with extra command-line arguments (`opencode --auto`,
   `claude --dangerously-skip-permissions`): an Arguments field in the new session/tab
   dialog, kept per agent.
   ([#3](https://github.com/dataagile/herdr-web-ui/pull/3) by @tbc-joaovitor)
+- The sidebar mirrors herdr's own: under each PC, a Spaces section (one row per workspace,
+  named after it, with the roll-up state, how many agents it holds, and a `+` that opens a
+  new tab in that workspace) and an Agents section (one compact row per agent pane across all
+  its workspaces and tabs, a plain shell excluded; its `⋯` renames the pane). Each section
+  folds, remembered per PC.
+  ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Fixed
 - The folder browser's POST no longer resolves a relative parent against the server's own

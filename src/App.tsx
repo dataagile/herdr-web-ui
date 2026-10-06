@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Bell, Ellipsis, FolderOpen, Lock, Menu, MessageSquare, PanelBottom, PanelLeft, PanelRight, Plus, Search, SquareTerminal, X } from "lucide-react";
+import { Bell, Ellipsis, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
-import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, SplitDirection } from "../shared/protocol.ts";
-import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, pairDevice, sendTestPush, signOut, splitPane, type HealthInfo } from "./lib/api.ts";
+import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane } from "../shared/protocol.ts";
+import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, pairDevice, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { PaneTerminal } from "./components/PaneTerminal.tsx";
@@ -48,7 +48,6 @@ import { knownStatus } from "./lib/status.ts";
 import { useScreenWakeLock } from "./lib/wakeLock.ts";
 import { watchDrawerSwipe } from "./lib/edgeSwipe.ts";
 import { Droplet } from "./components/Droplet.tsx";
-import { SplitMenu } from "./components/SplitMenu.tsx";
 import { ConfirmDialog } from "./components/ConfirmDialog.tsx";
 import { dropletAllows, endedTurn, showDroplet, trackTurn, type DropletKind } from "./lib/droplet.ts";
 import { playAlertSound, unlockAlertSound, type AlertSoundKind } from "./lib/alertSound.ts";
@@ -221,8 +220,6 @@ export function App() {
   const [newSessionOpen, setNewSessionOpen] = useState(false);
   // the dialog makes a tab in this workspace instead of a workspace, while set
   const [newTab, setNewTab] = useState<NewTabTarget | null>(null);
-  // the header's Split menu, anchored to its button
-  const [splitAnchor, setSplitAnchor] = useState<HTMLElement | null>(null);
   // a pane's context menu (right-click or long-press), opened at the pointer
   const [paneMenu, setPaneMenu] = useState<{ anchor: HTMLElement; point: { top: number; left: number } } | null>(null);
   const [confirmClosePane, setConfirmClosePane] = useState(false);
@@ -618,19 +615,6 @@ export function App() {
     document.title = selectedTitle ? `${selectedTitle} · herdr` : APP_TITLE;
   }, [selectedTitle]);
 
-  // a split of the selected pane: same folder, the new pane focused; an agent may start in it
-  const doSplit = useCallback(async (direction: SplitDirection, agent?: { kind: string; args?: string[] } | null): Promise<void> => {
-    if (selectedPaneId === null) return;
-    const cwd = selectedPane?.foreground_cwd ?? selectedPane?.cwd ?? null;
-    try {
-      const result = await splitPane(selectedPaneId, direction, cwd, selectedMachineId, agent ?? undefined);
-      if (!result.agent_started && result.error?.message) setError(result.error.message);
-      else selectPane(result.pane_id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    }
-  }, [selectedPaneId, selectedPane, selectedMachineId, selectPane]);
-
   const doClosePane = useCallback(async (): Promise<void> => {
     if (selectedPaneId === null) return;
     try { await closePane(selectedPaneId, selectedMachineId); }
@@ -723,9 +707,8 @@ export function App() {
       enableNotifications: bellVisible && bell.run === enableNotifications ? () => void enableNotifications() : null,
       refresh: () => void load(),
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
-      splitPane: (direction, agent) => void doSplit(direction, agent),
     }),
-    [selectPane, selectedPaneId, selectedMachineId, setView, view, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.run, enableNotifications, load, doSplit],
+    [selectPane, selectedPaneId, selectedMachineId, setView, view, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.run, enableNotifications, load],
   );
 
   useShortcuts(actions, locked === false);
@@ -826,16 +809,9 @@ export function App() {
           <><Brand /><span className="machine-context-name">{selectedMachine?.name ?? selectedMachineId}</span></>
         )}
         {selectedPane && (
-          <button
-            type="button"
-            className="btn btn-ghost split-button"
-            title={t("Split")}
-            aria-haspopup="menu"
-            aria-expanded={splitAnchor !== null}
-            onClick={(event) => setSplitAnchor(splitAnchor === null ? event.currentTarget : null)}
-          >
-            <PanelRight aria-hidden="true" />
-            <span className="header-desktop-only">{t("Split")}</span>
+          <button type="button" className="btn btn-ghost" title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
+            <Plus aria-hidden="true" />
+            <span className="header-desktop-only">{t("New tab")}</span>
           </button>
         )}
         {selectedPane && (
@@ -983,7 +959,6 @@ export function App() {
       {viewing !== null && <MachineContext.Provider value={viewing.machineId}>
         <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={closeFile} onOpen={(path) => openFile({ ...viewing, path })} />
       </MachineContext.Provider>}
-      {splitAnchor && <SplitMenu anchor={splitAnchor} onClose={() => setSplitAnchor(null)} onSplit={(target) => { setSplitAnchor(null); void doSplit(target.direction, target.agent); }} />}
       {paneMenu && (
         <RowMenu
           anchor={paneMenu.anchor}
@@ -992,8 +967,7 @@ export function App() {
           title={t("Pane")}
           onClose={() => setPaneMenu(null)}
           items={[
-            { id: "split-right", label: t("Split right"), icon: PanelRight, run: () => void doSplit("right") },
-            { id: "split-down", label: t("Split down"), icon: PanelBottom, run: () => void doSplit("down") },
+            { id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab() },
             { id: "close-pane", label: t("Close pane"), icon: X, danger: true, divider: true, run: requestClosePane },
           ]}
         />

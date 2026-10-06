@@ -73,6 +73,16 @@ async function checkAgentsSection(browser: Awaited<ReturnType<typeof chromium.la
     await row(agentPane).locator(".agent-select").click();
     await page.locator(`.agent-item.is-selected .agent-select[title^="${agentPane} —"]`).waitFor();
     assert.equal(await page.locator(".agent-item.is-selected").count(), 1, "only the selected pane's Agents row is highlighted");
+    // an Agents row renames its pane in place, through its own menu
+    const renamed = "agents-row-renamed";
+    await row(agentPane).hover();
+    await row(agentPane).locator(".row-menu-toggle").click();
+    await page.getByRole("menuitem", { name: "Rename pane", exact: true }).click();
+    const input = row(agentPane).getByRole("textbox", { name: "Pane name" });
+    await input.fill(renamed);
+    await input.press("Enter");
+    await row(agentPane).locator(".pane-title", { hasText: renamed }).waitFor();
+    await until(async () => (await sessionSnapshot()).panes.find((pane) => pane.pane_id === agentPane)?.label === renamed, "the pane label reaches herdr");
     // an agent detected in the shell later shows up in the next snapshot, with no reload
     await herdrRpc("pane.report_agent", { pane_id: shellPane, source: "manual", agent: "codex", state: "idle" });
     await row(shellPane).waitFor();

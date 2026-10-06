@@ -385,6 +385,9 @@
 .pane-item:hover .pane-actions,
 .pane-item:focus-within .pane-actions,
 .pane-item.is-selected .pane-actions,
+.agent-item:hover .pane-actions,
+.agent-item:focus-within .pane-actions,
+.agent-item.is-selected .pane-actions,
 .pane-actions:has([aria-expanded="true"]) {
   opacity: 1;
 }
@@ -485,9 +488,8 @@
 }
 
 /* an agent row is a compact workspace row (three quarters of --row-h, so compact density
-   shrinks it too): no grip, no actions */
+   shrinks it too): no grip, no + */
 .agent-item .agent-row {
   height: auto;
   min-height: calc(var(--row-h) * 3 / 4);
-  padding-right: var(--space-2);
 }

@@ -27,7 +27,7 @@ export type VoiceEngine = "server" | "browser";
 /** why the last dictation failed, short enough to key a translated message on */
 export type VoiceError = "insecure" | "permission" | "no_mic" | "not_configured" | "provider_auth" | "provider" | "network" | "too_large" | "no_speech";
 /** why the mic button is off: the setting, no https, or neither a server key nor browser speech */
-export type VoiceUnavailable = "disabled" | "insecure" | "not_configured" | "unsupported";
+export type VoiceUnavailable = "disabled" | "insecure" | "not_configured" | "url_refused" | "unsupported";
 /** `take` numbers each press-to-text run, so a late answer never lands on another run's words */
 export interface VoiceText { text: string; phase: "raw" | "polished"; take: number }
 
@@ -839,7 +839,7 @@ export function useVoiceInput(options: VoiceInputOptions): VoiceInput {
   else if (status === undefined) unavailableReason = null;
   else if (status?.configured && mime) engine = "server";
   else if (Speech) engine = "browser";
-  else unavailableReason = status?.configured ? "unsupported" : "not_configured";
+  else unavailableReason = status?.configured ? "unsupported" : status?.error ? "url_refused" : "not_configured";
 
   const [state, setState] = useState<VoiceState>("idle");
   const [elapsedMs, setElapsed] = useState(0);

@@ -11,11 +11,11 @@ import { LANGUAGE_NAMES, LANGUAGE_SETTINGS, useT } from "../lib/i18n.ts";
 import { FONT_FAMILY_MAX_CHARS, sanitizeFontFamily } from "../lib/fontFamily.ts";
 import type { UpdatesModel } from "../lib/updates.ts";
 import type { MachineSettings } from "../../shared/machines.ts";
-import { fetchRemoteAccess, fetchVoiceStatus, machineRequest, saveVoiceConfig } from "../lib/api.ts";
+import { fetchRemoteAccess, fetchVoiceStatus, machineRequest } from "../lib/api.ts";
 import { isLoopbackHost, phonePlan } from "../lib/phone.ts";
 import type { HealthAuth, ProviderUsage, RemoteAccess } from "../../shared/protocol.ts";
 import type { VoiceStatus } from "../../shared/voice.ts";
-import { VOICE_CONFIG_EVENT } from "../lib/voice.ts";
+import { VoiceServerCard } from "./VoiceServerCard.tsx";
 import { moveInOrder, orderProviders, PROVIDER_MARK, PROVIDER_NAME, usageName, useUsage } from "../lib/usage.ts";
 import { AgentMark } from "./AgentMark.tsx";
 import { DevicesPanel } from "./DevicesPanel.tsx";
@@ -36,9 +36,9 @@ export interface SettingsDialogProps {
   onEnableNotifications: () => Promise<boolean>;
 }
 
-function Toggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+function Toggle({ checked, label, disabled, onChange }: { checked: boolean; label: string; disabled?: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <button type="button" className="settings-toggle" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}>
+    <button type="button" className="settings-toggle" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}>
       <span className="settings-toggle-thumb" />
     </button>
   );
@@ -165,9 +165,8 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, herdrVer
 
   // Voice input: the server only says whether it holds a key; the key typed here is never kept past a save
   const [voice, setVoice] = useState<VoiceStatus | null>(null);
-  const [voiceKey, setVoiceKey] = useState("");
-  const [voiceBusy, setVoiceBusy] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
+  // the server never tidies while it has no Tidy model, whatever these switches say
+  const tidyOff = voice?.polish_enabled === false;
   const [micDenied, setMicDenied] = useState(false);
   useEffect(() => {
     if (open) fetchVoiceStatus().then(setVoice, () => setVoice(null));
@@ -180,19 +179,6 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, herdrVer
     try { (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach((track) => track.stop()); }
     catch { setMicDenied(true); }
   };
-  const changeVoiceKey = async (api_key: string | null) => {
-    setVoiceBusy(true);
-    try {
-      // the save answers the new status itself: no second request that could fail after it
-      const saved = await saveVoiceConfig({ api_key });
-      setVoiceKey("");
-      setVoiceError(null);
-      setVoice(saved);
-      window.dispatchEvent(new Event(VOICE_CONFIG_EVENT));
-    } catch (e) { setVoiceError(e instanceof Error ? e.message : String(e)); }
-    finally { setVoiceBusy(false); }
-  };
-
   const updatePcSettings = async (patch: Partial<MachineSettings>) => {
     try { setPcSettings(await machineRequest<MachineSettings>("/settings", "PATCH", patch)); setPcSettingsError(null); }
     catch (e) { setPcSettingsError(e instanceof Error ? e.message : String(e)); }
@@ -325,52 +311,20 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, herdrVer
               </div>
             </div>
 
-            <div className="voice-group">
-              <h4 className="voice-group-title">{t("OpenAI API key")}</h4>
-              <div className="voice-group-body">
-                {voice && (
-                  <p className="settings-hint voice-status">
-                    {voice.configured ? t(voice.source === "env" ? "OpenAI key set by HERDR_WEB_OPENAI_API_KEY" : "OpenAI key saved on this PC") : t("No OpenAI key: the browser's speech recognition is used")}
-                  </p>
-                )}
-                {voice && voice.source !== "env" && (
-                  <form className="voice-key" onSubmit={(event) => { event.preventDefault(); if (voiceKey.trim()) void changeVoiceKey(voiceKey.trim()); }}>
-                    <input
-                      className="input voice-key-input"
-                      type="password"
-                      value={voiceKey}
-                      placeholder="sk-..."
-                      aria-label={t("OpenAI API key")}
-                      autoComplete="off"
-                      spellCheck={false}
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      onChange={(event) => setVoiceKey(event.target.value)}
-                    />
-                    <button type="submit" className="btn voice-key-save" disabled={voiceBusy || !voiceKey.trim()}>{t("Save key")}</button>
-                    <button type="button" className="btn btn-ghost voice-key-remove" disabled={voiceBusy || !voice.configured} onClick={() => void changeVoiceKey(null)}>{t("Remove key")}</button>
-                  </form>
-                )}
-                {voiceError && <p className="settings-hint voice-error" role="alert">{voiceError}</p>}
-                <p className="settings-hint voice-privacy">
-                  {voice && !voice.configured
-                    ? t("Without a key the browser recognizes the speech: Chrome and Edge send the audio to Google or Microsoft. Nothing is recorded until you press the mic.")
-                    : t("Audio is sent to OpenAI with your key. Nothing is recorded until you press the mic.")}
-                </p>
-              </div>
-            </div>
+            <VoiceServerCard voice={voice} onSaved={setVoice} />
 
             {settings.voiceInput && (
               <div className="voice-group">
                 <h4 className="voice-group-title">{t("Tidy dictated text")}</h4>
                 <div className="voice-group-body">
+                  {tidyOff && <p className="settings-hint voice-tidy-off">{t("Tidy is off: choose a Tidy model in Transcription server")}</p>}
                   <div className="settings-row">
                     <div><span className="settings-label">{t("In chat")}</span><span className="settings-description">{t("Drops fillers and fixes spacing; code and paths stay as spoken")}</span></div>
-                    <Toggle label={t("Tidy dictated text in chat")} checked={settings.voicePolishChat} onChange={(voicePolishChat) => update({ voicePolishChat })} />
+                    <Toggle label={t("Tidy dictated text in chat")} disabled={tidyOff} checked={settings.voicePolishChat} onChange={(voicePolishChat) => update({ voicePolishChat })} />
                   </div>
                   <div className="settings-row">
                     <div><span className="settings-label">{t("In the terminal")}</span><span className="settings-description">{t("Off keeps a command exactly as transcribed")}</span></div>
-                    <Toggle label={t("Tidy dictated text in the terminal")} checked={settings.voicePolishTerminal} onChange={(voicePolishTerminal) => update({ voicePolishTerminal })} />
+                    <Toggle label={t("Tidy dictated text in the terminal")} disabled={tidyOff} checked={settings.voicePolishTerminal} onChange={(voicePolishTerminal) => update({ voicePolishTerminal })} />
                   </div>
                 </div>
               </div>

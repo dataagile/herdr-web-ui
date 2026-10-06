@@ -77,6 +77,8 @@ describe("voice API", () => {
 
       const crossSite = await fetch(at("/api/voice/config"), { method: "PUT", headers: { "content-type": "application/json", "sec-fetch-site": "cross-site" }, body: JSON.stringify({ api_key: key }) });
       expect(crossSite.status).toBe(403);
+      const crossSiteModels = await fetch(at("/api/voice/models"), { method: "POST", headers: { "content-type": "application/json", "sec-fetch-site": "cross-site" }, body: "{}" });
+      expect(crossSiteModels.status).toBe(403);
       const saved = await fetch(at("/api/voice/config"), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ api_key: key }) });
       expect(saved.status).toBe(200);
       const status = await (await fetch(at("/api/voice"))).text();

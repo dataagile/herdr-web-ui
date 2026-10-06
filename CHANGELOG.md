@@ -8,6 +8,9 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- The sidebar footer (and the phone's drawer) ends with the build: `Data Agile Dev · v0.3.52 ·
+  <commit>`, with the herdr version and the build time in its tooltip. The commit comes from
+  `git rev-parse --short HEAD` at build time, and reads `dev` where Git cannot answer.
 - Voice input can use your own OpenAI-compatible transcription server: Settings → Voice input →
   Transcription server takes a Server URL and key, a **Test and list models** button that fills
   the Transcription and Tidy model lists (speech-to-text first), and a dictation language

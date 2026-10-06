@@ -7,6 +7,7 @@ import { describeProgress } from "../lib/bridgeProgress.ts";
 import { keepDismissed, noticeKey, readDismissed, waitingMachines, writeDismissed } from "../lib/machineNotice.ts";
 import type { AppActions } from "../lib/actions.ts";
 import { useInstallPrompt } from "../lib/install.ts";
+import { builtLabel, currentBuild, versionLine } from "../lib/buildInfo.ts";
 import { Sidebar } from "./Sidebar.tsx";
 import { NeedsInput } from "./NeedsInput.tsx";
 import { UsageMeters } from "./UsageMeters.tsx";
@@ -22,11 +23,12 @@ export const STATE_WORD: Readonly<Record<MachineState, string>> = {
   error: "Connection error",
 };
 
-interface Props { machines: Machine[]; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup(machine: Machine, update?: boolean): void }
+interface Props { herdrVersion: string | null; machines: Machine[]; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup(machine: Machine, update?: boolean): void }
 export function MachineSidebar(props: Props) {
   const t = useT();
   const { canInstall, installed, install, help } = useInstallPrompt();
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
+  const build = currentBuild();
   // no top bar: a workspace starts from its PC's header, and Add PC lives in Settings → Remote PCs
   return <div className="sidebar-shell">
     <div className="machine-list" aria-label={t("PCs and workspaces")}>
@@ -42,6 +44,7 @@ export function MachineSidebar(props: Props) {
         <button className="btn btn-ghost sidebar-footer-action" title={t("Settings (⌘⇧,)")} onClick={props.actions.openSettings}><Settings aria-hidden="true" />{t("Settings")}</button>
         <UsageMeters />
       </div>
+      <p className="sidebar-version" title={t("herdr {version} · build {date}", { version: props.herdrVersion ?? "—", date: builtLabel(build.built) ?? "—" })}>{versionLine(build)}</p>
     </footer>
   </div>;
 }

@@ -9,6 +9,9 @@ const xtermSource = normalizePath(buildXtermSource(fileURLToPath(new URL(".", im
 
 let revision: string | null = null;
 try { revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* non-Git build */ }
+// the sidebar footer's commit (components/MachineSidebar.tsx): short, and "dev" where Git cannot say
+let commit = "dev";
+try { commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim() || "dev"; } catch { /* non-Git build */ }
 
 // agentSvgMarks.ts carries LobeHub Icons paths (MIT): their notice ships with every built client
 const thirdPartyNotices: Plugin = {
@@ -22,6 +25,8 @@ export default defineConfig({
   plugins: [react(), thirdPartyNotices],
   define: {
     __APP_REVISION__: JSON.stringify(revision),
+    __APP_COMMIT__: JSON.stringify(commit),
+    __APP_BUILT__: JSON.stringify(new Date().toISOString()),
     __APP_VERSION__: JSON.stringify((JSON.parse(readFileSync("package.json", "utf8")) as { version: string }).version),
   },
   server: {

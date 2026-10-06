@@ -282,6 +282,7 @@ export const JA: Record<string, string> = {
   "Close pane": "ペインを閉じる",
   "Close this pane?": "このペインを閉じますか？",
   "An agent in it is still at work, and stops with the pane.": "このペインで作業中のエージェントはペインとともに停止します。",
+  "herdr {version} · build {date}": "herdr {version} · ビルド {date}",
   "absolute path or ~/…": "絶対パスまたは ~/…",
   "Name": "名前",
   "Optional workspace label": "ワークスペースのラベル (任意)",

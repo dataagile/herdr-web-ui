@@ -280,6 +280,7 @@ export const KO: Record<string, string> = {
   "Close pane": "패널 닫기",
   "Close this pane?": "이 패널을 닫을까요?",
   "An agent in it is still at work, and stops with the pane.": "이 패널에서 작업 중인 에이전트가 있으며, 패널과 함께 중지됩니다.",
+  "herdr {version} · build {date}": "herdr {version} · 빌드 {date}",
   "absolute path or ~/…": "절대 경로 또는 ~/…",
   "Name": "이름",
   "Optional workspace label": "워크스페이스 이름 (선택)",

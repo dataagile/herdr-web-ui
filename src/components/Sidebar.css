@@ -429,6 +429,19 @@
   min-width: 0;
 }
 
+/* the build this is, last line of the footer: quiet, in the mono face, and selectable for a bug report */
+.sidebar-version {
+  margin: 0;
+  padding: var(--space-1) var(--space-2) 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+
 .sidebar-install-help {
   margin: 0;
   padding: 0 var(--space-2) var(--space-1);

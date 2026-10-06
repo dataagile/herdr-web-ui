@@ -284,6 +284,7 @@ export const ZH: Record<string, string> = {
   "Close pane": "关闭面板",
   "Close this pane?": "关闭此面板？",
   "An agent in it is still at work, and stops with the pane.": "其中仍有代理在工作，将随面板一起停止。",
+  "herdr {version} · build {date}": "herdr {version} · 构建 {date}",
   "absolute path or ~/…": "绝对路径或 ~/…",
   "Name": "名称",
   "Optional workspace label": "工作区名称（可选）",

@@ -433,8 +433,14 @@ One set for both themes: the card is island black wherever it shows.
   sit under the row of the workspace on its main checkout, packed behind a hairline
   (`.worktree-children`), as herdr's Spaces sidebar keeps them; a worktree whose repository
   workspace is not open stays at the top level.
-- Footer holds the contextual **Install app** action and Settings with the plan meters beside it.
-  It carries no product name or version: the running versions are read in Settings.
+- Footer holds the contextual **Install app** action and Settings with the plan meters beside it,
+  and under them, last, the build line (`.sidebar-version`): `Data Agile Dev · v<app version> ·
+  <short commit>` in `--font-mono`, `--fs-xs`, `--text-dim`, one line, ellipsis, selectable. The
+  version is package.json's (`__APP_VERSION__`); the commit and the build time are written by
+  vite.config.ts (`git rev-parse --short HEAD`, `dev` where Git cannot answer; a bundle that lacks
+  them says `dev` too). Its tooltip reads `herdr <version> · build <date>`: the herdr of the PC in
+  front, and the build in the reader's own date format. The phone's drawer carries the same line.
+  The brand words are not translated; the tooltip is.
 
 ### Plan meters (`.usage*`)
 - Beside Settings, one button holding up to four chips (three and `+N` past that), one per

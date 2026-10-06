@@ -57,7 +57,7 @@ async function until(check: () => boolean | Promise<boolean>, label: string): Pr
 
 /** The Agents section lists a pane once an agent is reported in it, never a plain shell, and live. */
 async function checkAgentsSection(browser: Awaited<ReturnType<typeof chromium.launch>>, origin: string): Promise<void> {
-  const cwd = join(root, "agents");
+  const cwd = join(root, "roster") /* no a or b: the folder-filter check expects only a and b under root */;
   mkdirSync(cwd);
   const created = await workspaceCreate({ cwd, label: "herdr-web-ui-test-agents" });
   workspaces.push(created.workspace.workspace_id);

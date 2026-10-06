@@ -692,8 +692,8 @@ try {
     await createGate;
     await route.continue();
   });
-  await page.getByRole("button", { name: /^New workspace on / }).click();
-  const dialog = page.getByRole("dialog", { name: /^New workspace/ });
+  await page.getByRole("button", { name: /^New project on / }).click();
+  const dialog = page.getByRole("dialog", { name: /^New project/ });
   await dialog.getByLabel(/^Directory/).fill(root);
   await checkFolderFilter(page, dialog, () => createRequests);
   await dialog.getByLabel(/^Name/).fill("herdr-web-ui-test-browser-created");
@@ -837,11 +837,11 @@ try {
   assert.equal(await tabDialog.getByRole("button", { name: "Start", exact: true }).isDisabled(), false, "a reopened dialog is not left pending");
   await page.keyboard.press("Escape");
   await tabDialog.waitFor({ state: "hidden" });
-  // the PC's + is New workspace again, not a tab in the workspace the last dialog was for
-  await page.getByRole("button", { name: /^New workspace on / }).click();
-  await page.getByRole("dialog", { name: /^New workspace/ }).waitFor();
+  // the PC's + is New project again, not a tab in the workspace the last dialog was for
+  await page.getByRole("button", { name: /^New project on / }).click();
+  await page.getByRole("dialog", { name: /^New project/ }).waitFor();
   await page.keyboard.press("Escape");
-  await page.getByRole("dialog", { name: /^New workspace/ }).waitFor({ state: "hidden" });
+  await page.getByRole("dialog", { name: /^New project/ }).waitFor({ state: "hidden" });
   console.log("PASS a second tab is made from the row's menu, listed in a strip over the pane, and opened from it");
 
   // A tab is renamed and closed from the strip, as herdr's prefix+shift+t and prefix+shift+x.

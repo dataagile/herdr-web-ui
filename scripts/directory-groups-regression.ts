@@ -345,7 +345,7 @@ try {
     && response.request().postDataJSON().workspace_id === beta.workspaceId);
   await changeState(page, [{ selector: `${shared} .workspace:first-child ${paneSelector(beta.paneId)}` }],
     () => page.locator(itemSelector(beta.paneId)).getByRole("button", {
-      name: `Reorder workspace ${beta.label}`, exact: true,
+      name: `Reorder project ${beta.label}`, exact: true,
     }).press("Alt+ArrowUp"), "keyboard reorder moves beta ahead of alpha");
   assert.equal((await moveResponse).status(), 200);
   const reordered = await sessionSnapshot();

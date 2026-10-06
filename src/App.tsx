@@ -966,9 +966,9 @@ export function App() {
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
             </button>
             {selectedWorkspace && (
-              <button type="button" aria-pressed={historyShown} onClick={() => actions.openHistory()} title={t("Claude Code sessions of this project")}>
+              <button type="button" aria-pressed={historyShown} aria-label={t("History")} onClick={() => actions.openHistory()} title={t("Claude Code sessions of this project")}>
                 <History />
-                <span className="header-desktop-only">{t("History")}</span>
+                <span className="header-desktop-only header-history-label">{t("History")}</span>
               </button>
             )}
           </div>

@@ -20,6 +20,8 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   SSH answer "History is not available for this PC", as their bridges do not have it.
 - **Add PC** is back in the sidebar footer, above Install app and Settings, opening the same dialog
   as Settings → Remote PCs.
+- Brazilian Portuguese (Português, Brasil) UI language in Settings > Language; a browser set to
+  any `pt` tag picks it with Language on System.
 - A tab split in herdr shows all its panes side by side in the browser (from 1024px), laid out
   as herdr lays them, each with a thin header (agent, name, split, zoom, close) over its own live
   terminal; the focused pane has the amber edge and a click focuses it, here and in herdr.

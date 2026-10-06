@@ -210,16 +210,36 @@
   min-width: 0;
 }
 
-/* Voice input: the key field and its buttons share a row, the notes stay dim */
-.voice-key {
+/* Voice input: the transcription server's fields stack, one label over its control; buttons wrap */
+.voice-server {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.voice-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.voice-field .input {
+  width: 100%;
+  min-width: 0;
+}
+
+.voice-test,
+.voice-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
 }
 
-.voice-key-input {
-  flex: 1 1 auto;
-  min-width: 0;
+.settings-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .voice-error {

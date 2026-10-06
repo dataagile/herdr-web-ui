@@ -8,6 +8,14 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- Voice input can use your own OpenAI-compatible transcription server: Settings → Voice input →
+  Transcription server takes a Server URL and key, a **Test and list models** button that fills
+  the Transcription and Tidy model lists (speech-to-text first), and a dictation language
+  (auto-detect, or one sent to the server as `language`). After a test the Tidy list starts on
+  None: choose a Tidy model to turn it on, and with None the server never makes that call and the tidy switches are
+  disabled. A Server URL must be https (plain http only for this PC and private networks) with no
+  credentials, query or fragment, redirects are never followed, and a saved key is never sent to a
+  different server.
 - A text file in the file viewer can be edited in place and saved: an Edit button over the
   content, Save and Discard, Mod+S to save, and a prompt before closing with unsaved changes.
   A file past 2 MB, or anything that is not text, stays read-only.

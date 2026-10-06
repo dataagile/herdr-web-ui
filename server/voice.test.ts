@@ -84,6 +84,7 @@ describe("voice config", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({
       configured: false, source: null, base_url: "https://api.openai.com/v1", transcribe_model: "gpt-transcribe", polish_model: "gpt-6-luna",
+      polish_enabled: true, language: null,
     } satisfies VoiceStatus);
   });
 
@@ -291,5 +292,164 @@ describe("voice transcribe", () => {
       { type: "delta", text: "안녕" },
       { type: "error", code: "provider_error", message: "server_error" },
     ]);
+  });
+});
+
+const modelsOf = (voice: VoiceService, body: unknown) => call(voice, "/api/voice/models", { method: "POST", body: JSON.stringify(body) });
+
+describe("voice models", () => {
+  it("lists the ids of a typed server, deduped and sorted, with the typed key", async () => {
+    handler = () => Response.json({ data: [{ id: "gemma4-12b" }, { id: "whisper-ptbr" }, { id: "gemma4-12b" }, { id: "Alpha" }, { nope: 1 }] });
+    const response = await modelsOf(service(), { base_url: "http://127.0.0.1:4000/v1/", api_key: KEY });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ models: ["Alpha", "gemma4-12b", "whisper-ptbr"] });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.url).toBe("http://127.0.0.1:4000/v1/models");
+    expect(new Headers(requests[0]!.init.headers).get("authorization")).toBe(`Bearer ${KEY}`);
+    expect(requests[0]!.init.redirect).toBe("error");
+    expect(requests[0]!.init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("uses the saved key for the saved server, or when base_url is left out", async () => {
+    handler = () => Response.json({ data: [{ id: "a" }] });
+    const voice = service();
+    await put(voice, { api_key: KEY, base_url: "http://127.0.0.1:4000/v1" });
+    expect((await modelsOf(voice, {})).status).toBe(200);
+    expect((await modelsOf(voice, { base_url: "http://127.0.0.1:4000/v1/" })).status).toBe(200);
+    expect(requests.map((request) => new Headers(request.init.headers).get("authorization"))).toEqual([`Bearer ${KEY}`, `Bearer ${KEY}`]);
+  });
+
+  it("never sends the saved key to another base_url", async () => {
+    handler = () => Response.json({ data: [] });
+    const voice = service();
+    await put(voice, { api_key: KEY, base_url: "http://127.0.0.1:4000/v1" });
+    for (const base_url of ["http://127.0.0.1:9999/v1", "https://api.openai.com/v1", "http://attacker.invalid/v1"]) {
+      const response = await modelsOf(voice, { base_url });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: { code: "invalid_request" } });
+    }
+    expect(requests).toHaveLength(0);
+    // the env key follows the same rule: its server is the env's (or OpenAI's)
+    const fromEnv = service({ HERDR_WEB_OPENAI_API_KEY: KEY });
+    expect((await modelsOf(fromEnv, { base_url: "http://127.0.0.1:9999/v1" })).status).toBe(400);
+    expect(requests).toHaveLength(0);
+  });
+
+  it("asks for a key when none is saved or typed", async () => {
+    const response = await modelsOf(service(), {});
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: "voice_not_configured" } });
+  });
+
+  it("maps provider failures to their own codes and scrubs the key", async () => {
+    const cases: Array<[() => Response | Promise<Response>, string]> = [
+      [() => Response.json({ error: { message: `bad ${KEY}` } }, { status: 401 }), "models_unauthorized"],
+      [() => new Response(`forbidden ${KEY}`, { status: 403 }), "models_unauthorized"],
+      [() => new Response("nope", { status: 404 }), "models_unsupported"],
+      [() => new Response("<html>", { status: 200 }), "models_unsupported"],
+      [() => Response.json({ object: "list" }), "models_unsupported"],
+      [() => Response.json({ error: KEY }, { status: 502 }), "models_unreachable"],
+      [() => { throw new TypeError(`connect failed for ${KEY}`); }, "models_unreachable"],
+    ];
+    for (const [answer, code] of cases) {
+      handler = answer;
+      const response = await modelsOf(service(), { api_key: KEY });
+      const body = await response.text();
+      expect(response.status).toBe(502);
+      expect(JSON.parse(body)).toMatchObject({ error: { code } });
+      expect(body).not.toContain(KEY);
+    }
+  });
+
+  it("gives up on a server that does not answer", async () => {
+    handler = (_url, init) => new Promise<Response>((_resolve, reject) => {
+      init.signal!.addEventListener("abort", () => reject(init.signal!.reason));
+    });
+    const voice = new VoiceService({ stateDir, env: {}, modelsTimeoutMs: 30, async fetch(url, init) { return handler(url, init); } });
+    const response = await modelsOf(voice, { api_key: KEY });
+    expect(response.status).toBe(502);
+    expect(await response.json()).toMatchObject({ error: { code: "models_unreachable" } });
+  });
+
+  it("refuses a bad body and a wrong method", async () => {
+    expect((await modelsOf(service(), { api_key: "has space" })).status).toBe(400);
+    expect((await modelsOf(service(), { api_key: KEY, base_url: "http://example.com/v1" })).status).toBe(400);
+    const wrong = await call(service(), "/api/voice/models");
+    expect(wrong.status).toBe(405);
+    expect(wrong.headers.get("allow")).toBe("POST");
+  });
+});
+
+describe("voice language and tidy", () => {
+  it("sends the chosen language as language and as the only languages[], auto keeps today's", async () => {
+    const seen: Array<{ language: unknown; languages: unknown }> = [];
+    handler = (_url, init) => { const form = init.body as FormData; seen.push({ language: form.get("language"), languages: form.getAll("languages[]") }); return transcriptAnswer(); };
+    const voice = service({ HERDR_WEB_OPENAI_API_KEY: KEY });
+    await events(await transcribe(voice, clipForm({ language: "ja" })));
+    expect(voice.update({ language: "pt" }).language).toBe("pt");
+    await events(await transcribe(voice, clipForm({ language: "ja" })));
+    await events(await transcribe(voice, clipForm()));
+    expect(voice.update({ language: null }).language).toBeNull();
+    await events(await transcribe(voice, clipForm({ language: "ja" })));
+    expect(seen).toEqual([
+      { language: null, languages: ["ja", "en"] },
+      { language: "pt", languages: ["pt"] },
+      { language: "pt", languages: ["pt"] },
+      { language: null, languages: ["ja", "en"] },
+    ]);
+    expect(() => voice.update({ language: "portuguese" })).toThrow();
+  });
+
+  it("never calls chat/completions when Tidy is off, even if the clip asks for it", async () => {
+    handler = (url) => url.endsWith("/audio/transcriptions") ? transcriptAnswer() : Response.json({ choices: [{ message: { content: "tidy" } }] });
+    const voice = service({ HERDR_WEB_OPENAI_API_KEY: KEY });
+    expect(voice.update({ polish_model: "gemma4-12b", polish_enabled: false })).toMatchObject({ polish_enabled: false, polish_model: "gemma4-12b" });
+    const lines = await events(await transcribe(voice, clipForm({ polish: "1" })));
+    expect(lines.some((event) => event.type === "polished")).toBe(false);
+    expect(requests.map((request) => request.url)).toEqual(["https://api.openai.com/v1/audio/transcriptions"]);
+    // a voice.json written before the field existed has Tidy on; true brings it back
+    expect(JSON.parse(readFileSync(join(stateDir, "voice.json"), "utf8"))).toMatchObject({ polish_enabled: false });
+    expect(voice.update({ polish_enabled: true }).polish_enabled).toBe(true);
+    expect("polish_enabled" in JSON.parse(readFileSync(join(stateDir, "voice.json"), "utf8"))).toBe(false);
+    await events(await transcribe(voice, clipForm({ polish: "1" })));
+    expect(requests.at(-1)!.url).toBe("https://api.openai.com/v1/chat/completions");
+    expect(() => voice.update({ polish_enabled: "no" })).toThrow();
+  });
+
+  it("allows base_url without the key only when it does not move the key", async () => {
+    const voice = service();
+    voice.update({ api_key: KEY, base_url: "http://127.0.0.1:4000/v1" });
+    expect(voice.update({ base_url: "http://127.0.0.1:4000/v1/" }).base_url).toBe("http://127.0.0.1:4000/v1");
+    expect(() => voice.update({ base_url: null })).toThrow("Send api_key");
+    expect(voice.update({ base_url: null, api_key: KEY }).base_url).toBe("https://api.openai.com/v1");
+  });
+});
+
+describe("voice hardening", () => {
+  it("passes redirect: error on the transcription and the chat call", async () => {
+    handler = (url) => url.endsWith("/audio/transcriptions") ? transcriptAnswer() : Response.json({ choices: [{ message: { content: "tidy" } }] });
+    await events(await transcribe(service({ HERDR_WEB_OPENAI_API_KEY: KEY }), clipForm({ polish: "1" })));
+    expect(requests).toHaveLength(2);
+    expect(requests.map((request) => request.init.redirect)).toEqual(["error", "error"]);
+  });
+
+  it("refuses a base_url with credentials, a query, a fragment or plain http to a public host", async () => {
+    const voice = service();
+    for (const base_url of [
+      "https://user:pass@example.com/v1", "https://user@example.com/v1", "https://example.com/v1?key=1", "https://example.com/v1#x",
+      "http://example.com/v1", "http://8.8.8.8/v1", "http://172.32.0.1/v1", "http://100.128.0.1/v1", "http://192.169.0.1/v1", "http://localhost.evil.com/v1",
+    ]) {
+      const response = await put(voice, { base_url });
+      expect(response.status, base_url).toBe(400);
+      expect(await response.json()).toMatchObject({ error: { code: "invalid_request" } });
+    }
+  });
+
+  it("accepts https, loopback, private and tailnet addresses over http", async () => {
+    const voice = service();
+    for (const base_url of [
+      "https://example.com/v1", "http://localhost:4000/v1", "http://127.0.0.1/v1", "http://127.8.8.8/v1", "http://[::1]:4000/v1",
+      "http://10.0.25.1/v1", "http://172.16.0.1/v1", "http://172.31.255.1/v1", "http://192.168.1.2/v1", "http://100.64.0.1/v1", "http://100.114.70.4:4000/v1",
+    ]) expect((await put(voice, { base_url })).status, base_url).toBe(200);
   });
 });

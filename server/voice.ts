@@ -1,5 +1,5 @@
 /**
- * Voice input (shared/voice.ts): the browser's clip goes to the user's own OpenAI key and the
+ * Voice input (shared/voice.ts): the browser's clip goes to the user's own OpenAI-compatible server and key and the
  * transcript streams back as NDJSON. The key is read here and sent upstream only: no answer,
  * log line or error message carries it.
  */
@@ -8,15 +8,19 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
   VOICE_DEFAULTS, VOICE_FORM, VOICE_KEYWORD_MAX_CHARS, VOICE_KEYWORDS_MAX, VOICE_MAX_AUDIO_BYTES,
-  type VoiceErrorCode, type VoiceEvent, type VoiceMode, type VoiceStatus,
+  type VoiceErrorCode, type VoiceEvent, type VoiceMode, type VoiceModelsRequest, type VoiceModelsResponse, type VoiceStatus,
 } from "../shared/voice.ts";
 import { errorResponse, isJsonObject, jsonResponse } from "./http.ts";
 
 const ENV_KEY = "HERDR_WEB_OPENAI_API_KEY";
 const ENV_BASE_URL = "HERDR_WEB_OPENAI_BASE_URL";
-const FIELDS = ["api_key", "base_url", "transcribe_model", "polish_model"] as const;
+const FIELDS = ["api_key", "base_url", "transcribe_model", "polish_model", "language"] as const;
 type Field = typeof FIELDS[number];
-type VoiceFile = Partial<Record<Field, string>>;
+/** `polish_enabled` is only ever stored as false: a file without it (every older one) has Tidy on */
+type VoiceFile = Partial<Record<Field, string>> & { polish_enabled?: false };
+const UPDATE_FIELDS: readonly string[] = [...FIELDS, "polish_enabled"];
+const LANGUAGE_PATTERN = /^[a-z]{2}$/;
+const MODELS_TIMEOUT_MS = 10_000;
 
 /** without a language from the client: the app's first users dictate Korean with English code terms */
 const DEFAULT_LANGUAGE = "ko";
@@ -74,6 +78,8 @@ export interface VoiceServiceOptions {
   stateDir: string;
   env: Record<string, string | undefined>;
   fetch(url: string, init: RequestInit): Promise<Response>;
+  /** GET {base}/models gives up after this; tests shorten it */
+  modelsTimeoutMs?: number;
 }
 
 /** Owner-only, and written whole: a crash mid-write must not leave half a key file. */
@@ -84,10 +90,23 @@ function writeJsonPrivate(path: string, value: unknown): void {
   renameSync(temporary, path);
 }
 
+/** loopback, RFC 1918 and the tailnet's 100.64/10: where a key may travel in clear text */
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host === "localhost" || host === "::1") return true;
+  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host)?.slice(1).map(Number);
+  if (!octets) return false;
+  const [a, b] = octets as [number, number];
+  return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+}
+
 function baseUrlOf(value: string): string {
   let url: URL;
   try { url = new URL(value.trim()); } catch { throw invalid("base_url must be an http(s) URL"); }
   if (url.protocol !== "http:" && url.protocol !== "https:") throw invalid("base_url must be an http(s) URL");
+  if (url.username || url.password) throw invalid("base_url must not carry a user name or password: the key is sent as a Bearer header");
+  if (url.search || url.hash) throw invalid("base_url must not carry a query or a fragment");
+  if (url.protocol === "http:" && !isPrivateHost(url.hostname)) throw invalid("base_url must use https unless the server is on this PC or a private network (127.x, 10.x, 172.16-31.x, 192.168.x, 100.64-127.x)");
   return url.href.replace(/\/+$/, "");
 }
 
@@ -209,11 +228,13 @@ export class VoiceService {
   private readonly path: string;
   private readonly env: Record<string, string | undefined>;
   private readonly fetch: VoiceServiceOptions["fetch"];
+  private readonly modelsTimeoutMs: number;
 
   constructor(options: VoiceServiceOptions) {
     this.path = join(options.stateDir, "voice.json");
     this.env = options.env;
     this.fetch = options.fetch;
+    this.modelsTimeoutMs = options.modelsTimeoutMs ?? MODELS_TIMEOUT_MS;
   }
 
   private read(): VoiceFile {
@@ -233,6 +254,8 @@ export class VoiceService {
       const stored = text(value[field]);
       if (stored) file[field] = stored;
     }
+    if (file.language && !LANGUAGE_PATTERN.test(file.language)) delete file.language;
+    if (value["polish_enabled"] === false) file.polish_enabled = false;
     return file;
   }
 
@@ -246,6 +269,8 @@ export class VoiceService {
       base: envBase ? envBase.replace(/\/+$/, "") : storedBase ?? VOICE_DEFAULTS.base_url,
       transcribeModel: file.transcribe_model ?? VOICE_DEFAULTS.transcribe_model,
       polishModel: file.polish_model ?? VOICE_DEFAULTS.polish_model,
+      polishEnabled: file.polish_enabled !== false,
+      language: file.language ?? null,
     };
   }
 
@@ -258,20 +283,24 @@ export class VoiceService {
       base_url: current.base,
       transcribe_model: current.transcribeModel,
       polish_model: current.polishModel,
+      polish_enabled: current.polishEnabled,
+      language: current.language,
     };
   }
 
   /** `change` is a VoiceConfigUpdate off the wire, checked here; a missing field stays, null removes it. */
   update(change: unknown): VoiceStatus {
     if (!isJsonObject(change)) throw invalid("Send a JSON object");
-    const extra = Object.keys(change).find((field) => !(FIELDS as readonly string[]).includes(field));
+    const extra = Object.keys(change).find((field) => !UPDATE_FIELDS.includes(field));
     if (extra !== undefined) throw invalid(`Unknown field ${extra}`);
     const next = this.read();
     // A saved key is only ever sent where it was saved for: moving it to another server takes the
     // key again, so a client that can write settings cannot send someone's key elsewhere.
     if (change["base_url"] !== undefined) {
       if (text(this.env[ENV_KEY])) throw new VoiceError("key_from_env", 409, `${ENV_KEY} sets the key; its server is set by ${ENV_BASE_URL}`);
-      if (next.api_key && typeof change["api_key"] !== "string") throw invalid("Send api_key with base_url: a saved key is not sent to another server");
+      const target = typeof change["base_url"] === "string" && change["base_url"].trim() ? baseUrlOf(change["base_url"]) : VOICE_DEFAULTS.base_url;
+      const moved = target !== (next.base_url ?? VOICE_DEFAULTS.base_url);
+      if (next.api_key && moved && typeof change["api_key"] !== "string") throw invalid("Send api_key with base_url: a saved key is not sent to another server");
     }
     for (const field of FIELDS) {
       const value = change[field];
@@ -280,10 +309,58 @@ export class VoiceService {
       if (value === null) { delete next[field]; continue; }
       if (typeof value !== "string" || !value.trim() || value.length > 2000) throw invalid(`${field} must be a non-empty string or null`);
       if (field === "api_key" && /\s/.test(value.trim())) throw invalid("api_key must not contain spaces");
+      if (field === "language" && !LANGUAGE_PATTERN.test(value.trim())) throw invalid("language must be a two-letter ISO 639-1 code or null");
       next[field] = field === "base_url" ? baseUrlOf(value) : value.trim();
     }
+    const enabled = change["polish_enabled"];
+    if (enabled !== undefined && enabled !== null && typeof enabled !== "boolean") throw invalid("polish_enabled must be a boolean or null");
+    if (enabled === false) next.polish_enabled = false;
+    else if (enabled !== undefined) delete next.polish_enabled;
     writeJsonPrivate(this.path, next);
     return this.status();
+  }
+
+  /**
+   * The model ids of an OpenAI-compatible server. A key typed in `request` goes to the server typed
+   * with it (or OpenAI's); with none, only the saved key is used, and only for the saved server.
+   */
+  async models(request: unknown): Promise<VoiceModelsResponse> {
+    if (!isJsonObject(request)) throw invalid("Send a JSON object");
+    const body: VoiceModelsRequest = request;
+    const typedKey = body.api_key === undefined || body.api_key === null ? null : text(body.api_key);
+    if (body.api_key !== undefined && body.api_key !== null && (typedKey === null || /\s/.test(typedKey))) throw invalid("api_key must be a non-empty string without spaces");
+    if (body.base_url !== undefined && body.base_url !== null && typeof body.base_url !== "string") throw invalid("base_url must be a string");
+    const typedBase = typeof body.base_url === "string" && body.base_url.trim() ? baseUrlOf(body.base_url) : null;
+    const saved = this.settings(this.read());
+    let key: string;
+    let base: string;
+    if (typedKey) {
+      key = typedKey;
+      base = typedBase ?? VOICE_DEFAULTS.base_url;
+    } else {
+      if (!saved.key) throw new VoiceError("voice_not_configured", 409, "Type an API key to list the models");
+      // the saved key goes only where it was saved for
+      if (typedBase !== null && typedBase !== saved.base) throw invalid("Type the key again: a saved key is not sent to another server");
+      key = saved.key;
+      base = saved.base;
+    }
+    let response: Response;
+    try {
+      response = await this.fetch(`${base}/models`, {
+        method: "GET", headers: { authorization: `Bearer ${key}` }, redirect: "error", signal: AbortSignal.timeout(this.modelsTimeoutMs),
+      });
+    } catch (error) {
+      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+      throw new VoiceError("models_unreachable", 502, scrub(timedOut ? "The server did not answer in time" : `Could not reach the server: ${error instanceof Error ? error.message : String(error)}`, key));
+    }
+    if (response.status === 401 || response.status === 403) throw new VoiceError("models_unauthorized", 502, scrub(`The server refused the key (${response.status})`, key));
+    if (response.status === 404) throw new VoiceError("models_unsupported", 502, "The server has no model list (GET /models answered 404)");
+    if (!response.ok) throw new VoiceError("models_unreachable", 502, scrub(`The server answered ${response.status}`, key));
+    let data: unknown;
+    try { data = record(await response.json())["data"]; } catch { throw new VoiceError("models_unsupported", 502, "The server's model list is not JSON"); }
+    if (!Array.isArray(data)) throw new VoiceError("models_unsupported", 502, "The server's model list has no data array");
+    const ids = data.map((item) => text(record(item)["id"])).filter((id): id is string => id !== null);
+    return { models: [...new Set(ids)].sort((a, b) => a.localeCompare(b)) };
   }
 
   /**
@@ -292,7 +369,7 @@ export class VoiceService {
    * the provider's requests are dropped too.
    */
   async transcribe(clip: VoiceClip, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-    const { key, base, transcribeModel, polishModel } = this.settings(this.read());
+    const { key, base, transcribeModel, polishModel, polishEnabled, language } = this.settings(this.read());
     if (!key) throw new VoiceError("voice_not_configured", 409, "Set an OpenAI API key for voice input");
     const cancelled = new AbortController();
     const upstream = AbortSignal.any([signal, cancelled.signal]);
@@ -300,13 +377,15 @@ export class VoiceService {
     form.append("file", new File([clip.audio], clip.filename, { type: clip.audio.type }));
     form.append("model", transcribeModel);
     form.append("stream", "true");
-    for (const language of clip.languages) form.append("languages[]", language);
+    // a language chosen in Settings wins over the UI's; auto keeps the speaker's language plus English
+    if (language) form.append("language", language);
+    for (const code of language ? [language] : clip.languages) form.append("languages[]", code);
     for (const keyword of clip.keywords) form.append("keywords[]", keyword);
     form.append("prompt", PROMPTS[clip.mode]);
 
     let response: Response;
     try {
-      response = await this.fetch(`${base}/audio/transcriptions`, { method: "POST", headers: { authorization: `Bearer ${key}` }, body: form, signal: upstream });
+      response = await this.fetch(`${base}/audio/transcriptions`, { method: "POST", headers: { authorization: `Bearer ${key}` }, body: form, signal: upstream, redirect: "error" });
     } catch (error) {
       throw new VoiceError("provider_error", 502, scrub(`Could not reach the provider: ${error instanceof Error ? error.message : String(error)}`, key));
     }
@@ -330,7 +409,7 @@ export class VoiceService {
           return;
         }
         send({ type: "done", text: transcript });
-        if (clip.polish && transcript.trim()) {
+        if (clip.polish && polishEnabled && transcript.trim()) {
           try {
             send({ type: "polished", text: await this.polish(base, key, polishModel, clip.mode, transcript, upstream) });
           } catch (error) {
@@ -353,6 +432,7 @@ export class VoiceService {
         messages: [{ role: "system", content: `${POLISH_PROMPT} ${POLISH_MODE[mode]}` }, { role: "user", content: transcript }],
       }),
       signal,
+      redirect: "error",
     });
     if (!response.ok) throw await providerFailure(response, key);
     const choices = record(await response.json())["choices"];
@@ -378,6 +458,12 @@ export async function handleVoiceRequest(request: Request, pathname: string, ser
     let body: unknown;
     try { body = await request.json(); } catch { return voiceError(invalid("Send a JSON object")); }
     try { return jsonResponse(service.update(body), 200, noStore); } catch (error) { return voiceError(error); }
+  }
+  if (pathname === "/api/voice/models") {
+    if (request.method !== "POST") return jsonResponse({ error: { code: "method_not_allowed", message: "Use POST /api/voice/models" } }, 405, { allow: "POST" });
+    let body: unknown;
+    try { body = await request.json(); } catch { return voiceError(invalid("Send a JSON object")); }
+    try { return jsonResponse(await service.models(body), 200, noStore); } catch (error) { return voiceError(error); }
   }
   if (pathname === "/api/voice/transcribe") {
     if (request.method !== "POST") return jsonResponse({ error: { code: "method_not_allowed", message: "Use POST /api/voice/transcribe" } }, 405, { allow: "POST" });

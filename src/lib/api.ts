@@ -31,7 +31,7 @@ import type {
 import type { PaneScrollInfo } from "../../shared/herdr-api.generated.ts";
 import type { HerdrUpdateStatus, UpdateCommand, UpdateStatus } from "../../shared/update.ts";
 import type { AlertPrefs } from "../../shared/notify-policy.ts";
-import type { VoiceConfigUpdate, VoiceStatus } from "../../shared/voice.ts";
+import type { VoiceConfigUpdate, VoiceModelsRequest, VoiceModelsResponse, VoiceStatus } from "../../shared/voice.ts";
 import { MAX_ATTACHMENT_BYTES } from "../../shared/attachments.ts";
 import { t } from "./i18n.ts";
 
@@ -525,4 +525,11 @@ export async function saveVoiceConfig(update: VoiceConfigUpdate): Promise<VoiceS
   const response = await fetch("/api/voice/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(update) });
   if (!response.ok) throw await errorFrom("/api/voice/config", response);
   return (await response.json()) as VoiceStatus;
+}
+
+/** POST /api/voice/models: ApiError code `models_unauthorized` / `models_unreachable` / `models_unsupported`. */
+export async function fetchVoiceModels(request: VoiceModelsRequest): Promise<string[]> {
+  const response = await fetch("/api/voice/models", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
+  if (!response.ok) throw await errorFrom("/api/voice/models", response);
+  return ((await response.json()) as VoiceModelsResponse).models;
 }

@@ -16,6 +16,10 @@ export interface VoiceStatus {
   base_url: string;
   transcribe_model: string;
   polish_model: string;
+  /** false: "Tidy" is off, the server never calls chat/completions (see VoiceConfigUpdate.polish_enabled) */
+  polish_enabled: boolean;
+  /** ISO 639-1 code sent to the provider as `language`; null = auto-detect */
+  language: string | null;
 }
 
 /**
@@ -28,6 +32,24 @@ export interface VoiceConfigUpdate {
   base_url?: string | null;
   transcribe_model?: string | null;
   polish_model?: string | null;
+  /**
+   * `false` turns Tidy off server-side while keeping `polish_model`; `true` or null turns it back on.
+   * It is stored as `polish_enabled: false` only, so a voice.json from before this field stays valid
+   * (absent = on).
+   */
+  polish_enabled?: boolean | null;
+  /** ISO 639-1 code, or null for auto-detect */
+  language?: string | null;
+}
+
+/** POST /api/voice/models. Without `api_key` the saved key is used, and only for the saved server. */
+export interface VoiceModelsRequest {
+  base_url?: string | null;
+  api_key?: string | null;
+}
+
+export interface VoiceModelsResponse {
+  models: string[];
 }
 
 /**
@@ -49,7 +71,10 @@ export type VoiceErrorCode =
   | "invalid_audio" // 400: no audio part, empty, or not audio/*
   | "invalid_request" // 400: bad mode / keywords / config body
   | "provider_auth" // 502: the provider refused the key (401/403)
-  | "provider_error"; // 502: any other provider failure
+  | "provider_error" // 502: any other provider failure
+  | "models_unauthorized" // 502: GET {base}/models answered 401/403
+  | "models_unreachable" // 502: network failure, timeout or another status on GET {base}/models
+  | "models_unsupported"; // 502: GET {base}/models answered 404, not JSON, or no `data` array
 
 /** multipart fields of POST /api/voice/transcribe */
 export const VOICE_FORM = {
@@ -73,4 +98,13 @@ export const VOICE_DEFAULTS = {
   base_url: "https://api.openai.com/v1",
   transcribe_model: "gpt-transcribe",
   polish_model: "gpt-6-luna",
+} as const;
+
+/**
+ * This fork's own server (a LiteLLM proxy) serves this transcription model; it is only the
+ * preselection after "Test and list models", never a default the server applies. Tidy has
+ * none: it stays off until a model is chosen.
+ */
+export const VOICE_FORK_MODELS = {
+  transcribe_model: "whisper-ptbr-simples",
 } as const;

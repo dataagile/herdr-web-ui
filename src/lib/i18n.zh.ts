@@ -809,4 +809,5 @@ export const ZH: Record<string, string> = {
   "Tidy is off: choose a Tidy model in Transcription server": "润色已关闭：请在转写服务器中选择润色模型",
   "Audio is sent to {host} with your key. Nothing is recorded until you press the mic.": "音频将使用你的密钥发送到 {host}。按下麦克风之前不会录音。",
   "Dictation language": "听写语言",
+  "No models available for this key": "此密钥没有可用的模型",
 };

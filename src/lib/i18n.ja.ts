@@ -807,4 +807,5 @@ export const JA: Record<string, string> = {
   "Tidy is off: choose a Tidy model in Transcription server": "整形はオフです: 文字起こしサーバーで整形モデルを選んでください",
   "Audio is sent to {host} with your key. Nothing is recorded until you press the mic.": "音声はあなたのキーを使って {host} に送信されます。マイクを押すまで録音されません。",
   "Dictation language": "音声入力の言語",
+  "No models available for this key": "このキーで使えるモデルはありません",
 };

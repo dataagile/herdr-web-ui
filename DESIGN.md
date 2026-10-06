@@ -816,7 +816,7 @@ One set for both themes: the card is island black wherever it shows.
   wraps). A successful test turns both model fields into selects (speech-to-text group first; Tidy
   starts on None); a failure leaves text inputs and the error below the button. With Tidy off the two
   tidy switches are disabled (`.settings-toggle:disabled`, 0.45 opacity) under a hint. An env key
-  keeps only the status line. No horizontal scroll at 390px.
+  keeps only the status line. A saved URL the rules now refuse shows its reason in `--danger-text` above the form. Save sends only the fields that changed. No horizontal scroll at 390px.
 
 ### Command palette
 - `Mod+Shift+K` opens a top-offset `--palette-w` dialog searching panes and actions. Recent panes

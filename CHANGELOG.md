@@ -13,7 +13,8 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   the Transcription and Tidy model lists (speech-to-text first), and a dictation language
   (auto-detect, or one sent to the server as `language`). After a test the Tidy list starts on
   None: choose a Tidy model to turn it on, and with None the server never makes that call and the tidy switches are
-  disabled. A Server URL must be https (plain http only for this PC and private networks) with no
+  disabled. A Server URL must be https (plain http only for this PC, private networks, single-label
+  names and `.local`/`.lan`/`.internal`/`.home.arpa`/`.ts.net`; checked again on every use) with no
   credentials, query or fragment, redirects are never followed, and a saved key is never sent to a
   different server.
 - A text file in the file viewer can be edited in place and saved: an Edit button over the

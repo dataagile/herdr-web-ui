@@ -84,7 +84,7 @@ describe("voice config", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({
       configured: false, source: null, base_url: "https://api.openai.com/v1", transcribe_model: "gpt-transcribe", polish_model: "gpt-6-luna",
-      polish_enabled: true, language: null,
+      polish_enabled: true, language: null, error: null,
     } satisfies VoiceStatus);
   });
 
@@ -437,7 +437,7 @@ describe("voice hardening", () => {
     const voice = service();
     for (const base_url of [
       "https://user:pass@example.com/v1", "https://user@example.com/v1", "https://example.com/v1?key=1", "https://example.com/v1#x",
-      "http://example.com/v1", "http://8.8.8.8/v1", "http://172.32.0.1/v1", "http://100.128.0.1/v1", "http://192.169.0.1/v1", "http://localhost.evil.com/v1",
+      "http://example.com/v1", "http://8.8.8.8/v1", "http://172.32.0.1/v1", "http://100.128.0.1/v1", "http://192.169.0.1/v1", "http://localhost.evil.com/v1", "http://local.com/v1", "http://evil-ts.net/v1", "http://[2001:db8::1]/v1", "http://[fe80::1]/v1", "http://[fe00::1]/v1",
     ]) {
       const response = await put(voice, { base_url });
       expect(response.status, base_url).toBe(400);
@@ -449,7 +449,49 @@ describe("voice hardening", () => {
     const voice = service();
     for (const base_url of [
       "https://example.com/v1", "http://localhost:4000/v1", "http://127.0.0.1/v1", "http://127.8.8.8/v1", "http://[::1]:4000/v1",
-      "http://10.0.25.1/v1", "http://172.16.0.1/v1", "http://172.31.255.1/v1", "http://192.168.1.2/v1", "http://100.64.0.1/v1", "http://100.114.70.4:4000/v1",
+      "http://10.0.25.1/v1", "http://172.16.0.1/v1", "http://dgx/v1", "http://dgx.local/v1", "http://box.lan:4000/v1", "http://a.internal/v1", "http://nas.home.arpa/v1", "http://vm.tail99394e.ts.net/v1", "http://[fd7a:115c:a1e0::1]:4000/v1", "http://[fc00::1]/v1", "http://[fdff::2]/v1", "http://172.31.255.1/v1", "http://192.168.1.2/v1", "http://100.64.0.1/v1", "http://100.114.70.4:4000/v1",
     ]) expect((await put(voice, { base_url })).status, base_url).toBe(200);
+  });
+});
+
+describe("voice saved settings", () => {
+  const KEY2 = "sk-saved-0123456789";
+  it("takes a language-only change with an env base_url or a legacy stored one, and pins no model", () => {
+    writeFileSync(join(stateDir, "voice.json"), JSON.stringify({ api_key: KEY2, base_url: "http://legacy.example.com/v1" }));
+    const legacy = service();
+    expect(legacy.status()).toMatchObject({ configured: false });
+    rmSync(join(stateDir, "voice.json"));
+    writeFileSync(join(stateDir, "voice.json"), JSON.stringify({ api_key: KEY2, base_url: "http://10.1.1.1/v1" }));
+    expect(service().update({ language: "pt" })).toMatchObject({ configured: true, language: "pt", base_url: "http://10.1.1.1/v1" });
+    const stored = JSON.parse(readFileSync(join(stateDir, "voice.json"), "utf8"));
+    expect(stored).toEqual({ api_key: KEY2, base_url: "http://10.1.1.1/v1", language: "pt" });
+    // an env base_url (operator-trusted, even plain http to a public host) is not part of such a save
+    rmSync(join(stateDir, "voice.json"));
+    writeFileSync(join(stateDir, "voice.json"), JSON.stringify({ api_key: KEY2 }));
+    const withEnv = service({ HERDR_WEB_OPENAI_BASE_URL: "http://public.example.com/v1" });
+    expect(withEnv.update({ language: "pt" })).toMatchObject({ configured: true, base_url: "http://public.example.com/v1", language: "pt" });
+    expect(JSON.parse(readFileSync(join(stateDir, "voice.json"), "utf8"))).toEqual({ api_key: KEY2, language: "pt" });
+  });
+
+  it("a key-only save leaves the models unset", () => {
+    service().update({ api_key: KEY2 });
+    expect(JSON.parse(readFileSync(join(stateDir, "voice.json"), "utf8"))).toEqual({ api_key: KEY2 });
+  });
+
+  it("does not send the key to a stored base_url the rules now refuse", async () => {
+    writeFileSync(join(stateDir, "voice.json"), JSON.stringify({ api_key: KEY2, base_url: "http://public.example.com/v1" }));
+    const voice = service();
+    const status = voice.status();
+    expect(status.configured).toBe(false);
+    expect(status.error).toContain("Server URL");
+    expect(JSON.stringify(status)).not.toContain(KEY2);
+    const response = await transcribe(voice, clipForm());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: "voice_not_configured" } });
+    const models = await modelsOf(voice, {});
+    expect(models.status).toBe(409);
+    expect(requests).toHaveLength(0);
+    // typing a new URL with the key again repairs it
+    expect(voice.update({ api_key: KEY2, base_url: "https://example.com/v1" })).toMatchObject({ configured: true, error: null });
   });
 });

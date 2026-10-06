@@ -20,6 +20,8 @@ export interface VoiceStatus {
   polish_enabled: boolean;
   /** ISO 639-1 code sent to the provider as `language`; null = auto-detect */
   language: string | null;
+  /** why a saved key is not used (a saved base_url that is no longer allowed); null when nothing is wrong */
+  error: string | null;
 }
 
 /**

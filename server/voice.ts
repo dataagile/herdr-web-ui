@@ -90,10 +90,22 @@ function writeJsonPrivate(path: string, value: unknown): void {
   renameSync(temporary, path);
 }
 
-/** loopback, RFC 1918 and the tailnet's 100.64/10: where a key may travel in clear text */
+const PRIVATE_SUFFIXES = [".local", ".lan", ".internal", ".home.arpa", ".ts.net"];
+
+/**
+ * Where a key may travel in clear text: this PC, private and tailnet addresses, single-label
+ * names (resolved by the LAN), and the usual private domains. Everything else needs https.
+ */
 function isPrivateHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
   if (host === "localhost" || host === "::1") return true;
+  if (host.includes(":")) {
+    // IPv6 unique-local fc00::/7, which holds Tailscale's fd7a:115c:a1e0::/48
+    const first = /^([0-9a-f]{1,4}):/.exec(host)?.[1];
+    return first !== undefined && (Number.parseInt(first, 16) & 0xfe00) === 0xfc00;
+  }
+  if (!host.includes(".")) return true;
+  if (PRIVATE_SUFFIXES.some((suffix) => host.endsWith(suffix))) return true;
   const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host)?.slice(1).map(Number);
   if (!octets) return false;
   const [a, b] = octets as [number, number];
@@ -264,8 +276,17 @@ export class VoiceService {
     const envKey = text(this.env[ENV_KEY]);
     // an env key goes only where the env (or the default) says: a stored base_url never receives it
     const storedBase = envKey ? undefined : file.base_url;
+    // The env's base is the operator's and is trusted as set. A stored one is checked again on every
+    // read: a rule added after it was saved must not let the key travel to a server it now refuses.
+    let error: string | null = null;
+    if (!envBase && storedBase) {
+      try { baseUrlOf(storedBase); } catch (failure) {
+        error = `The saved Server URL is not allowed (${failure instanceof Error ? failure.message : String(failure)}). Enter a Server URL and the key again.`;
+      }
+    }
     return {
-      key: envKey ?? file.api_key ?? null,
+      error,
+      key: error ? null : envKey ?? file.api_key ?? null,
       base: envBase ? envBase.replace(/\/+$/, "") : storedBase ?? VOICE_DEFAULTS.base_url,
       transcribeModel: file.transcribe_model ?? VOICE_DEFAULTS.transcribe_model,
       polishModel: file.polish_model ?? VOICE_DEFAULTS.polish_model,
@@ -285,6 +306,7 @@ export class VoiceService {
       polish_model: current.polishModel,
       polish_enabled: current.polishEnabled,
       language: current.language,
+      error: current.error,
     };
   }
 
@@ -338,7 +360,7 @@ export class VoiceService {
       key = typedKey;
       base = typedBase ?? VOICE_DEFAULTS.base_url;
     } else {
-      if (!saved.key) throw new VoiceError("voice_not_configured", 409, "Type an API key to list the models");
+      if (!saved.key) throw new VoiceError("voice_not_configured", 409, saved.error ?? "Type an API key to list the models");
       // the saved key goes only where it was saved for
       if (typedBase !== null && typedBase !== saved.base) throw invalid("Type the key again: a saved key is not sent to another server");
       key = saved.key;
@@ -369,8 +391,8 @@ export class VoiceService {
    * the provider's requests are dropped too.
    */
   async transcribe(clip: VoiceClip, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-    const { key, base, transcribeModel, polishModel, polishEnabled, language } = this.settings(this.read());
-    if (!key) throw new VoiceError("voice_not_configured", 409, "Set an OpenAI API key for voice input");
+    const { key, base, transcribeModel, polishModel, polishEnabled, language, error } = this.settings(this.read());
+    if (!key) throw new VoiceError("voice_not_configured", 409, error ?? "Set an OpenAI API key for voice input");
     const cancelled = new AbortController();
     const upstream = AbortSignal.any([signal, cancelled.signal]);
     const form = new FormData();
@@ -468,7 +490,8 @@ export async function handleVoiceRequest(request: Request, pathname: string, ser
   if (pathname === "/api/voice/transcribe") {
     if (request.method !== "POST") return jsonResponse({ error: { code: "method_not_allowed", message: "Use POST /api/voice/transcribe" } }, 405, { allow: "POST" });
     try {
-      if (!service.status().configured) throw new VoiceError("voice_not_configured", 409, "Set an OpenAI API key for voice input");
+      const state = service.status();
+      if (!state.configured) throw new VoiceError("voice_not_configured", 409, state.error ?? "Set an OpenAI API key for voice input");
       const limit = VOICE_MAX_AUDIO_BYTES + FORM_SLACK_BYTES;
       if (Number(request.headers.get("content-length") ?? 0) > limit) throw tooLarge();
       // a chunked body names no length: it is counted as it arrives and dropped past the limit

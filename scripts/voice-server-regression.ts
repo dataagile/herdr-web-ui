@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { chromium, type Page } from "playwright-core";
+import { chromium, type Browser, type Page } from "playwright-core";
 import { createServer } from "../server/index.ts";
 import { UsageService } from "../server/usage.ts";
 
@@ -19,11 +19,15 @@ const root = realpathSync(mkdtempSync(join(tmpdir(), "herdr-web-ui-voice-browser
 const shots = process.env["VOICE_SHOTS"];
 if (shots) mkdirSync(shots, { recursive: true });
 
+let modelRequests = 0;
+let emptyModels = false;
 const provider = Bun.serve({
   hostname: "127.0.0.1", port: 0,
   fetch(request) {
     const { pathname } = new URL(request.url);
     if (request.headers.get("authorization") !== `Bearer ${KEY}`) return Response.json({ error: { message: "bad key" } }, { status: 401 });
+    if (pathname === "/v1/models") modelRequests += 1;
+    if (pathname === "/v1/models" && emptyModels) return Response.json({ data: [] });
     if (pathname === "/v1/models") return Response.json({ data: ["gpt-oss-120b", "gemma4-12b", "whisper-ptbr", "whisper-ptbr-simples"].map((id) => ({ id })) });
     if (pathname === "/v1/audio/transcriptions") return Response.json({ text: "ok" });
     return new Response("not found", { status: 404 });
@@ -33,7 +37,7 @@ const providerUrl = `http://127.0.0.1:${provider.port}/v1`;
 const providerHost = `127.0.0.1:${provider.port}`;
 const server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(root, "state"), usage: new UsageService(undefined, []) });
 const origin = `http://127.0.0.1:${server.port}`;
-const browser = await chromium.launch({ executablePath: process.env["CHROME_PATH"] ?? "/opt/google/chrome/chrome", headless: true, args: ["--no-sandbox"] });
+let browser: Browser | undefined;
 const errors: string[] = [];
 
 async function openSettings(page: Page): Promise<void> {
@@ -52,6 +56,7 @@ async function optionTexts(page: Page, label: string): Promise<string[]> {
 const savedLine = (tidy: string) => `Saved on this PC: ${providerHost} · whisper-ptbr-simples · tidy ${tidy}`;
 
 try {
+  browser = await chromium.launch({ executablePath: process.env["CHROME_PATH"] ?? "/opt/google/chrome/chrome", headless: true, args: ["--no-sandbox"] });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   await context.addInitScript(() => {
     if (!localStorage.getItem("herdr-web-ui:settings")) localStorage.setItem("herdr-web-ui:settings", JSON.stringify({ language: "en", voiceInput: true }));
@@ -119,6 +124,31 @@ try {
   assert.equal(await page.getByLabel("Tidy model (optional)", { exact: true }).inputValue(), "gemma4-12b", "a saved Tidy model stays selected");
   console.log("PASS Save persists on the server and the status line survives a reload");
 
+  // Test uses exactly the field: emptied, it is OpenAI's, which the saved key must not reach
+  await page.getByLabel("Server URL", { exact: true }).fill("");
+  const before = modelRequests;
+  await page.getByRole("button", { name: "Test and list models" }).click();
+  await page.getByRole("alert").filter({ hasText: /not sent to another server/ }).waitFor();
+  assert.equal(modelRequests, before, "the saved key reached no server for an emptied field");
+  await page.getByLabel("Server URL", { exact: true }).fill(providerUrl);
+  // re-testing keeps what the user picked
+  await page.getByRole("button", { name: "Test and list models" }).click();
+  await page.getByText("4 models found").waitFor();
+  await page.getByLabel("Transcription model", { exact: true }).selectOption("whisper-ptbr");
+  await page.getByRole("button", { name: "Test and list models" }).click();
+  await page.getByText("4 models found").waitFor();
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).inputValue(), "whisper-ptbr", "a re-test keeps the current choice");
+  console.log("PASS Test uses the field's URL only and a re-test keeps the current choice");
+
+  // a key that lists no model: the fields stay text with their values, nothing is cleared
+  emptyModels = true;
+  await page.getByRole("button", { name: "Test and list models" }).click();
+  await page.getByRole("alert").filter({ hasText: "No models available for this key" }).waitFor();
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).evaluate((el) => el.tagName), "INPUT");
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).inputValue(), "whisper-ptbr", "the model is not cleared");
+  emptyModels = false;
+  console.log("PASS zero models keeps free-text fields with their values");
+
   // a phone: the card fits and nothing scrolls sideways
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await phone.addInitScript(() => localStorage.setItem("herdr-web-ui:settings", JSON.stringify({ language: "en", voiceInput: true })));
@@ -141,7 +171,7 @@ try {
 
   assert.deepEqual(errors, [], "no page errors");
 } finally {
-  await browser.close().catch(() => {});
+  await browser?.close().catch(() => {});
   server.stop(true);
   provider.stop(true);
   rmSync(root, { recursive: true, force: true });

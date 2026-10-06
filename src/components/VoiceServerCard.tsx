@@ -3,13 +3,10 @@ import { VOICE_DEFAULTS, type VoiceConfigUpdate, type VoiceStatus } from "../../
 import { fetchVoiceModels, saveVoiceConfig } from "../lib/api.ts";
 import { useT } from "../lib/i18n.ts";
 import { VOICE_CONFIG_EVENT } from "../lib/voice.ts";
-import { voiceHost, voiceModelChoices } from "../lib/voiceServer.ts";
+import { voiceFieldsOf, voiceHost, voiceModelChoices, voiceSaveBody } from "../lib/voiceServer.ts";
 
 /** codes are ISO 639-1; names are written in their own language, as in a language picker */
 const LANGUAGES = [["pt", "Português"], ["en", "English"], ["es", "Español"], ["ko", "한국어"], ["ja", "日本語"], ["zh", "中文"]] as const;
-
-/** The server's saved URL as the field shows it: OpenAI's own is the placeholder, not a value */
-const urlField = (status: VoiceStatus) => (status.base_url === VOICE_DEFAULTS.base_url ? "" : status.base_url);
 
 /**
  * Settings → Voice input → Transcription server. The key typed here goes to the server with a
@@ -31,10 +28,11 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
   // the fields start from, and return to, what the server says it holds
   useEffect(() => {
     if (!voice) return;
-    setUrl(urlField(voice));
-    setTranscribeModel(voice.transcribe_model);
-    setPolishModel(voice.polish_enabled ? voice.polish_model : "");
-    setLanguage(voice.language ?? "");
+    const fields = voiceFieldsOf(voice);
+    setUrl(fields.url);
+    setTranscribeModel(fields.transcribe);
+    setPolishModel(fields.polish);
+    setLanguage(fields.language);
     setModels(null);
   }, [voice]);
 
@@ -42,9 +40,16 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
     setTesting(true);
     setTestError(null);
     try {
-      const ids = await fetchVoiceModels({ ...(url.trim() ? { base_url: url.trim() } : {}), ...(key.trim() ? { api_key: key.trim() } : {}) });
+      // exactly the URL in the field: empty is OpenAI's, never the saved server (whose key it would take)
+      const ids = await fetchVoiceModels({ base_url: url.trim() || VOICE_DEFAULTS.base_url, ...(key.trim() ? { api_key: key.trim() } : {}) });
+      if (ids.length === 0) {
+        // the fields stay as they are, saved model included
+        setModels(null);
+        setTestError(t("No models available for this key"));
+        return;
+      }
       if (voice) {
-        const choices = voiceModelChoices(ids, { transcribe: voice.transcribe_model, polish: voice.polish_enabled ? voice.polish_model : null });
+        const choices = voiceModelChoices(ids, { transcribe: transcribeModel, polish: polishModel }, { transcribe: voice.transcribe_model, polish: voice.polish_enabled ? voice.polish_model : null });
         setTranscribeModel(choices.transcribe);
         setPolishModel(choices.polish);
       }
@@ -69,19 +74,13 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
     finally { setBusy(false); }
   };
 
-  const save = () => void send({
-    ...(key.trim() ? { api_key: key.trim() } : {}),
-    base_url: url.trim() || null,
-    transcribe_model: transcribeModel.trim() || null,
-    ...(polishModel.trim() ? { polish_model: polishModel.trim(), polish_enabled: true } : { polish_enabled: false }),
-    language: language || null,
-  });
+  const save = () => { if (voice) void send(voiceSaveBody(voice, { url, key, transcribe: transcribeModel, polish: polishModel, language })); };
   const useDefaults = () => void send({
     ...(key.trim() ? { api_key: key.trim() } : {}),
     base_url: null, transcribe_model: null, polish_model: null, polish_enabled: null, language: null,
   });
 
-  const choices = models && voice ? voiceModelChoices(models, { transcribe: transcribeModel, polish: polishModel || null }) : null;
+  const choices = models && voice ? voiceModelChoices(models, { transcribe: transcribeModel, polish: polishModel }, { transcribe: transcribeModel, polish: polishModel || null }) : null;
   const fromEnv = voice?.source === "env";
   const host = voice ? voiceHost(voice.base_url) : "";
 
@@ -98,6 +97,7 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
                 : t("Saved on this PC: {host} · {model} · tidy {tidy}", { host, model: voice.transcribe_model, tidy: voice.polish_enabled ? voice.polish_model : t("off") })}
           </p>
         )}
+        {voice?.error && <p className="settings-hint voice-error" role="alert">{voice.error}</p>}
         {voice && !fromEnv && (
           <form className="voice-server" onSubmit={(event) => { event.preventDefault(); save(); }}>
             <label className="voice-field"><span className="field-label">{t("Server URL")}</span>
@@ -146,7 +146,7 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
         )}
         {error && <p className="settings-hint voice-error" role="alert">{error}</p>}
         <p className="settings-hint voice-privacy">
-          {voice && !voice.configured
+          {!voice || !voice.configured
             ? t("Without a key the browser recognizes the speech: Chrome and Edge send the audio to Google or Microsoft. Nothing is recorded until you press the mic.")
             : t("Audio is sent to {host} with your key. Nothing is recorded until you press the mic.", { host })}
         </p>

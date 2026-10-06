@@ -805,4 +805,5 @@ export const KO: Record<string, string> = {
   "Tidy is off: choose a Tidy model in Transcription server": "다듬기가 꺼져 있습니다: 음성 인식 서버에서 다듬기 모델을 선택하세요",
   "Audio is sent to {host} with your key. Nothing is recorded until you press the mic.": "오디오가 사용자의 키로 {host}에 전송됩니다. 마이크를 누르기 전에는 녹음되지 않습니다.",
   "Dictation language": "받아쓰기 언어",
+  "No models available for this key": "이 키로 사용할 수 있는 모델이 없습니다",
 };

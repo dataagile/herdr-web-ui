@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
-import { ChevronDown, ChevronRight, Ellipsis, Folder, FolderOpen, GitBranch, GripVertical, Layers, Pencil, Plus, Terminal, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Ellipsis, Folder, FolderOpen, GitBranch, GripVertical, History, Layers, Pencil, Plus, Terminal, Trash2, X } from "lucide-react";
 
 import "./Sidebar.css";
 
@@ -279,8 +279,9 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     const worktrees = linked ? [] : (snapshot?.workspaces.filter((candidate) => candidate.worktree?.is_linked_worktree && candidate.worktree.repo_key === workspace.worktree?.repo_key) ?? []);
     // herdr's own actions on a workspace: rename, a new tab (prefix+c), its worktrees (prefix+shift+g), close
     const items: RowMenuItem[] = [
-      { id: "rename-workspace", label: t("Rename workspace"), icon: Pencil, run: () => beginWorkspaceRename(workspace, state.scope) },
+      { id: "rename-workspace", label: t("Rename project"), icon: Pencil, run: () => beginWorkspaceRename(workspace, state.scope) },
       { id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab({ machineId, workspaceId: workspace.workspace_id }) },
+      { id: "history", label: t("History"), icon: History, run: () => actions.openHistory({ machineId, workspaceId: workspace.workspace_id }) },
       ...(linked ? [] : [
         { id: "new-worktree", label: t("New worktree"), icon: GitBranch, run: () => setWorktreeDialog({ mode: "create", workspace }) },
         { id: "open-worktree", label: t("Open worktree…"), icon: FolderOpen, run: () => setWorktreeDialog({ mode: "open", workspace }) },
@@ -290,7 +291,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
       id: "delete-worktree", label: t("Delete worktree checkout…"), icon: Trash2, danger: true,
       run: () => setConfirm({
         title: t("Delete the checkout of {name}?", { name: workspace.label }),
-        body: t("The folder at {path} is deleted and the workspace closes. The branch stays.", { path: workspace.worktree?.checkout_path ?? "" }),
+        body: t("The folder at {path} is deleted and the project closes. The branch stays.", { path: workspace.worktree?.checkout_path ?? "" }),
         action: t("Delete"),
         run: () => leave(async () => { await removeWorktree({ workspace_id: workspace.workspace_id }); }),
         // git refuses a checkout with unsaved changes: the refusal shows, and the action becomes a forced one
@@ -302,12 +303,12 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     const closeItem: RowMenuItem = paneCount === 1
       ? { id: "close", label: t("Close"), icon: X, danger: true, divider: true, run: () => setConfirm({
           title: t("Close {title}?", { title: state.title }),
-          body: worktrees.length > 0 ? t("Its workspace and its {m} worktree workspaces close with it; the agents in them stop, and the checkouts stay.", { m: worktrees.length }) : t("Its workspace closes with it, and the agent and shell in it stop."),
+          body: worktrees.length > 0 ? t("Its project and its {m} worktree projects close with it; the agents in them stop, and the checkouts stay.", { m: worktrees.length }) : t("Its project closes with it, and the agent and shell in it stop."),
           run: () => leave(() => worktrees.length > 0 ? closeWorkspace(workspace.workspace_id, true) : closePane(pane.pane_id)),
         }) }
-      : { id: "close", label: t("Close workspace"), icon: X, danger: true, divider: true, run: () => setConfirm({
-          title: t("Close workspace {name}?", { name: workspace.label }),
-          body: worktrees.length > 0 ? t("{n} panes and {m} worktree workspaces close with it; the agents in them stop, and the checkouts stay.", { n: paneCount, m: worktrees.length }) : t("{n} panes close with it, and the agents in them stop.", { n: paneCount }),
+      : { id: "close", label: t("Close project"), icon: X, danger: true, divider: true, run: () => setConfirm({
+          title: t("Close project {name}?", { name: workspace.label }),
+          body: worktrees.length > 0 ? t("{n} panes and {m} worktree projects close with it; the agents in them stop, and the checkouts stay.", { n: paneCount, m: worktrees.length }) : t("{n} panes close with it, and the agents in them stop.", { n: paneCount }),
           run: () => leave(() => closeWorkspace(workspace.workspace_id, worktrees.length > 0)),
         }) };
     return [...items, closeItem, ...deleteItems];
@@ -452,7 +453,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
           <button
             type="button"
             className="sidebar-drag-handle"
-            aria-label={t("Reorder workspace {name}", { name: workspace.label })}
+            aria-label={t("Reorder project {name}", { name: workspace.label })}
             title={t("Drag to reorder · Alt+↑/↓")}
             draggable
             onDragStart={(event) => onDragStart(event, workspace.workspace_id)}
@@ -482,7 +483,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
                 {editingWorkspace ? (
                   <input
                     className="input pane-rename-input workspace-rename-input"
-                    aria-label={t("Workspace name")}
+                    aria-label={t("Project name")}
                     autoFocus
                     value={workspaceLabel}
                     onClick={(event) => event.stopPropagation()}
@@ -521,15 +522,15 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
 
   return (
     <div className="machine-workspaces">
-      <nav className="sidebar-list" aria-label={t("Herdr workspaces")}>
-        {!snapshot && <p className="tree-state" role="status">{t("Loading workspaces…")}</p>}
+      <nav className="sidebar-list" aria-label={t("Herdr projects")}>
+        {!snapshot && <p className="tree-state" role="status">{t("Loading projects…")}</p>}
         {snapshot && snapshot.workspaces.length === 0 && (
           <div className="tree-state-empty">
-            <p className="tree-state" role="status">{t("No workspaces yet")}</p>
-            <button type="button" className="btn" onClick={actions.openNewSession}><Plus aria-hidden="true" />{t("New workspace")}</button>
+            <p className="tree-state" role="status">{t("No projects yet")}</p>
+            <button type="button" className="btn" onClick={actions.openNewSession}><Plus aria-hidden="true" />{t("New project")}</button>
           </div>
         )}
-        {snapshot && snapshot.workspaces.length > 0 && <SectionHeader section="spaces" label={t("Spaces")} count={spaceCount} folded={folded.spaces} onToggle={toggleSection} />}
+        {snapshot && snapshot.workspaces.length > 0 && <SectionHeader section="spaces" label={t("Projects")} count={spaceCount} folded={folded.spaces} onToggle={toggleSection} />}
         {!folded.spaces && (byFolder ? directories.map((directory) => {
           const collapsed = collapsedGroups.has(directory.key);
           const name = directory.path ? cwdBasename(directory.path) : directory.workspaces[0]?.workspace.label;

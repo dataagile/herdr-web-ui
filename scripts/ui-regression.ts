@@ -756,7 +756,7 @@ try {
   // In the By workspace view the worktree's row sits under its repository's, as herdr packs them.
   // Its menu deletes the checkout: a dirty one is refused in git's words first, then deleted anyway.
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.locator('.segmented[aria-label="Sidebar grouping"]').getByRole("button", { name: "By workspace", exact: true }).click();
+  await page.locator('.segmented[aria-label="Sidebar grouping"]').getByRole("button", { name: "By project", exact: true }).click();
   await page.getByRole("button", { name: "Close settings", exact: true }).click();
   const childRow = page.locator(`.worktree-children .pane-item:has(.pane-select[title^="${worktree.pane_id} —"])`);
   await childRow.waitFor();
@@ -780,7 +780,7 @@ try {
   await childRow.locator(".row-menu-toggle").click();
   const childMenu = page.getByRole("menu");
   await childMenu.waitFor();
-  assert.deepEqual(await childMenu.getByRole("menuitem").allTextContents(), ["Rename workspace", "New tab", "Close", "Delete worktree checkout…"], "a worktree row's menu");
+  assert.deepEqual(await childMenu.getByRole("menuitem").allTextContents(), ["Rename project", "New tab", "History", "Close", "Delete worktree checkout…"], "a worktree row's menu");
   await childMenu.getByRole("menuitem", { name: "Delete worktree checkout…", exact: true }).click();
   const deleteConfirm = page.getByRole("alertdialog");
   await deleteConfirm.waitFor();

@@ -251,11 +251,11 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, herdrVer
               </div>
             </div>
             <div className="settings-row">
-              <div><span className="settings-label">{t("Sidebar grouping")}</span><span className="settings-description">{t("Group sessions by workspace or by full folder path on each PC")}</span></div>
+              <div><span className="settings-label">{t("Sidebar grouping")}</span><span className="settings-description">{t("Group sessions by project or by full folder path on each PC")}</span></div>
               <div className="segmented" aria-label={t("Sidebar grouping")}>
                 {(["workspace", "directory"] as const).map((grouping) => (
                   <button key={grouping} type="button" aria-pressed={settings.sidebarGrouping === grouping} onClick={() => update({ sidebarGrouping: grouping })}>
-                    {t(grouping === "workspace" ? "By workspace" : "By folder")}
+                    {t(grouping === "workspace" ? "By project" : "By folder")}
                   </button>
                 ))}
               </div>
@@ -531,7 +531,7 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, herdrVer
           <section className="settings-section">
             <h3>{t("Remote PCs")}</h3>
             <div className="settings-row">
-              <div><span className="settings-label">{t("Add PC")}</span><span className="settings-description">{t("Connect another PC over an SSH alias or user@host. Its workspaces join the sidebar.")}</span></div>
+              <div><span className="settings-label">{t("Add PC")}</span><span className="settings-description">{t("Connect another PC over an SSH alias or user@host. Its projects join the sidebar.")}</span></div>
               <button type="button" className="btn" onClick={actions.openAddPc}><Monitor aria-hidden="true" />{t("Add PC")}</button>
             </div>
             {/* the switch is the server's and waits for its answer; Add PC never does */}

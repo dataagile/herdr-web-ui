@@ -386,13 +386,13 @@ One set for both themes: the card is island black wherever it shows.
 
 ### Sidebar roster row and footer
 - No top bar. The sidebar opens with the plan panel (when Settings puts it there), **Needs you**
-  and the PC groups. A workspace starts from the `+` on its PC's header, or from the **New workspace**
-  button in the dashed **No workspaces yet** box of an empty PC. **Add PC** lives in Settings →
+  and the PC groups. A workspace starts from the `+` on its PC's header, or from the **New project**
+  button in the dashed **No projects yet** box of an empty PC. **Add PC** lives in the sidebar footer, Settings →
   Remote PCs and in the command palette. Search lives in the command palette, not the roster.
-- Each PC group holds two foldable sections, as herdr's own sidebar: **Spaces** above **Agents**,
-  each headed by its name and count (Spaces counts the workspaces that draw a row). Folds are
+- Each PC group holds two foldable sections, as herdr's own sidebar: **Projects** above **Agents**,
+  each headed by its name and count (Projects counts the workspaces that draw a row). Folds are
   remembered per PC; both start open.
-- **Spaces** is one row per workspace. The row is titled with the workspace's label and opens its
+- **Projects** is one row per workspace. The row is titled with the workspace's label and opens its
   *current pane*: the selected pane when it is in the workspace, else the pane last viewed there,
   else the one herdr has in front. Its mark is that pane's agent (a shell glyph without one); its
   state word is the roll-up of every pane in the workspace (blocked, then working, then done, then
@@ -416,7 +416,7 @@ One set for both themes: the card is island black wherever it shows.
   remembered per PC and path; opening a pane unfolds its folder, but status updates do not.
 - Folder order follows the first workspace in server order; workspace handles still reorder
   workspaces, not filesystem directories. Workspace names and rename actions remain inside the group.
-- Every Spaces row is two lines: agent/shell mark, then the editable title alone on line one (full
+- Every Projects row is two lines: agent/shell mark, then the editable title alone on line one (full
   width), and the state word followed by the row's place on line two. Mark boxes are neutral;
   the selected row gets the amber rail and an amber-edged mark box. The row carries the
   workspace's reorder handle in its left gutter (drag, or `Alt+↑/↓` on the handle) and ends in
@@ -426,7 +426,7 @@ One set for both themes: the card is island black wherever it shows.
   worktrees, and a worktree moves among its siblings only.
 - A title that is a working directory written out (`/home/me/dev/api`, `~/dev/api`, `C:\work\api`)
   shows as its last folder, here, in the header, the palette and every alert; the full path stays
-  in the row's tooltip. On a Spaces row line two names the folder unless the workspace label already says it, and
+  in the row's tooltip. On a Projects row line two names the folder unless the workspace label already says it, and
   nothing more under a folder header, which names it. The palette, which has no header, names the workspace and the folder,
   once when they are the same.
 - A PC group header is caret, monitor, name, “Host” for the local machine, a state dot
@@ -466,7 +466,7 @@ One set for both themes: the card is island black wherever it shows.
 - Submit calls `POST /api/workspace/create`; the server performs `workspace.create` and, when an
   agent was chosen, `agent.start` in its root pane. Pending and partial agent-start failure are
   explicit before the created pane opens.
-- As **New tab** (from a Spaces row's `+` or `⋯` menu, the header's New tab button or More menu, the right-click pane menu, the strip's `+` or the palette),
+- As **New tab** (from a Projects row's `+` or `⋯` menu, the header's New tab button or More menu, the right-click pane menu, the strip's `+` or the palette),
   the same dialog is titled `New tab · <workspace>`, shows the workspace's folder as a fact in a
   dashed box (`.new-session-folder`: a worktree's checkout, else the folder of the pane in front)
   instead of asking for one, and its name is the tab's (optional; the placeholder is the number
@@ -577,7 +577,14 @@ One set for both themes: the card is island black wherever it shows.
   `aria-checked` in the popover and a button with `aria-pressed` in the sheet. While alerts are off on this device the
   More button carries a `--dot-size` `--accent` dot and its name says "alerts are off": the dot
   marks the state that needs a look, never "on".
-- The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
+- The segmented Chat/Terminal view switch lives in the header, with a third **History** button for the
+  selected project. There is no floating view-toggle pill.
+- **History** (`HistoryView.css`, tokens only) covers the pane area (`position: absolute`, the terminal
+  under it stays attached): a bar of range chips (Today / 7 days / 30 days, the pressed one `--primary`),
+  a search input and the "Show automated" box, then one section per day (caps `--fs-2xs` title) of
+  `--bg-panel` rows: title, `OPEN NOW` in `--status-working`, first prompt, time, count, branch in mono,
+  and Copy command / Resume (`btn-primary`) or Go to tab. At 600px and below the actions drop under the
+  text and share the row. Resume asks in a `.modal` with the folder and command in `--bg-input` code boxes.
 - Connection is one quiet chip, drawn only while the bridge is not live: a pulsing dot plus the
   written reconnecting/disconnected state. Below `900px` it keeps only its dot; the word stays as
   its accessible text and in its tooltip. While live the chip takes no room and stays in the

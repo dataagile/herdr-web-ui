@@ -18,9 +18,14 @@ export interface AppActions {
    * else the selected pane's. Nothing happens without a workspace to add the tab to.
    */
   openNewTab: (target?: { machineId: string; workspaceId: string }) => void;
+  /**
+   * A project's History over its pane area: the named workspace's (a sidebar row's menu, on its own
+   * PC), else the selected pane's.
+   */
+  openHistory: (target?: { machineId: string; workspaceId: string }) => void;
   openPalette: () => void;
   openSettings: () => void;
-  /** the Add PC dialog, from Settings → Remote PCs and the palette; Settings closes first */
+  /** the Add PC dialog, from the sidebar footer, Settings → Remote PCs and the palette; Settings closes first */
   openAddPc: () => void;
   toggleSidebar: () => void;
   /** flips dark/light (a `system` setting becomes the opposite of the resolved theme) */

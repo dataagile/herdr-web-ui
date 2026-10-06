@@ -327,6 +327,7 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
     structureChanged();
     return json({ ok: true });
   }
+  if (path === "/api/workspace/history") return json({ sessions: [], has_more: false });
   if (path === "/api/workspace/directories") {
     if (method !== "GET") return error("demo", "Folders can't be created in the demo", 403);
     const dir = query.get("path") || "/home/demo";

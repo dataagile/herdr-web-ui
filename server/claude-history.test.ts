@@ -1,0 +1,118 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { claudeHistory, forgetClaudeHistory, insideFolder } from "./claude-history.ts";
+
+const A = "11111111-1111-4111-8111-111111111111";
+const B = "22222222-2222-4222-8222-222222222222";
+const C = "33333333-3333-4333-8333-333333333333";
+const D = "44444444-4444-4444-8444-444444444444";
+
+let dir: string;
+beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "claude-history-")); forgetClaudeHistory(); });
+afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+function line(entry: Record<string, unknown>): string { return JSON.stringify(entry); }
+function user(content: unknown, extra: Record<string, unknown> = {}): string {
+  return line({ type: "user", cwd: "/work/app", gitBranch: "main", entrypoint: "cli", message: { role: "user", content }, ...extra });
+}
+
+/** A transcript `ageMs` old, in the project directory `project`. */
+function write(project: string, id: string, lines: string[], ageMs = 0): string {
+  mkdirSync(join(dir, "projects", project), { recursive: true });
+  const path = join(dir, "projects", project, `${id}.jsonl`);
+  writeFileSync(path, `${lines.join("\n")}\n`);
+  const when = new Date(Date.now() - ageMs);
+  utimesSync(path, when, when);
+  return path;
+}
+
+const query = () => ({ configDir: dir, folder: "/work/app", since: 0, automated: false, offset: 0, limit: 50 });
+
+describe("claudeHistory", () => {
+  it("titles a session by its /rename, else by its first real prompt", async () => {
+    write("p", A, [user("<local-command-caveat>x</local-command-caveat>"), user([{ type: "tool_result", content: "r" }]), user("<system-reminder>r</system-reminder>"), user("Fix   the\nlogin bug"), line({ type: "custom-title", customTitle: "login-fix" })]);
+    write("p", B, [user("<command-name>/clear</command-name>"), user("Add a report"), user("second prompt")], 1000);
+    const { sessions } = await claudeHistory(query());
+    expect(sessions.map((s) => [s.session_id, s.title, s.first_prompt])).toEqual([
+      [A, "login-fix", "Fix the login bug"],
+      [B, "Add a report", "Add a report"],
+    ]);
+    expect(sessions[0]).toMatchObject({ git_branch: "main", cwd: "/work/app", automated: false, message_count: 4 });
+  });
+
+  it("reads a /rename and the model from the tail of a big transcript", async () => {
+    const filler = line({ type: "attachment", cwd: "/work/app", text: "x".repeat(1000) });
+    write("p", A, [user("hello"), ...Array(400).fill(filler), line({ type: "assistant", message: { model: "claude-opus-5-5" } }), line({ type: "custom-title", customTitle: "late name" })]);
+    const { sessions } = await claudeHistory(query());
+    expect(sessions[0]).toMatchObject({ title: "late name", first_prompt: "hello", model: "claude-opus-5-5", message_count: 2 });
+  });
+
+  it("drops the count of a transcript too big to read whole", async () => {
+    write("p", A, [user("small")]);
+    write("p", C, [user("huge"), line({ type: "attachment", text: "z".repeat(5 * 1024 * 1024) })], 1000);
+    const { sessions } = await claudeHistory(query());
+    expect(sessions.map((s) => [s.session_id, s.message_count])).toEqual([[A, 1], [C, null]]);
+  });
+
+  it("hides claude -p sessions unless asked", async () => {
+    write("p", A, [user("headless review", { entrypoint: "sdk-cli" })]);
+    write("p", B, [user("interactive")], 1000);
+    expect((await claudeHistory(query())).sessions.map((s) => s.session_id)).toEqual([B]);
+    const all = (await claudeHistory({ ...query(), automated: true })).sessions;
+    expect(all.map((s) => [s.session_id, s.automated])).toEqual([[A, true], [B, false]]);
+  });
+
+  it("matches the folder and the folders below it, wherever the project directory is", async () => {
+    write("p1", A, [user("here")]);
+    write("whatever", B, [user("below", { cwd: "/work/app/wt/feature" })], 1000);
+    write("p1", C, [user("sibling", { cwd: "/work/app-other" })], 2000);
+    write("p1", D, [user("elsewhere", { cwd: "/work" })], 3000);
+    expect((await claudeHistory(query())).sessions.map((s) => s.session_id)).toEqual([A, B]);
+  });
+
+  it("filters by last activity before reading, newest first", async () => {
+    write("p", A, [user("old")], 10 * 86_400_000);
+    write("p", B, [user("recent")], 1000);
+    expect((await claudeHistory({ ...query(), since: Date.now() - 86_400_000 })).sessions.map((s) => s.session_id)).toEqual([B]);
+    expect((await claudeHistory(query())).sessions.map((s) => s.session_id)).toEqual([B, A]);
+  });
+
+  it("pages with has_more", async () => {
+    for (const [index, id] of [A, B, C].entries()) write("p", id, [user(`prompt ${index}`)], index * 1000);
+    const first = await claudeHistory({ ...query(), limit: 2 });
+    expect([first.sessions.map((s) => s.session_id), first.has_more]).toEqual([[A, B], true]);
+    const second = await claudeHistory({ ...query(), limit: 2, offset: 2 });
+    expect([second.sessions.map((s) => s.session_id), second.has_more]).toEqual([[C], false]);
+  });
+
+  it("reads only session files inside the store: no symlink, no odd names, no store", async () => {
+    mkdirSync(join(dir, "outside"));
+    writeFileSync(join(dir, "outside", `${A}.jsonl`), `${user("secret")}\n`);
+    mkdirSync(join(dir, "projects", "p"), { recursive: true });
+    symlinkSync(join(dir, "outside", `${A}.jsonl`), join(dir, "projects", "p", `${A}.jsonl`));
+    symlinkSync(join(dir, "outside"), join(dir, "projects", "linked"));
+    write("p", "not-a-uuid", [user("odd name")]);
+    expect((await claudeHistory(query())).sessions).toEqual([]);
+    expect((await claudeHistory({ ...query(), configDir: join(dir, "missing") })).sessions).toEqual([]);
+  });
+
+  it("shows a transcript with no prompt as untitled, and skips one with no folder", async () => {
+    write("p", A, [line({ type: "attachment", cwd: "/work/app" })]);
+    write("p", B, [line({ type: "user", message: { content: "no cwd" } })], 1000);
+    const { sessions } = await claudeHistory(query());
+    expect(sessions.map((s) => [s.session_id, s.title])).toEqual([[A, ""]]);
+  });
+});
+
+describe("insideFolder", () => {
+  it("is the folder or a path below it, by whole names", () => {
+    expect(insideFolder("/a/b", "/a/b")).toBe(true);
+    expect(insideFolder("/a/b/c", "/a/b/")).toBe(true);
+    expect(insideFolder("/a/bc", "/a/b")).toBe(false);
+    expect(insideFolder("/anything", "/")).toBe(true);
+    expect(insideFolder("C:\\w\\app\\sub", "C:\\w\\app")).toBe(true);
+  });
+});

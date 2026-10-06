@@ -87,7 +87,7 @@ try {
   await page.getByRole("button", { name: "Close settings", exact: true }).click();
   await page.screenshot({ path: join(evidence, "desktop-light.png") });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
+  await page.getByRole("button", { name: "Open project list", exact: true }).click();
   await page.waitForFunction(() => Math.abs(document.querySelector(".sidebar.is-open")!.getBoundingClientRect().x) < 1);
   await page.screenshot({ path: join(evidence, "mobile-light.png") });
   await page.locator(".sidebar-footer").getByRole("button", { name: "Settings", exact: true }).click();
@@ -96,12 +96,12 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
   await page.getByRole("button", { name: "Close PC setup" }).click();
   // Settings closed the drawer when it opened, and Add PC closed Settings: open the drawer again
-  await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
+  await page.getByRole("button", { name: "Open project list", exact: true }).click();
   await page.locator(".sidebar-footer").getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Settings", exact: true });
   await settings.getByRole("button", { name: "Dark", exact: true }).click();
   await settings.getByRole("button", { name: "Close settings", exact: true }).click();
-  await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
+  await page.getByRole("button", { name: "Open project list", exact: true }).click();
   await page.waitForFunction(() => Math.abs(document.querySelector(".sidebar.is-open")!.getBoundingClientRect().x) < 1);
   await page.screenshot({ path: join(evidence, "mobile-dark.png") });
   assert.deepEqual(errors, []);

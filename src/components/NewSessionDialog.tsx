@@ -135,7 +135,7 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
     <div className="modal-scrim new-session-scrim" onMouseDown={closeFromScrim}>
       <form className="modal new-session-modal" role="dialog" aria-modal="true" aria-labelledby="new-session-title" onSubmit={(event) => void submit(event)}>
         <header className="modal-header">
-          <h2 className="modal-title" id="new-session-title">{tab ? `${t("New tab")} · ${tab.workspaceLabel}` : `${t("New workspace")} · ${machineName ?? machineId}`}</h2>
+          <h2 className="modal-title" id="new-session-title">{tab ? `${t("New tab")} · ${tab.workspaceLabel}` : `${t("New project")} · ${machineName ?? machineId}`}</h2>
           <button type="button" className="icon-button" aria-label={t("Close dialog")} disabled={pending} onClick={onClose}>
             <X aria-hidden="true" />
           </button>
@@ -167,7 +167,7 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
                 <FolderOpen aria-hidden="true" />
                 <span>{tab.cwd ?? tab.workspaceLabel}</span>
               </div>
-              <span className="field-hint">{t("Uses the workspace's folder")}</span>
+              <span className="field-hint">{t("Uses the project's folder")}</span>
             </div>
           ) : (
             <div className="field">
@@ -193,7 +193,7 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
               placeholder={tab ? String(tab.number) : directoryBasename(cwd)}
               onChange={(event) => setName(event.target.value)}
             />
-            <span className="field-hint">{t(tab ? "Tab name (optional)" : "Optional workspace label")}</span>
+            <span className="field-hint">{t(tab ? "Tab name (optional)" : "Optional project label")}</span>
           </label>
           {pending && <p className="new-session-note" role="status">{pendingLabel}</p>}
           {error && <p className="field-hint new-session-error" role="alert">{error}</p>}

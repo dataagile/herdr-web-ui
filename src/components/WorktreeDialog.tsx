@@ -162,7 +162,7 @@ export function WorktreeDialog({ mode, workspace, onClose, onOpened }: Props) {
         <div className="modal-body">
           {mode === "create" ? (
             <>
-              <p className="worktree-lead">{t("A git worktree of this repository, checked out under herdr's worktree folder and opened as a workspace next to this one.")}</p>
+              <p className="worktree-lead">{t("A git worktree of this repository, checked out under herdr's worktree folder and opened as a project next to this one.")}</p>
               <label className="field">
                 <span className="field-label">{t("Branch")}</span>
                 <input ref={first} className="input" value={branch} disabled={locked} required autoComplete="off" spellCheck={false} onChange={(event) => setBranch(event.target.value)} />
@@ -176,7 +176,7 @@ export function WorktreeDialog({ mode, workspace, onClose, onOpened }: Props) {
               <label className="field">
                 <span className="field-label">{t("Name")}</span>
                 <input className="input" value={label} disabled={locked} autoComplete="off" onChange={(event) => setTypedLabel(event.target.value)} />
-                <span className="field-hint">{t("Workspace label; follows the branch until you change it")}</span>
+                <span className="field-hint">{t("Project label; follows the branch until you change it")}</span>
               </label>
               <div className="field">
                 <span className="field-label" id={`${id}-agent`}>{t("Agent")}</span>

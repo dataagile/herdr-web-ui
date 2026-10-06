@@ -303,7 +303,7 @@ try {
   await phone.waitForFunction(() => document.querySelector(".tab-strip-panes-count")?.textContent === "3/3" || /\d\/3/.test(document.querySelector(".tab-strip-panes-count")?.textContent ?? ""));
   assert.equal(await phone.locator(".split-pane").count(), 0, "and still one pane at a time");
   console.log("PASS a phone shows one pane with the 1/N picker; Split from it adds a pane and shows it");
-  await phone.getByRole("button", { name: "Open workspace list" }).tap();
+  await phone.getByRole("button", { name: "Open project list" }).tap();
   const drawerLine = await phone.locator(".sidebar-version").innerText();
   assert.equal(drawerLine, line, "the phone's drawer carries the same version line");
   console.log("PASS the phone's drawer carries the version line too");

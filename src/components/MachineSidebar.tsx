@@ -29,14 +29,15 @@ export function MachineSidebar(props: Props) {
   const { canInstall, installed, install, help } = useInstallPrompt();
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const build = currentBuild();
-  // no top bar: a workspace starts from its PC's header, and Add PC lives in Settings → Remote PCs
+  // no top bar: a workspace starts from its PC's header; Add PC is in the footer, Settings → Remote PCs and the palette
   return <div className="sidebar-shell">
-    <div className="machine-list" aria-label={t("PCs and workspaces")}>
+    <div className="machine-list" aria-label={t("PCs and projects")}>
       <NeedsInput machines={props.machines} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} onSelect={props.onSelect} />
       {props.machines.map((machine) => <MachineGroup key={machine.id} {...props} machine={machine} />)}
       {!props.machines.length && <p className="tree-state" role="status">{t("Loading PCs…")}</p>}
     </div>
     <footer className="sidebar-footer">
+      <button className="btn btn-ghost sidebar-footer-action" onClick={props.actions.openAddPc}><Monitor aria-hidden="true" />{t("Add PC")}</button>
       {/* browsers without an install prompt (iOS, plain HTTP) get the steps instead */}
       {!installed && <button className="btn btn-ghost sidebar-footer-action" aria-expanded={canInstall ? undefined : installHelpOpen} onClick={() => { if (canInstall) void install(); else setInstallHelpOpen(!installHelpOpen); }}><Download aria-hidden="true" />{t("Install app")}</button>}
       {!installed && !canInstall && installHelpOpen && <p className="sidebar-install-help" role="status">{help}</p>}
@@ -76,7 +77,7 @@ function MachineGroup({ machine, ...props }: Props & { machine: Machine }) {
         {machine.kind === "local" && <span className="machine-kind" title={t("The computer this app runs on")}>{t("Host")}</span>}
         <span className={`machine-dot is-${machine.state}`} title={t(STATE_WORD[machine.state])} aria-hidden="true" />
       </button>
-      <button className="sidebar-row-action" disabled={!online} aria-label={t("New workspace on {name}", { name: machine.name })} title={t("New workspace")} onClick={() => props.onNew(machine.id)}><Plus aria-hidden="true" /></button>
+      <button className="sidebar-row-action" disabled={!online} aria-label={t("New project on {name}", { name: machine.name })} title={t("New project")} onClick={() => props.onNew(machine.id)}><Plus aria-hidden="true" /></button>
       {machine.kind === "ssh" && <button className="sidebar-row-action" aria-label={t("Manage {name}", { name: machine.name })} title={t("Manage PC")} aria-expanded={editing} onClick={() => { setEditing(!editing); setConfirmDelete(false); }}><SlidersHorizontal aria-hidden="true" /></button>}
     </header>
     {/* connected is the norm and says nothing new; every other state is spelled out */}

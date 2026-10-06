@@ -101,7 +101,7 @@ export function CommandPalette({ open, onClose, snapshot, selectedPaneId, view, 
   }, [selectedPaneId]);
 
   const paletteActions = useMemo<PaletteAction[]>(() => [
-    { id: "new", label: t("New workspace"), icon: MessageSquarePlus, shortcut: "new-session", run: actions.openNewSession },
+    { id: "new", label: t("New project"), icon: MessageSquarePlus, shortcut: "new-session", run: actions.openNewSession },
     // in the selected pane's workspace: nothing to add a tab to without one
     ...(selectedPaneId !== null ? [{ id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab() }] : []),
     { id: "view", label: t(view === "chat" ? "Switch to terminal" : "Switch to chat"), icon: SwitchCamera, shortcut: "toggle-view", run: actions.toggleView },
@@ -183,7 +183,7 @@ export function CommandPalette({ open, onClose, snapshot, selectedPaneId, view, 
             return (
               <button key={pane.pane_id} id={`palette-item-${index}`} type="button" role="option" className="menu-item palette-pane" aria-selected={activeIndex === index} onMouseEnter={() => setActiveIndex(index)} onClick={() => runPane(pane)}>
                 <span className="palette-mark"><AgentMark agent={pane.agent ?? "shell"} /></span>
-                <span className="menu-item-main"><span className="palette-row-title">{displayPaneTitle(pane)}{selected && <span className="palette-selected">{t("Selected")}</span>}</span><span className="palette-row-subtitle">{placeLine(workspace?.label ?? t("Unknown workspace"), cwdBasename(pane.foreground_cwd ?? pane.cwd))}</span></span>
+                <span className="menu-item-main"><span className="palette-row-title">{displayPaneTitle(pane)}{selected && <span className="palette-selected">{t("Selected")}</span>}</span><span className="palette-row-subtitle">{placeLine(workspace?.label ?? t("Unknown project"), cwdBasename(pane.foreground_cwd ?? pane.cwd))}</span></span>
                 <StatusBadge status={pane.agent_status} />
               </button>
             );

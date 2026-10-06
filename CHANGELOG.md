@@ -8,6 +8,18 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- A project's **History**: a third view beside Chat and Terminal (and an item in the project row's
+  `⋯` menu) lists the Claude Code sessions that ran in the project's folder or a worktree of it,
+  read from this PC's transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written).
+  Today (since local midnight), 7 days and 30 days, a search over title and first prompt, and
+  sessions grouped by day. A session is titled by its `/rename`, else its first prompt; `claude -p`
+  runs show only with **Show automated**. **Resume** confirms the folder and command, then opens a
+  new tab there with `claude --resume <id>` and the arguments saved for the claude agent; **Copy
+  command** copies it with a `cd`. A session already open in a pane (as herdr reports its id) reads
+  **OPEN NOW** and offers **Go to tab**. The list is `GET /api/workspace/history`; PCs added over
+  SSH answer "History is not available for this PC", as their bridges do not have it.
+- **Add PC** is back in the sidebar footer, above Install app and Settings, opening the same dialog
+  as Settings → Remote PCs.
 - A tab split in herdr shows all its panes side by side in the browser (from 1024px), laid out
   as herdr lays them, each with a thin header (agent, name, split, zoom, close) over its own live
   terminal; the focused pane has the amber edge and a click focuses it, here and in herdr.
@@ -59,6 +71,11 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   its workspaces and tabs, a plain shell excluded; its `⋯` renames the pane). Each section
   folds, remembered per PC.
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
+
+### Changed
+- The interface calls herdr's workspaces **projects** (Projects, New project, Rename project, Close
+  project, …), in English and in the Korean, Japanese and Chinese translations. Only the text
+  changes: the API, the protocol, storage keys and herdr itself still say workspace.
 
 ### Fixed
 - The folder browser's POST no longer resolves a relative parent against the server's own

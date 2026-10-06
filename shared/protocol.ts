@@ -72,6 +72,10 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *         -> { text } (pane.selection.read: both cells inclusive, rows from the top of the
  *         history, soft-wrapped lines joined; a terminal selection that outlives one screen)
  *  POST   /api/pane/input  { pane_id, text }   -> { ok: true }
+ *  GET    /api/workspace/history?cwd=&since=&automated=&offset=&limit=  -> WorkspaceHistory (the Claude Code
+ *         sessions of this PC's config dir that ran in `cwd` or below it, last activity since `since`
+ *         (epoch ms), newest first, `limit` 1..50; read only. Not in the PC proxy's allowlist: a remote
+ *         bridge from an older build does not have it)
  *  GET    /api/pane/conversation?pane_id=    -> ConversationResponse (structured agent
  *         transcript turns - claude, codex, omp, omo, gjc or pi; source:"scrollback" when the pane has no
  *         recognized store)
@@ -540,6 +544,29 @@ export interface WorktreeEntry {
   is_prunable: boolean;
   /** the herdr workspace this checkout is open in, if any */
   open_workspace_id: string | null;
+}
+
+/** One Claude Code session of GET /api/workspace/history. */
+export interface HistorySession {
+  session_id: string;
+  /** the name given with /rename, else the first prompt; empty when the transcript holds neither */
+  title: string;
+  first_prompt: string;
+  /** epoch ms of the transcript's last write */
+  last_activity: number;
+  /** user + assistant lines; null for a transcript too big to count cheaply */
+  message_count: number | null;
+  git_branch: string | null;
+  model: string | null;
+  /** the folder the session started in: the project's folder or one below it */
+  cwd: string;
+  /** a `claude -p` run (entrypoint sdk-cli) */
+  automated: boolean;
+}
+
+export interface WorkspaceHistory {
+  sessions: HistorySession[];
+  has_more: boolean;
 }
 
 /** GET /api/worktree/list: the repository the workspace is in, and every checkout of it. */

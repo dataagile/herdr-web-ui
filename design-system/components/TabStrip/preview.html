@@ -1,0 +1,51 @@
+<!-- @dsCard group="Navigation" height=180 subtitle="herdr tab row: state dots, open tab underlined, pane picker chevron, close and +" -->
+<div class="ds-stage">
+  <div class="ds-cap">Open tab with one pane: its x shows; a split tab carries the pane picker</div>
+  <div class="tab-strip" role="tablist" aria-label="Tabs of api">
+      <div class="tab-strip-item is-active">
+        <button type="button" role="tab" class="tab-strip-tab" data-tab-id="t1" aria-selected="true" tabindex="0" title="Fix token refresh race"><span class="tab-strip-dot" data-status="blocked" aria-hidden="true"></span><span class="tab-strip-label">server</span></button>
+        <button type="button" class="tab-strip-panes" aria-label="Actions for server" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="tab-strip-close" aria-label="Close tab server" title="Close tab"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="tab-strip-item has-panes">
+        <button type="button" role="tab" class="tab-strip-tab" data-tab-id="t2" aria-selected="false" tabindex="-1" title="2 panes"><span class="tab-strip-dot" data-status="working" aria-hidden="true"></span><span class="tab-strip-label">tests</span></button>
+        <button type="button" class="tab-strip-panes" aria-label="Panes in tests" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="tab-strip-close" aria-label="Close tab tests" title="Close tab"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="tab-strip-item">
+        <button type="button" role="tab" class="tab-strip-tab" data-tab-id="t3" aria-selected="false" tabindex="-1" title="infra"><span class="tab-strip-label">Tab 3</span></button>
+        <button type="button" class="tab-strip-panes" aria-label="Actions for Tab 3" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="tab-strip-close" aria-label="Close tab Tab 3" title="Close tab"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="tab-strip-item">
+        <button type="button" role="tab" class="tab-strip-tab" data-tab-id="t4" aria-selected="false" tabindex="-1" title="Tail request logs"><span class="tab-strip-dot" data-status="done" aria-hidden="true"></span><span class="tab-strip-label">logs</span></button>
+        <button type="button" class="tab-strip-panes" aria-label="Actions for logs" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="tab-strip-close" aria-label="Close tab logs" title="Close tab"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <button type="button" class="tab-strip-add" aria-label="New tab" title="New tab"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+  </div>
+  <div class="ds-cap">Open tab split into panes: chevron and x side by side</div>
+  <div class="tab-strip" role="tablist" aria-label="Tabs of web">
+      <div class="tab-strip-item">
+        <button type="button" role="tab" class="tab-strip-tab" data-tab-id="u1" aria-selected="false" tabindex="-1" title="Bundle size check"><span class="tab-strip-dot" data-status="done" aria-hidden="true"></span><span class="tab-strip-label">build</span></button>
+        <button type="button" class="tab-strip-panes" aria-label="Actions for build" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="tab-strip-close" aria-label="Close tab build" title="Close tab"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="tab-strip-item is-active has-panes">
+        <button type="button" role="tab" class="tab-strip-tab" data-tab-id="u2" aria-selected="true" tabindex="0" title="3 panes"><span class="tab-strip-dot" data-status="working" aria-hidden="true"></span><span class="tab-strip-label">Tab 2</span></button>
+        <button type="button" class="tab-strip-panes" aria-label="Panes in Tab 2" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="tab-strip-close" aria-label="Close tab Tab 2" title="Close tab"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="tab-strip-item">
+        <button type="button" role="tab" class="tab-strip-tab" data-tab-id="u3" aria-selected="false" tabindex="-1" title="notes"><span class="tab-strip-label">notes</span></button>
+        <button type="button" class="tab-strip-panes" aria-label="Actions for notes" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button type="button" class="tab-strip-close" aria-label="Close tab notes" title="Close tab"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <button type="button" class="tab-strip-add" aria-label="New tab" title="New tab"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+  </div>
+</div>
+<style>
+.ds-stage{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-4);background:var(--bg-panel);font-family:var(--font-ui);color:var(--text)}
+.ds-stage .ds-cap{font-size:var(--fs-xs);color:var(--text-dim)}
+.ds-stage .ds-cap + .tab-strip{margin-bottom:var(--space-2)}
+</style>

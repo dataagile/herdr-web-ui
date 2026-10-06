@@ -1,0 +1,43 @@
+<!-- @dsCard group="Status" height=270 subtitle="In-app alert card: needs input, finished, terminal ended (static, no goo animation)" -->
+<div class="ds-stage">
+  <div class="droplet" role="status" aria-live="polite" data-phase="in" data-kind="blocked" style="--droplet-drag: 0px; --droplet-top: 0px; --droplet-fit: 323px;">
+    <div class="droplet-goo" aria-hidden="true"><span class="droplet-blob"></span></div>
+    <button type="button" class="droplet-card" aria-label="Fix token refresh race, studio · Needs input. Open pane">
+      <span class="droplet-mark"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
+      <span class="droplet-text">
+        <span class="droplet-title">Fix token refresh race</span>
+        <span class="droplet-detail">studio · Needs input</span>
+      </span>
+      <span class="droplet-dot" aria-hidden="true"></span>
+    </button>
+  </div>
+  <div class="droplet" role="status" aria-live="polite" data-phase="in" data-kind="done" style="--droplet-drag: 0px; --droplet-top: 0px; --droplet-fit: 267px;">
+    <div class="droplet-goo" aria-hidden="true"><span class="droplet-blob"></span></div>
+    <button type="button" class="droplet-card" aria-label="Move settings into tabs, Finished. Open pane">
+      <span class="droplet-mark"><span class="agent-mark goose"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="goose"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">G</text></svg></span></span>
+      <span class="droplet-text">
+        <span class="droplet-title">Move settings into tabs</span>
+        <span class="droplet-detail">Finished</span>
+      </span>
+      <span class="droplet-dot" aria-hidden="true"></span>
+    </button>
+  </div>
+  <div class="droplet" role="status" aria-live="polite" data-phase="in" data-kind="ended" style="--droplet-drag: 0px; --droplet-top: 0px; --droplet-fit: 248px;">
+    <div class="droplet-goo" aria-hidden="true"><span class="droplet-blob"></span></div>
+    <button type="button" class="droplet-card" aria-label="infra, build-box · terminal ended. Open pane">
+      <span class="droplet-mark"><span class="droplet-mark-blank"></span></span>
+      <span class="droplet-text">
+        <span class="droplet-title">infra</span>
+        <span class="droplet-detail">build-box · terminal ended</span>
+      </span>
+      <span class="droplet-dot" aria-hidden="true"></span>
+    </button>
+  </div>
+</div>
+<style>
+.ds-stage{display:flex;flex-direction:column;gap:var(--space-5);padding:var(--space-4);background:var(--bg);font-family:var(--font-ui);color:var(--text)}
+/* in-flow inside the stage: the live alert is fixed under the app header and animated */
+.ds-stage .droplet{position:relative;inset:auto;height:var(--droplet-h);z-index:auto}
+.ds-stage .droplet-goo{height:var(--droplet-h);filter:drop-shadow(0 10px 14px var(--droplet-shadow))}
+.ds-stage .droplet-blob,.ds-stage .droplet-card::before,.ds-stage .droplet-card > *{animation:none}
+</style>

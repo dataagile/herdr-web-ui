@@ -1,0 +1,60 @@
+<!-- @dsCard group="Overlays" height=520 subtitle="Search, recent panes and actions; one row active" -->
+<div class="ds-stage">
+  <div class="modal-scrim palette-scrim">
+    <section class="menu command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div class="palette-search">
+        <input class="input" type="search" value="" placeholder="Search panes and actions&hellip;" aria-label="Search panes and actions" aria-controls="ds-palette-results" aria-activedescendant="ds-palette-item-1">
+        <button type="button" class="icon-button" aria-label="Close command palette">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="palette-results" id="ds-palette-results" role="listbox">
+        <div class="menu-heading">Panes</div>
+        <button id="ds-palette-item-0" type="button" role="option" class="menu-item palette-pane" aria-selected="false">
+          <span class="palette-mark"><span class="agent-mark"><svg viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="agent"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
+          <span class="menu-item-main"><span class="palette-row-title">Refactor session store<span class="palette-selected">Selected</span></span><span class="palette-row-subtitle">api</span></span>
+          <span class="badge badge-working" data-status="working" title="Agent RUN">RUN</span>
+        </button>
+        <button id="ds-palette-item-1" type="button" role="option" class="menu-item palette-pane" aria-selected="true">
+          <span class="palette-mark"><span class="agent-mark"><svg viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="agent"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
+          <span class="menu-item-main"><span class="palette-row-title">Review checkout form</span><span class="palette-row-subtitle">web</span></span>
+          <span class="badge badge-blocked" data-status="blocked" title="Agent INPUT">INPUT</span>
+        </button>
+        <button id="ds-palette-item-2" type="button" role="option" class="menu-item palette-pane" aria-selected="false">
+          <span class="palette-mark"><span class="agent-mark shell"><svg viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="shell"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">S</text></svg></span></span>
+          <span class="menu-item-main"><span class="palette-row-title">~/dev/api/migrations</span><span class="palette-row-subtitle">api &middot; migrations</span></span>
+          <span class="badge badge-unknown" data-status="unknown" title="Agent &mdash;">&mdash;</span>
+        </button>
+        <div class="menu-heading">Actions</div>
+        <button id="ds-palette-item-3" type="button" role="option" class="menu-item" aria-selected="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>
+          <span class="menu-item-main">New workspace</span>
+          <span class="palette-shortcut" aria-label="Ctrl + Shift + O"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">Shift</kbd><kbd class="kbd">O</kbd></span>
+        </button>
+        <button id="ds-palette-item-4" type="button" role="option" class="menu-item" aria-selected="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <span class="menu-item-main">New tab</span>
+        </button>
+        <button id="ds-palette-item-5" type="button" role="option" class="menu-item" aria-selected="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>
+          <span class="menu-item-main">Split right</span>
+        </button>
+        <button id="ds-palette-item-6" type="button" role="option" class="menu-item" aria-selected="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
+          <span class="menu-item-main">Toggle sidebar</span>
+          <span class="palette-shortcut" aria-label="Ctrl + Shift + B"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">Shift</kbd><kbd class="kbd">B</kbd></span>
+        </button>
+        <button id="ds-palette-item-7" type="button" role="option" class="menu-item" aria-selected="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="menu-item-main">Settings</span>
+          <span class="palette-shortcut" aria-label="Ctrl + Shift + ,"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">Shift</kbd><kbd class="kbd">,</kbd></span>
+        </button>
+      </div>
+    </section>
+  </div>
+</div>
+<style>
+  .ds-stage { padding: 0; background: var(--bg); font-family: var(--font-ui); color: var(--text); }
+  .ds-stage .modal-scrim { position: relative; inset: auto; z-index: auto; min-height: 520px; padding: var(--space-4); }
+  .ds-stage .command-palette { max-height: none; }
+</style>

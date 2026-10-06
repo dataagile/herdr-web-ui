@@ -1,0 +1,29 @@
+<!-- @dsCard group="Status" height=340 subtitle="Agent state as a tinted word: READY, RUN, INPUT, DONE, unknown" -->
+<div class="ds-stage">
+  <div class="ds-label">States</div>
+  <div class="ds-row">
+    <span class="badge badge-idle" data-status="idle" title="Agent READY">READY</span>
+    <span class="badge badge-working" data-status="working" title="Agent RUN">RUN</span>
+    <span class="badge badge-blocked" data-status="blocked" title="Agent INPUT">INPUT</span>
+    <span class="badge badge-done" data-status="done" title="Agent DONE">DONE</span>
+    <span class="badge badge-unknown" data-status="unknown" title="Agent —">—</span>
+    <span class="ds-sep" aria-hidden="true"></span>
+    <span class="badge badge-restore-error" title="pane cwd no longer exists">NOT RESTORED</span>
+    <span class="badge badge-background" title="Background tasks running: 2" aria-label="Background tasks running: 2"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>2</span>
+  </div>
+  <div class="ds-label">In a sidebar row</div>
+  <div class="ds-roster">
+    <div class="pane-row"><div class="pane-select" role="button" tabindex="0"><span class="agent-mark-holder is-shell" title="Shell"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg></span><span class="pane-copy"><span class="pane-primary"><span class="pane-title">fix flaky auth test</span></span><span class="pane-meta"><span class="badge badge-working" data-status="working" title="Agent RUN">RUN</span><span class="badge badge-background" title="Background tasks running: 2" aria-label="Background tasks running: 2"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>2</span><span class="pane-subtitle">api · server</span></span></span></div></div>
+    <div class="pane-row"><div class="pane-select" role="button" tabindex="0"><span class="agent-mark-holder is-shell" title="Shell"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg></span><span class="pane-copy"><span class="pane-primary"><span class="pane-title">migrate settings page</span></span><span class="pane-meta"><span class="badge badge-blocked" data-status="blocked" title="Agent INPUT">INPUT</span><span class="pane-subtitle">web</span></span></span></div></div>
+    <div class="pane-row"><div class="pane-select" role="button" tabindex="0"><span class="agent-mark-holder is-shell" title="Shell"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg></span><span class="pane-copy"><span class="pane-primary"><span class="pane-title">release notes</span></span><span class="pane-meta"><span class="badge badge-done" data-status="done" title="Agent DONE">DONE</span><span class="pane-subtitle">docs · changelog</span></span></span></div></div>
+    <div class="pane-row"><div class="pane-select" role="button" tabindex="0"><span class="agent-mark-holder is-shell" title="Shell"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg></span><span class="pane-copy"><span class="pane-primary"><span class="pane-title">api</span></span><span class="pane-meta"><span class="badge badge-unknown" data-status="unknown" title="Agent —">—</span><span class="pane-subtitle">~/dev/api</span></span></span></div></div>
+  </div>
+</div>
+<style>
+.ds-stage{background:var(--bg-panel);padding:var(--space-4);font-family:var(--font-ui);color:var(--text);display:flex;flex-direction:column;gap:var(--space-3)}
+.ds-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
+.ds-label{font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;letter-spacing:var(--tracking-caps);font-weight:var(--fw-semibold)}
+.ds-sep{width:1px;height:16px;background:var(--border);margin:0 var(--space-2)}
+.ds-roster{width:300px;display:flex;flex-direction:column}
+.ds-roster .pane-row{padding-left:0}
+</style>

@@ -1,0 +1,67 @@
+<!-- @dsCard group="Overlays" height=256 subtitle="Row menu, header More menu and a completion list" -->
+<div class="ds-stage">
+  <div class="menu row-menu" role="menu" aria-label="api">
+    <button type="button" role="menuitem" class="menu-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+      <span class="menu-item-main">Rename workspace</span>
+    </button>
+    <button type="button" role="menuitem" class="menu-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+      <span class="menu-item-main">Rename pane</span>
+    </button>
+    <button type="button" role="menuitem" class="menu-item" aria-selected="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      <span class="menu-item-main">New tab</span>
+    </button>
+    <button type="button" role="menuitem" class="menu-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      <span class="menu-item-main">New worktree</span>
+    </button>
+    <button type="button" role="menuitem" class="menu-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+      <span class="menu-item-main">Open worktree&hellip;</span>
+    </button>
+    <span class="row-menu-divider" role="separator"></span>
+    <button type="button" role="menuitem" class="menu-item is-danger">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      <span class="menu-item-main">Close workspace</span>
+    </button>
+  </div>
+
+  <div class="menu row-menu" role="menu" aria-label="More">
+    <button type="button" role="menuitem" class="menu-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <span class="menu-item-main">Command palette</span>
+    </button>
+    <button type="button" role="menuitem" class="menu-item" title="New tab in api">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      <span class="menu-item-main">New tab</span>
+    </button>
+    <button type="button" role="menuitem" class="menu-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+      <span class="menu-item-main">Browse files</span>
+    </button>
+    <button type="button" role="menuitemcheckbox" aria-checked="true" class="menu-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+      <span class="menu-item-main">Alerts</span>
+      <span class="menu-item-hint">On in the app</span>
+    </button>
+  </div>
+
+  <div class="menu composer-menu" role="listbox" aria-label="Slash commands">
+    <div class="composer-menu-group">
+      <div class="menu-heading">Built in</div>
+      <button type="button" class="menu-item" role="option" aria-selected="true"><span class="menu-item-main">/compact</span><span class="menu-item-hint">Summarize the conversation</span></button>
+      <button type="button" class="menu-item" role="option" aria-selected="false"><span class="menu-item-main">/clear</span><span class="menu-item-hint">Start a new conversation</span></button>
+    </div>
+    <div class="composer-menu-group">
+      <div class="menu-heading">Project</div>
+      <button type="button" class="menu-item" role="option" aria-selected="false"><span class="menu-item-main">/release</span><span class="menu-item-hint">Tag and publish api</span></button>
+    </div>
+  </div>
+</div>
+<style>
+  .ds-stage { display: flex; align-items: flex-start; gap: var(--space-4); padding: var(--space-4); background: var(--bg); font-family: var(--font-ui); color: var(--text); }
+  .ds-stage .row-menu { position: static; flex: 0 0 auto; width: 216px; }
+  .ds-stage .composer-menu { position: static; flex: 1 1 auto; min-width: 0; max-height: none; }
+</style>

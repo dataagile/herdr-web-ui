@@ -1,0 +1,70 @@
+<!-- @dsCard group="Forms" height=370 subtitle="Uppercase label, input/select, hint and error" -->
+<div class="ds-stage">
+  <div class="ds-col">
+    <label class="field">
+      <span class="field-label">Name</span>
+      <input class="input" value="" placeholder="api" autocomplete="off">
+      <span class="field-hint">Optional workspace label</span>
+    </label>
+    <div class="field">
+      <span class="field-label" id="ds-field-agent">Agent</span>
+      <div class="agent-picker">
+        <button type="button" class="select agent-picker-trigger" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="ds-field-agent">
+          <span class="agent-picker-shell"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg></span>
+          <span class="agent-picker-label">Shell</span>
+          <svg class="agent-picker-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label" for="ds-field-mode">Terminal input</label>
+      <select id="ds-field-mode" class="input">
+        <option>Auto</option>
+        <option>Line</option>
+        <option>Direct</option>
+      </select>
+    </div>
+    <label class="field">
+      <span class="field-label">Arguments</span>
+      <input class="input" value="" placeholder="e.g. --auto" disabled>
+      <span class="field-hint">Disabled while the workspace starts.</span>
+    </label>
+  </div>
+  <div class="ds-col">
+    <div class="field">
+      <label class="field-label" for="ds-field-cwd">Directory</label>
+      <div class="new-session-cwd">
+        <input id="ds-field-cwd" class="input" value="~/dev/api" autocomplete="off">
+        <button type="button" class="btn" aria-expanded="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+          Browse
+        </button>
+      </div>
+      <span class="field-hint">absolute path or ~/&hellip;</span>
+    </div>
+    <div class="field">
+      <span class="field-label">Directory</span>
+      <div class="new-session-folder">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+        <span>~/dev/web</span>
+      </div>
+      <span class="field-hint">Uses the workspace's folder</span>
+    </div>
+    <div class="field">
+      <label class="field-label" for="ds-field-bad">Directory</label>
+      <div class="new-session-cwd">
+        <input id="ds-field-bad" class="input" value="~/dev/apii" autocomplete="off" aria-invalid="true">
+        <button type="button" class="btn" aria-expanded="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+          Browse
+        </button>
+      </div>
+      <span class="field-hint">absolute path or ~/&hellip;</span>
+    </div>
+    <p class="field-hint new-session-error" role="alert">Directory not found: ~/dev/apii</p>
+  </div>
+</div>
+<style>
+  .ds-stage { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); padding: var(--space-4) var(--space-5); background: var(--bg-panel); font-family: var(--font-ui); color: var(--text); }
+  .ds-col { display: flex; flex-direction: column; min-width: 0; }
+</style>

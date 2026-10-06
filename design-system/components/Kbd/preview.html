@@ -1,0 +1,15 @@
+<!-- @dsCard group="Content" height=186 subtitle="Inline mono keycaps for shortcut hints" -->
+<div class="ds-stage">
+  <p class="ds-hint">Press <kbd class="kbd">⌘</kbd> <kbd class="kbd">⇧</kbd> <kbd class="kbd">K</kbd> for the command palette, <kbd class="kbd">Enter</kbd> to run the highlighted action, <kbd class="kbd">Esc</kbd> to close.</p>
+  <div class="menu ds-menu" role="listbox" aria-label="Command palette actions">
+    <button type="button" role="option" class="menu-item" aria-selected="true"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg><span class="menu-item-main">New workspace</span><span class="palette-shortcut" aria-label="⌘ + Shift + O"><kbd class="kbd">⌘</kbd><kbd class="kbd">Shift</kbd><kbd class="kbd">O</kbd></span></button>
+    <button type="button" role="option" class="menu-item" aria-selected="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg><span class="menu-item-main">Toggle sidebar</span><span class="palette-shortcut" aria-label="Ctrl + Shift + B"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">Shift</kbd><kbd class="kbd">B</kbd></span></button>
+  </div>
+  <p class="ds-note">Mod resolves to <kbd class="kbd">⌘</kbd> on Apple platforms and <kbd class="kbd">Ctrl</kbd> elsewhere.</p>
+</div>
+<style>
+.ds-stage{background:var(--bg-panel);padding:var(--space-4);font-family:var(--font-ui);color:var(--text);display:flex;flex-direction:column;gap:var(--space-3)}
+.ds-hint{margin:0;font-size:var(--fs-sm);color:var(--text);line-height:1.9}
+.ds-note{margin:0;font-size:var(--fs-xs);color:var(--text-dim);line-height:1.9}
+.ds-menu{width:360px}
+</style>

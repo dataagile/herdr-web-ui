@@ -1,0 +1,282 @@
+{
+  "v": 3,
+  "assetGroups": {
+    "Icons": {
+      "files": {
+        "apple-touch-icon.png": {
+          "blob": "a81c7ab6351cc7c18915ff67dc85cfe9",
+          "name": "apple-touch-icon.png",
+          "size": 24162,
+          "type": "image/png"
+        },
+        "favicon.png": {
+          "blob": "9514515db85536f30eb426c3578dc535",
+          "name": "favicon.png",
+          "size": 4157,
+          "type": "image/png"
+        },
+        "herdr-mark-192.png": {
+          "blob": "a6bc3ff0f96484f9461b9eee8e83993b",
+          "name": "herdr-mark-192.png",
+          "size": 27611,
+          "type": "image/png"
+        },
+        "notification-badge-96.png": {
+          "blob": "34e069b15722b84c1fba6ac7a06e9711",
+          "name": "notification-badge-96.png",
+          "size": 1868,
+          "type": "image/png"
+        }
+      },
+      "name": "Icons",
+      "order": [
+        "favicon.png",
+        "apple-touch-icon.png",
+        "herdr-mark-192.png",
+        "notification-badge-96.png"
+      ],
+      "tile": "s"
+    },
+    "Logos": {
+      "files": {
+        "herdr-mark-512.png": {
+          "blob": "dcea477f8cbeb1fc4fff7ba03ff089cb",
+          "name": "herdr-mark-512.png",
+          "size": 196100,
+          "type": "image/png"
+        },
+        "herdr-mark-maskable-512.png": {
+          "blob": "13325e0eb41e544b551993d29eaefc0a",
+          "name": "herdr-mark-maskable-512.png",
+          "size": 120438,
+          "type": "image/png"
+        },
+        "herdr-social-preview.png": {
+          "blob": "3364e2892330404ce55e93371e1be38b",
+          "name": "herdr-social-preview.png",
+          "size": 340547,
+          "type": "image/png"
+        }
+      },
+      "name": "Logos",
+      "order": [
+        "herdr-mark-512.png",
+        "herdr-mark-maskable-512.png",
+        "herdr-social-preview.png"
+      ],
+      "tile": "l"
+    },
+    "Portal": {
+      "name": "Portal",
+      "tile": "m",
+      "order": [
+        "data-agile-wordmark.png",
+        "data-agile-monogram.svg",
+        "data-agile-icon-512.png",
+        "data-agile-icon-maskable-512.png",
+        "data-agile-icon-180.png",
+        "data-agile-favicon-32.png"
+      ],
+      "files": {
+        "data-agile-wordmark.png": {
+          "name": "data-agile-wordmark.png",
+          "blob": "837a24af506939dbc3bba50e2cfd25a1",
+          "size": 18101,
+          "type": "image/png"
+        },
+        "data-agile-monogram.svg": {
+          "name": "data-agile-monogram.svg",
+          "blob": "d8aa77b0cbb7f77879ed0e292a347db5",
+          "size": 413,
+          "type": "image/svg+xml"
+        },
+        "data-agile-icon-512.png": {
+          "name": "data-agile-icon-512.png",
+          "blob": "c8e868d398cbe9b17cd5010d223fd9c7",
+          "size": 12325,
+          "type": "image/png"
+        },
+        "data-agile-icon-maskable-512.png": {
+          "name": "data-agile-icon-maskable-512.png",
+          "blob": "2dd0003bdc9c69f09fa17d422ddb402d",
+          "size": 22901,
+          "type": "image/png"
+        },
+        "data-agile-icon-180.png": {
+          "name": "data-agile-icon-180.png",
+          "blob": "b109e080893e5461582a4e1a61c03290",
+          "size": 3834,
+          "type": "image/png"
+        },
+        "data-agile-favicon-32.png": {
+          "name": "data-agile-favicon-32.png",
+          "blob": "30982b5e5ebdbf730e02e8e58fa53f14",
+          "size": 725,
+          "type": "image/png"
+        }
+      }
+    },
+    "Screens": {
+      "name": "Screens",
+      "tile": "l",
+      "order": [
+        "sidebar.webp",
+        "chat-step-1.webp",
+        "chat-todo.webp",
+        "chat-folded.webp",
+        "terminal.webp",
+        "prompt.webp",
+        "phone-chat.webp",
+        "phone-approve.webp",
+        "phone-terminal.webp",
+        "chat-loop.mp4"
+      ],
+      "files": {
+        "sidebar.webp": {
+          "name": "sidebar.webp",
+          "blob": "5e34ca6f844886a9bf0fc25944f4e80e",
+          "size": 26062,
+          "type": "image/webp"
+        },
+        "chat-step-1.webp": {
+          "name": "chat-step-1.webp",
+          "blob": "0aa1a4ff93bf832965af978675cfbb40",
+          "size": 69142,
+          "type": "image/webp"
+        },
+        "chat-todo.webp": {
+          "name": "chat-todo.webp",
+          "blob": "72e7f5fe97299557796c757ecaa3ffd6",
+          "size": 101870,
+          "type": "image/webp"
+        },
+        "chat-folded.webp": {
+          "name": "chat-folded.webp",
+          "blob": "cd3d297eb0ecee2d710f6244d91458f2",
+          "size": 105254,
+          "type": "image/webp"
+        },
+        "terminal.webp": {
+          "name": "terminal.webp",
+          "blob": "6155dd69c18fffb6ca6abdd292789f96",
+          "size": 65702,
+          "type": "image/webp"
+        },
+        "prompt.webp": {
+          "name": "prompt.webp",
+          "blob": "9d310ac725f466dae84e1317e5a925cf",
+          "size": 68578,
+          "type": "image/webp"
+        },
+        "phone-chat.webp": {
+          "name": "phone-chat.webp",
+          "blob": "cd9099b35d65c9f6bd0b621f86588b14",
+          "size": 77912,
+          "type": "image/webp"
+        },
+        "phone-approve.webp": {
+          "name": "phone-approve.webp",
+          "blob": "d2d8491d63feb613378d20be1af05b14",
+          "size": 71164,
+          "type": "image/webp"
+        },
+        "phone-terminal.webp": {
+          "name": "phone-terminal.webp",
+          "blob": "09462156c91b4d54e95c91931b709f6f",
+          "size": 54746,
+          "type": "image/webp"
+        },
+        "chat-loop.mp4": {
+          "name": "chat-loop.mp4",
+          "blob": "df3eccc83ca5ab9bb5879489a070968a",
+          "size": 1606453,
+          "type": "video/mp4"
+        }
+      }
+    },
+    "DevIcons": {
+      "name": "DevIcons",
+      "tile": "m",
+      "order": [
+        "data-agile-dev.svg",
+        "data-agile-dev-icon-512.png",
+        "data-agile-dev-icon-maskable-512.png",
+        "data-agile-dev-icon-192.png",
+        "data-agile-dev-apple-touch-icon-180.png",
+        "data-agile-dev-favicon-32.png",
+        "data-agile-dev-badge-96.png"
+      ],
+      "files": {
+        "data-agile-dev.svg": {
+          "name": "data-agile-dev.svg",
+          "blob": "d1959decfe18955c75c73e740f6743d1",
+          "size": 758,
+          "type": "image/svg+xml"
+        },
+        "data-agile-dev-icon-512.png": {
+          "name": "data-agile-dev-icon-512.png",
+          "blob": "b1c036e6ef30252e15231b514b71df29",
+          "size": 13154,
+          "type": "image/png"
+        },
+        "data-agile-dev-icon-maskable-512.png": {
+          "name": "data-agile-dev-icon-maskable-512.png",
+          "blob": "fc0eac95db5e2233129b01cc7b207bd0",
+          "size": 6512,
+          "type": "image/png"
+        },
+        "data-agile-dev-icon-192.png": {
+          "name": "data-agile-dev-icon-192.png",
+          "blob": "e03ca7b5ba3d30a4fa024cfaa86e1396",
+          "size": 4623,
+          "type": "image/png"
+        },
+        "data-agile-dev-apple-touch-icon-180.png": {
+          "name": "data-agile-dev-apple-touch-icon-180.png",
+          "blob": "cccd60d0e3e8334bad6144ebb4a4e926",
+          "size": 2747,
+          "type": "image/png"
+        },
+        "data-agile-dev-favicon-32.png": {
+          "name": "data-agile-dev-favicon-32.png",
+          "blob": "2c585a319443afa9eedbe48e4d70e3fb",
+          "size": 896,
+          "type": "image/png"
+        },
+        "data-agile-dev-badge-96.png": {
+          "name": "data-agile-dev-badge-96.png",
+          "blob": "6d1f8a0c1738c4d3f5fca85619e686dd",
+          "size": 1392,
+          "type": "image/png"
+        }
+      }
+    }
+  },
+  "blobs": {},
+  "createdOnFiles": {
+    "at": "2026-10-05T23:16:43Z",
+    "v": 1
+  },
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "groups": [
+    "DevIcons",
+    "Portal",
+    "Screens",
+    "Logos",
+    "Icons"
+  ],
+  "lastChange": {
+    "by": "João Vitor",
+    "at": "2026-10-06T00:18:13Z",
+    "via": "Claude (Cowork)",
+    "note": "New Data Agile Dev app icon (DA_ monogram) for the portal and the herdr fork; upstream ram kept for reference only."
+  },
+  "layout": "files",
+  "libraries": [],
+  "namespace": "HerdrWebUI",
+  "sections": {},
+  "title": "Data Agile Dev"
+}

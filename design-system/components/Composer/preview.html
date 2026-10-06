@@ -1,0 +1,87 @@
+<!-- @dsCard group="Chat" height=515 subtitle="Input card: attach, mic, model pill and the round Send / Stop button" -->
+<div class="ds-stage">
+  <div class="ds-label">Turn ended unseen · draft · Send</div>
+  <div class="terminal-stack is-chat">
+    <div class="composer" role="group" aria-label="Message composer">
+      <div class="composer-surface">
+        <div class="composer-resize" role="separator" aria-orientation="horizontal" aria-label="Resize message box" tabindex="0" title="Drag to resize · double-click to reset"></div>
+        <textarea class="composer-text" rows="1" placeholder="Message aider…" aria-label="Message" spellcheck="false">Add a test for an empty date range in reports.test.ts</textarea>
+        <div class="composer-controls composer-controls-left">
+          <button type="button" class="icon-button composer-attach" aria-label="Attach files" title="Attach files"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+          <span class="voice-mic-wrap" data-state="idle"><span class="voice-mic-ring" aria-hidden="true"></span><button type="button" class="voice-mic" aria-label="Dictate (hold)" aria-pressed="false" title="Dictate (hold)"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg></button></span>
+        </div>
+        <div class="composer-status" role="status" data-status="done">
+          <span class="composer-status-meta">
+            <span class="composer-agent-label visually-hidden">aider</span>
+            <span class="composer-status-separator visually-hidden" aria-hidden="true">·</span>
+            <strong>DONE</strong>
+            <span class="composer-pill">
+              <span class="agent-mark aider"><svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span>
+              <span class="composer-model-info" aria-label="Model and reasoning"><span class="composer-model" title="gpt-5.5">GPT-5.5</span><span class="composer-model-id visually-hidden">gpt-5.5</span><span class="composer-reasoning" title="Reasoning effort: high"><span class="composer-reasoning-full visually-hidden">Reasoning high</span><span class="composer-reasoning-dot" aria-hidden="true">·</span><span class="composer-reasoning-short" aria-hidden="true">high</span></span></span>
+              <button type="button" class="composer-context" aria-label="Context 64% left · 98k of 272k tokens" title="Context 64% left · 98k of 272k tokens" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle class="composer-context-track" cx="8" cy="8" r="6"/><circle class="composer-context-used" cx="8" cy="8" r="6" stroke-dasharray="13.57 37.70" transform="rotate(-90 8 8)"/></svg></button>
+            </span>
+          </span>
+        </div>
+        <div class="composer-controls composer-controls-right"><button type="button" class="composer-action composer-send" aria-label="Send message" title="Send message"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg></button></div>
+      </div>
+    </div>
+  </div>
+  <div class="ds-label">Working · empty box · Stop</div>
+  <div class="terminal-stack is-chat">
+    <div class="composer" role="group" aria-label="Message composer">
+      <div class="composer-surface">
+        <div class="composer-resize" role="separator" aria-orientation="horizontal" aria-label="Resize message box" tabindex="0" title="Drag to resize · double-click to reset"></div>
+        <textarea class="composer-text" rows="1" placeholder="Message aider…" aria-label="Message" spellcheck="false"></textarea>
+        <div class="composer-controls composer-controls-left">
+          <button type="button" class="icon-button composer-attach" aria-label="Attach files" title="Attach files"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+          <span class="voice-mic-wrap" data-state="idle"><span class="voice-mic-ring" aria-hidden="true"></span><button type="button" class="voice-mic" aria-label="Dictate (hold)" aria-pressed="false" title="Dictate (hold)"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg></button></span>
+        </div>
+        <div class="composer-status" role="status" data-status="working">
+          <span class="composer-status-meta">
+            <span class="composer-agent-label visually-hidden">aider</span>
+            <span class="composer-status-separator visually-hidden" aria-hidden="true">·</span>
+            <strong class="visually-hidden">RUN</strong>
+            <span class="composer-pill">
+              <span class="agent-mark aider"><svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span>
+              <span class="composer-model-info" aria-label="Model and reasoning"><span class="composer-model" title="gpt-5.5">GPT-5.5</span><span class="composer-model-id visually-hidden">gpt-5.5</span><span class="composer-reasoning" title="Reasoning effort: high"><span class="composer-reasoning-full visually-hidden">Reasoning high</span><span class="composer-reasoning-dot" aria-hidden="true">·</span><span class="composer-reasoning-short" aria-hidden="true">high</span></span></span>
+              <button type="button" class="composer-context" aria-label="Context 41% left · 160k of 272k tokens" title="Context 41% left · 160k of 272k tokens" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle class="composer-context-track" cx="8" cy="8" r="6"/><circle class="composer-context-used" cx="8" cy="8" r="6" stroke-dasharray="22.24 37.70" transform="rotate(-90 8 8)"/></svg></button>
+            </span>
+          </span>
+        </div>
+        <div class="composer-controls composer-controls-right"><button type="button" class="composer-action composer-stop" aria-label="Stop agent" title="Stop agent"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></button></div>
+      </div>
+    </div>
+  </div>
+  <div class="ds-label">Working · draft · Queue + Stop</div>
+  <div class="terminal-stack is-chat">
+    <div class="composer" role="group" aria-label="Message composer">
+      <div class="composer-surface">
+        <div class="composer-resize" role="separator" aria-orientation="horizontal" aria-label="Resize message box" tabindex="0" title="Drag to resize · double-click to reset"></div>
+        <textarea class="composer-text" rows="1" placeholder="Message aider…" aria-label="Message" spellcheck="false">Then bump the API version</textarea>
+        <div class="composer-controls composer-controls-left">
+          <button type="button" class="icon-button composer-attach" aria-label="Attach files" title="Attach files"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+          <span class="voice-mic-wrap" data-state="idle"><span class="voice-mic-ring" aria-hidden="true"></span><button type="button" class="voice-mic" aria-label="Dictate (hold)" aria-pressed="false" title="Dictate (hold)"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg></button></span>
+        </div>
+        <div class="composer-status" role="status" data-status="working">
+          <span class="composer-status-meta">
+            <span class="composer-agent-label visually-hidden">aider</span>
+            <span class="composer-status-separator visually-hidden" aria-hidden="true">·</span>
+            <strong class="visually-hidden">RUN</strong>
+            <span class="composer-pill">
+              <span class="agent-mark aider"><svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span>
+              <span class="composer-model-info" aria-label="Model and reasoning"><span class="composer-model" title="gpt-5.5">GPT-5.5</span><span class="composer-model-id visually-hidden">gpt-5.5</span><span class="composer-reasoning" title="Reasoning effort: high"><span class="composer-reasoning-full visually-hidden">Reasoning high</span><span class="composer-reasoning-dot" aria-hidden="true">·</span><span class="composer-reasoning-short" aria-hidden="true">high</span></span></span>
+              <button type="button" class="composer-context is-low" aria-label="Context 18% left · 223k of 272k tokens" title="Context 18% left · 223k of 272k tokens" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle class="composer-context-track" cx="8" cy="8" r="6"/><circle class="composer-context-used" cx="8" cy="8" r="6" stroke-dasharray="30.91 37.70" transform="rotate(-90 8 8)"/></svg></button>
+            </span>
+          </span>
+        </div>
+        <div class="composer-controls composer-controls-right"><button type="button" class="composer-queue-button" aria-label="Queue message" title="Queue as the next message"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Queue</button><button type="button" class="composer-action composer-stop" aria-label="Stop agent" title="Stop agent"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+.ds-stage{--chat-w:720px;background:var(--bg);padding:var(--space-4);font-family:var(--font-ui);color:var(--text);display:flex;flex-direction:column;gap:var(--space-2)}
+.ds-stage .terminal-stack{height:auto}
+.ds-stage .composer{padding-top:var(--space-3)}
+.ds-label{padding-inline:var(--space-4);font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;letter-spacing:var(--tracking-caps);font-weight:var(--fw-semibold)}
+</style>

@@ -1,0 +1,76 @@
+<!-- @dsCard group="Chat" height=510 subtitle="User bubble, prose answer and work blocks (folded, live)" -->
+<div class="ds-stage">
+  <div class="chat-view" role="log" aria-label="conversation of api">
+    <div class="chat-transcript">
+      <article class="chat-turn chat-turn-user">
+        <div class="chat-user-row">
+          <div class="chat-bubble"><div class="markdown"><p><span><span>The reports page is slow on long date ranges. Can you find out why?</span></span></p></div></div>
+          <div class="chat-turn-meta"><time datetime="2026-10-05T14:31:00">14:31</time><button type="button" class="icon-button chat-copy" aria-label="Copy message" title="Copy message"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div>
+        </div>
+      </article>
+
+      <article class="chat-turn chat-turn-agent">
+        <section class="work-block is-folded">
+          <button type="button" class="work-block-head" aria-expanded="false">
+            <span class="work-row-caret" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+            <span class="work-block-title">Worked for 41s</span>
+            <span class="work-block-summary">· 1 edit · 1 read · 2 commands</span>
+          </button>
+        </section>
+        <div class="markdown">
+          <p><span><span>The range query grouped rows in memory; </span><code>buildReport</code><span> now groups in SQL:</span></span></p>
+          <div class="markdown-code">
+            <div class="markdown-code-header"><span>ts</span><button type="button" class="icon-button markdown-code-copy" aria-label="Copy code"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div>
+            <pre><code>const rows = await db.metrics.groupBy({ by: ["day"], where: range });</code></pre>
+          </div>
+          <ul class="markdown-list">
+            <li><span>Added an index on </span><code>metrics(at)</code></li>
+            <li><span>Tests pass: 48 of 48</span></li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="chat-turn chat-turn-user">
+        <div class="chat-user-row">
+          <div class="chat-bubble"><div class="markdown"><p><span><span>Run the whole suite before you commit.</span></span></p></div></div>
+          <div class="chat-turn-meta"><time datetime="2026-10-05T14:33:00">14:33</time></div>
+        </div>
+      </article>
+
+      <article class="chat-turn chat-turn-agent">
+        <section class="work-block is-live">
+          <button type="button" class="work-block-head" aria-expanded="true">
+            <span class="work-row-caret" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+            <span class="work-block-title">Working…</span>
+            <span class="work-block-summary">· 1 edit · 1 read · 1 command</span>
+            <span class="work-block-failed">· 1 failed</span>
+          </button>
+          <div class="work-block-rows">
+            <div class="work-row">
+              <button type="button" class="work-row-head" aria-expanded="false" title="Read · src/lib/metrics.ts">
+                <span class="work-row-caret" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+                <span class="work-row-name is-verb">Read</span> <span class="work-row-summary">src/lib/metrics.ts</span>
+              </button>
+            </div>
+            <div class="work-row">
+              <button type="button" class="work-row-head" aria-expanded="false" title="Edit · src/pages/Reports.tsx">
+                <span class="work-row-caret" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+                <span class="work-row-name is-verb">Edited</span> <span class="work-row-summary">src/pages/Reports.tsx</span>
+              </button>
+            </div>
+            <div class="work-row is-error">
+              <button type="button" class="work-row-head" aria-expanded="false" title="Bash · pnpm test">
+                <span class="work-row-caret" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+                <span class="work-row-name is-verb">Ran</span> <span class="work-row-summary">pnpm test</span> <span class="work-row-failed">failed</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </article>
+    </div>
+  </div>
+</div>
+<style>
+.ds-stage{--chat-w:720px;background:var(--bg);padding:var(--space-4);font-family:var(--font-ui);color:var(--text)}
+.ds-stage .chat-view{position:static;overflow:visible;padding:0}
+</style>

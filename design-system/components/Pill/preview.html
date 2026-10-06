@@ -1,0 +1,38 @@
+<!-- @dsCard group="Status" height=350 subtitle="Mono metadata chips: the Needs you count, offline, row facts" -->
+<div class="ds-stage">
+  <div class="ds-label">Variants</div>
+  <div class="ds-row">
+    <span class="pill">3</span>
+    <span class="pill">Already open</span>
+    <span class="pill">Checkout missing</span>
+    <span class="pill pill-offline">herdr offline</span>
+  </div>
+  <div class="ds-label">Needs you heading (sidebar)</div>
+  <div class="ds-box">
+    <section class="needs-input" aria-label="Needs you">
+      <h2 class="needs-input-heading">Needs you <span class="pill">2</span></h2>
+    </section>
+  </div>
+  <div class="ds-label">Header meta, herdr unreachable</div>
+  <div class="ds-box ds-header">
+    <span class="header-title-text">fix flaky auth test</span>
+    <div class="header-meta">
+      <span class="pill pill-offline">herdr offline</span>
+      <button type="button" class="icon-button" aria-label="More" title="More" aria-haspopup="menu" aria-expanded="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+    </div>
+  </div>
+  <div class="ds-label">Worktree row</div>
+  <ul class="worktree-list ds-wt">
+    <li><button type="button" class="worktree-row"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span class="worktree-copy"><span class="worktree-branch">feat/settings-page</span><span class="worktree-path">~/dev/web-settings</span></span><span class="pill">Already open</span></button></li>
+  </ul>
+</div>
+<style>
+.ds-stage{background:var(--bg-panel);padding:var(--space-4);font-family:var(--font-ui);color:var(--text);display:flex;flex-direction:column;gap:var(--space-2)}
+.ds-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2)}
+.ds-label{font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;letter-spacing:var(--tracking-caps);font-weight:var(--fw-semibold)}
+.ds-box{width:440px;margin:0 0 var(--space-2);padding:0;border:var(--hairline) solid var(--border);border-radius:var(--radius-md)}
+.ds-box .needs-input{border-bottom:0;padding:var(--space-1) var(--space-2)}
+.ds-header{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-2) var(--space-1) var(--space-3)}
+.header-title-text{font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--text-strong)}
+.ds-wt{width:440px;margin:0}
+</style>

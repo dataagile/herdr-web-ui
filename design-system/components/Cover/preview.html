@@ -1,0 +1,44 @@
+<!-- @dsCard height=288 -->
+<style>
+  html, body { margin: 0; }
+  .cover { position: relative; width: 960px; height: 288px; background: var(--bg); overflow: hidden; font-family: var(--font-ui); }
+  .cover svg { position: absolute; inset: 0; }
+  .amber { fill: var(--primary); }
+  .working { fill: var(--status-working); }
+  .green { fill: var(--portal-accent); }
+  .ink { fill: var(--text-strong); }
+  .lift { fill: var(--bg-elevated); }
+  .rail { fill: var(--accent); }
+  .dot { fill: var(--bg); }
+  .r-lg { rx: var(--radius-lg); }
+  .r-md { rx: var(--radius-md); }
+  .name { position: absolute; left: 40px; bottom: 36px; max-width: 440px; }
+  .name h1 { margin: 0; font-size: 72px; line-height: .95; font-weight: 700; letter-spacing: -0.02em; color: var(--text-strong); }
+  .name p { margin: 16px 0 0; font-size: 14px; color: var(--text-dim); }
+</style>
+<div class="cover">
+  <!-- blocks: primary 192x176 (herdr amber) · portal-accent 240x72 (Data Agile green, the portal) · text-strong 240x232 (ink slab) · status-working 96x128 · bg-elevated rows 128x40
+       arrangement: a staggered stack bleeding off the top and right edges, right of x=480; the green (portal, the front door) sits above the amber (herdr, inside)
+       pattern: roster rows cut by radius-md with the 3px accent rail ("the signature is the amber status rail"), plus a dot grid at space-4 pitch cut out of the ink slab (the terminal cell grid)
+       scales: gaps space-4 (16), rail-w 3, radii radius-lg / radius-md, dot pitch 32 = 2 x space-4 -->
+  <svg width="960" height="288" viewBox="0 0 960 288" aria-hidden="true">
+    <rect class="amber r-lg" x="528" y="-16" width="192" height="176"/>
+    <rect class="green r-lg" x="736" y="-16" width="240" height="72"/>
+    <rect class="ink r-lg" x="736" y="72" width="240" height="232"/>
+    <rect class="working r-lg" x="624" y="176" width="96" height="128"/>
+    <g>
+      <rect class="lift r-md" x="480" y="192" width="128" height="40"/>
+      <rect class="rail" x="480" y="200" width="3" height="24"/>
+      <rect class="lift r-md" x="480" y="240" width="128" height="40"/>
+    </g>
+    <g class="dots">
+      <circle class="dot" cx="768" cy="104" r="3"/><circle class="dot" cx="800" cy="104" r="3"/><circle class="dot" cx="832" cy="104" r="3"/><circle class="dot" cx="864" cy="104" r="3"/><circle class="dot" cx="896" cy="104" r="3"/><circle class="dot" cx="928" cy="104" r="3"/>
+      <circle class="dot" cx="768" cy="136" r="3"/><circle class="dot" cx="800" cy="136" r="3"/><circle class="dot" cx="832" cy="136" r="3"/><circle class="dot" cx="864" cy="136" r="3"/><circle class="dot" cx="896" cy="136" r="3"/><circle class="dot" cx="928" cy="136" r="3"/>
+      <circle class="dot" cx="768" cy="168" r="3"/><circle class="dot" cx="800" cy="168" r="3"/><circle class="dot" cx="832" cy="168" r="3"/><circle class="dot" cx="864" cy="168" r="3"/><circle class="dot" cx="896" cy="168" r="3"/><circle class="dot" cx="928" cy="168" r="3"/>
+      <circle class="dot" cx="768" cy="200" r="3"/><circle class="dot" cx="800" cy="200" r="3"/><circle class="dot" cx="832" cy="200" r="3"/><circle class="dot" cx="864" cy="200" r="3"/><circle class="dot" cx="896" cy="200" r="3"/><circle class="dot" cx="928" cy="200" r="3"/>
+      <circle class="dot" cx="768" cy="232" r="3"/><circle class="dot" cx="800" cy="232" r="3"/><circle class="dot" cx="832" cy="232" r="3"/><circle class="dot" cx="864" cy="232" r="3"/><circle class="dot" cx="896" cy="232" r="3"/><circle class="dot" cx="928" cy="232" r="3"/>
+      <rect class="rail" x="760" y="256" width="16" height="3"/>
+    </g>
+  </svg>
+  <div class="name"><h1>Data Agile<br>Dev</h1><p>Portal Dev Data Agile + herdr web ui. Your agents. Any screen.</p></div>
+</div>

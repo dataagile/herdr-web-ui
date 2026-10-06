@@ -1,0 +1,31 @@
+<!-- @dsCard group="Actions" height=220 subtitle="Text buttons (.btn) and square icon buttons (.icon-button)" -->
+<div class="ds-stage">
+  <div class="ds-label">Text buttons</div>
+  <div class="ds-row">
+    <button type="button" class="btn btn-primary"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>New workspace</button>
+    <button type="button" class="btn">Cancel</button>
+    <button type="button" class="btn btn-danger"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>Close workspace</button>
+    <button type="button" class="btn btn-ghost split-button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>Split</button>
+  </div>
+  <div class="ds-row">
+    <button type="button" class="btn btn-primary" disabled>Create worktree</button>
+    <button type="button" class="btn" disabled>Reconnect</button>
+  </div>
+  <div class="ds-label">Icon buttons</div>
+  <div class="ds-row">
+    <button type="button" class="icon-button" aria-label="Sign out" title="Sign out"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+    <button type="button" class="icon-button" aria-label="More" aria-haspopup="menu" aria-expanded="true"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+    <span class="ds-sep" aria-hidden="true"></span>
+    <button type="button" class="icon-button is-outlined" aria-label="Decrease terminal font size"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
+    <button type="button" class="icon-button is-outlined" aria-label="Increase terminal font size"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+    <button type="button" class="icon-button is-outlined" aria-label="Increase terminal font size" disabled><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+    <span class="ds-note">default · open (aria-expanded) · outlined · disabled</span>
+  </div>
+</div>
+<style>
+.ds-stage{background:var(--bg-panel);padding:var(--space-4);font-family:var(--font-ui);color:var(--text);display:flex;flex-direction:column;gap:var(--space-3)}
+.ds-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
+.ds-label{font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;letter-spacing:var(--tracking-caps);font-weight:var(--fw-semibold)}
+.ds-sep{width:1px;height:20px;background:var(--border);margin:0 var(--space-2)}
+.ds-note{font-size:var(--fs-xs);color:var(--text-dim);margin-left:var(--space-2)}
+</style>

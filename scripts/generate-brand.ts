@@ -1,3 +1,6 @@
+/** Upstream exporter of the ram artwork. This Data Agile fork uses the Data Agile Dev icon
+ * (docs/brand/icon-source.svg, docs/brand/README.md); running this would bring the ram back. */
+throw new Error("generate-brand.ts is disabled in the Data Agile fork: see docs/brand/README.md");
 /** Export the supplied artwork without redrawing it. Requires ffmpeg with drawtext. */
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";

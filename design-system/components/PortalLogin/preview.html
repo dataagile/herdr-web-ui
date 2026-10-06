@@ -1,0 +1,16 @@
+<!-- @dsCard group="Portal" height=520 subtitle="Login card: wordmark, Usuário / Senha, full-width Entrar, error alert" -->
+<meta charset="utf-8">
+<style>.ds-stage{padding:32px 24px;display:flex;gap:24px;justify-content:center;align-items:flex-start;flex-wrap:wrap}.ds-stage .card{max-width:380px}</style>
+<div class="da-portal ds-stage">
+  <main class="card">
+    <div class="brand"><img class="brand-logo" src="/_blob/837a24af506939dbc3bba50e2cfd25a1" alt="Data Agile"></div>
+    <h1>Entrar</h1>
+    <p class="muted small">Acesse com seu usuário e senha para abrir sua máquina.</p>
+    <form onsubmit="return false">
+      <label for="u1">Usuário</label><input id="u1" type="text" value="joao">
+      <label for="p1">Senha</label><input id="p1" type="password" value="xxxxxxxxxx">
+      <button class="submit" type="submit">Entrar</button>
+    </form>
+    <div class="alert error" role="alert">Usuário ou senha inválidos.</div>
+  </main>
+</div>

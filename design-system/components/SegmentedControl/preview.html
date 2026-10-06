@@ -1,0 +1,44 @@
+<!-- @dsCard group="Actions" height=244 subtitle="One pressed option on an elevated track: lens switch, theme, density" -->
+<div class="ds-stage">
+  <div class="ds-item">
+    <div class="ds-label">Pane view (header)</div>
+    <div class="ds-row">
+      <div class="segmented view-switch" role="group" aria-label="Pane view">
+        <button type="button" aria-pressed="true" title="Chat transcript (⌘⇧J)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="header-desktop-only">Chat</span></button>
+        <button type="button" aria-pressed="false" title="Live terminal (⌘⇧J)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/></svg><span class="header-desktop-only">Terminal</span></button>
+      </div>
+      <div class="segmented view-switch" role="group" aria-label="Pane view">
+        <button type="button" aria-pressed="true" title="Chat transcript (⌘⇧J)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="header-desktop-only">Chat</span></button>
+        <button type="button" aria-pressed="false" title="Live terminal: coming to Windows PCs once herdr can attach there"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/></svg><span class="header-desktop-only">Terminal</span><span class="pill pill-soon">soon</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="ds-item">
+    <div class="ds-label">Theme (Settings)</div>
+    <div class="segmented" aria-label="Theme">
+      <button type="button" aria-pressed="true">Dark</button>
+      <button type="button" aria-pressed="false">Light</button>
+      <button type="button" aria-pressed="false">System</button>
+    </div>
+  </div>
+  <div class="ds-item">
+    <div class="ds-label">Density · Panes open in</div>
+    <div class="ds-row">
+      <div class="segmented" aria-label="Density">
+        <button type="button" aria-pressed="false">Comfortable</button>
+        <button type="button" aria-pressed="true">Compact</button>
+      </div>
+      <div class="segmented" aria-label="Panes open in">
+        <button type="button" aria-pressed="true">Auto</button>
+        <button type="button" aria-pressed="false">Chat</button>
+        <button type="button" aria-pressed="false">Terminal</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+.ds-stage{background:var(--bg-panel);padding:var(--space-4);font-family:var(--font-ui);color:var(--text);display:flex;flex-direction:column;gap:var(--space-4)}
+.ds-item{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-2)}
+.ds-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3)}
+.ds-label{font-size:var(--fs-2xs);color:var(--text-dim);text-transform:uppercase;letter-spacing:var(--tracking-caps);font-weight:var(--fw-semibold)}
+</style>

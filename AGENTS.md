@@ -65,6 +65,12 @@ The app is only a bridge: herdr owns every pty, scrollback and agent state.
 - Two servers cannot attach the same pane: the second gets `attach_conflict`. For QA, use a pane the live server does not hold.
 - Screenshots and recordings come from the `herdr-web-ui-demo` or a test session, never the user's live session. Playwright scripts serve `dist/`, so build first.
 
+## Data Agile fork
+
+- This repository is Data Agile's fork. The design system for it and for the Portal Dev Data Agile (`dataagile/portal_desenvolvimento`, which signs people in and opens this app) is `design-system/` — start at `design-system/INDEX.md`. It mirrors `DESIGN.md` and `src/styles.css` value for value: a token change updates `src/styles.css`, `DESIGN.md` and `design-system/` (tokens.json, tokens.css, README) together, and the Claude design system artifact *Data Agile Dev* that it is exported from.
+- The app icon is **Data Agile Dev** (the DA monogram with a green cursor, `docs/brand/icon-source.svg`), not upstream's ram. `scripts/generate-brand.ts` is disabled because it exports the ram; see `docs/brand/README.md`. Icon files are versioned `?v=da1`.
+- Keep upstream merges clean: fork-only changes stay in `design-system/`, `docs/brand/`, the icon files and this section.
+
 ## Maintainer workflow
 
 - PRs only, squash merged; the title is `type(scope): summary` and the merge adds `(#N)`. `main` requires the "Fast checks" and "Integration and browser" checks and every review thread resolved.

@@ -87,11 +87,6 @@ export function layoutTree(layout: Pick<PaneLayoutSnapshot, "panes" | "splits">)
   return build(layout.panes);
 }
 
-/** Every pane of a tree, in reading order. */
-export function treePanes(node: LayoutNode): string[] {
-  return node.kind === "pane" ? [node.paneId] : [...treePanes(node.first), ...treePanes(node.second)];
-}
-
 /**
  * Where each pane and each divider sit, as fractions of the tab's area. `ratios` overrides a split's
  * ratio (a divider being dragged): its panes, and the panes inside them, follow.

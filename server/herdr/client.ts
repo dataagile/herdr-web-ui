@@ -238,7 +238,7 @@ export async function paneRename(paneId: string, label: string | null, socketPat
 
 /** Splits a pane and answers the pane herdr made; `focus` puts the user's focus in it. */
 export async function paneSplit(
-  options: { targetPaneId: string; direction: "right" | "down"; cwd?: string | null; focus?: boolean; ratio?: number },
+  options: { targetPaneId: string; direction: "right" | "down"; cwd?: string | null; focus?: boolean },
   socketPath?: string,
 ): Promise<{ pane: PaneInfo }> {
   return await herdrRpc<{ pane: PaneInfo }>("pane.split", {
@@ -246,7 +246,6 @@ export async function paneSplit(
     direction: options.direction,
     ...(options.cwd == null ? {} : { cwd: options.cwd }),
     ...(options.focus === undefined ? {} : { focus: options.focus }),
-    ...(options.ratio === undefined ? {} : { ratio: options.ratio }),
   }, socketPath);
 }
 

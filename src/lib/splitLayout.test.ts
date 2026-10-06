@@ -1,8 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
 import type { PaneLayoutSnapshot } from "../../shared/protocol.ts";
-import { draggedRatio, findSplit, fittedFontSize, flatPlacements, layoutTree, MAX_RESIZE_STEP, MIN_PANE_COLS, placements, ratioLimits, resizeStep, showsSplit, tabLayout, treePanes } from "./splitLayout.ts";
+import { draggedRatio, findSplit, fittedFontSize, flatPlacements, layoutTree, MAX_RESIZE_STEP, MIN_PANE_COLS, placements, ratioLimits, resizeStep, showsSplit, tabLayout, type LayoutNode } from "./splitLayout.ts";
 
+const treePanes = (node: LayoutNode): string[] => (node.kind === "pane" ? [node.paneId] : [...treePanes(node.first), ...treePanes(node.second)]);
 const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
 const pane = (pane_id: string, x: number, y: number, width: number, height: number, focused = false) => ({ pane_id, focused, rect: rect(x, y, width, height) });
 const layout = (panes: PaneLayoutSnapshot["panes"], splits: PaneLayoutSnapshot["splits"], zoomed = false): PaneLayoutSnapshot => ({

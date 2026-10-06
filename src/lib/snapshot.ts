@@ -31,3 +31,35 @@ export function applyLayout(snapshot: SessionSnapshot, layout: PaneLayoutSnapsho
   const known = layouts.some((entry) => entry.tab_id === layout.tab_id);
   return { ...snapshot, layouts: known ? layouts.map((entry) => (entry.tab_id === layout.tab_id ? layout : entry)) : [...layouts, layout] };
 }
+
+/** A layout herdr answered a resize or a zoom with, held over any older roster that arrives after it. */
+export interface LayoutPin { machineId: string; layout: PaneLayoutSnapshot; at: number }
+
+/** how long an answered layout outranks the rosters read around it: a PC's own refresh is every 5 s */
+export const LAYOUT_PIN_MS = 8000;
+
+/**
+ * Puts the pinned layouts back over a roster that was read before they were answered (a remote
+ * PC's roster, or any poll in flight): a pin goes once the roster carries the same layout, a different set of panes, or when it
+ * is older than LAYOUT_PIN_MS. Returns the same array when nothing changed.
+ */
+export function pinLayouts<M extends { id: string; snapshot?: SessionSnapshot | null }>(machines: M[], pins: Map<string, LayoutPin>, now: number): M[] {
+  let changed = false;
+  const next = machines.map((machine) => {
+    let snapshot = machine.snapshot;
+    for (const [key, pin] of pins) {
+      if (pin.machineId !== machine.id) continue;
+      if (now - pin.at > LAYOUT_PIN_MS) { pins.delete(key); continue; }
+      if (!snapshot) continue;
+      const have = snapshot.layouts?.find((layout) => layout.tab_id === pin.layout.tab_id);
+      if (have && JSON.stringify(have) === JSON.stringify(pin.layout)) { pins.delete(key); continue; }
+      // a pane made or closed since (here or elsewhere) is a newer layout than the answered one
+      if (have && have.panes.map((pane) => pane.pane_id).sort().join() !== pin.layout.panes.map((pane) => pane.pane_id).sort().join()) { pins.delete(key); continue; }
+      snapshot = applyLayout(snapshot, pin.layout);
+    }
+    if (snapshot === machine.snapshot) return machine;
+    changed = true;
+    return { ...machine, snapshot };
+  });
+  return changed ? next : machines;
+}

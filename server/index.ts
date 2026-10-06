@@ -75,6 +75,7 @@ import { handleVoiceRequest, VoiceService } from "./voice.ts";
 
 import { BRIDGE_PROTOCOL } from "../shared/machines.ts";
 import { bridgeIdentity, registerBridge } from "./bridge.ts";
+import { kickRefresh } from "./roster-refresh.ts";
 import { MachineManager } from "./machines.ts";
 import { handleMachineRequest } from "./machine-api.ts";
 import { MachineRelay } from "./machine-relay.ts";
@@ -535,13 +536,7 @@ export function createServer(
     return { ...snapshot, panes: snapshot.panes.map((pane) => omo.backgroundOf(pane.pane_id) > 0 ? { ...pane, background_tasks: omo.backgroundOf(pane.pane_id) } : pane) };
   };
   const machines = options.machines === false ? null : new MachineManager(options.stateDir ?? defaultStateDir(), push, completions, clientSnapshot);
-  /**
-   * A layout change (focus, resize, zoom) raises no herdr event, so the roster the browsers read would
-   * keep the old layout until the next 5 s poll and a poll in between would put it back on screen.
-   */
-  const refreshRoster = async (): Promise<void> => {
-    try { await machines?.refreshLocal(); } catch { /* the 5 s poll is still there */ }
-  };
+  const refreshRoster = (): void => kickRefresh(machines ? () => machines.refreshLocal() : undefined);
   const bridgeToken = randomBytes(32).toString("hex");
 
   function broadcast(paneId: string, message: ServerMessage): void {
@@ -1701,8 +1696,7 @@ export function createServer(
           }
           const split = await paneSplit({ targetPaneId: payload.pane_id, direction: payload.direction, cwd, focus: true });
           const paneId = split.pane.pane_id;
-          await refreshRoster();
-          // herdr emits pane.created -> session-changed, so the UI refetches and the new pane shows
+          // herdr emits pane.created -> session-changed: the roster follows without this route waiting
           if (!agent) return jsonResponse({ pane_id: paneId, agent_started: false });
           return jsonResponse({ pane_id: paneId, ...(await agentLaunch(paneId, agent)) });
         } catch (error) {
@@ -1722,7 +1716,7 @@ export function createServer(
         if (typeof payload.pane_id !== "string" || payload.pane_id.trim() === "") return badRequest("missing_pane_id", "pane_id is required");
         try {
           await paneFocus(payload.pane_id);
-          await refreshRoster();
+          refreshRoster();
           return jsonResponse({ ok: true });
         } catch (error) {
           return errorResponse(error);
@@ -1744,7 +1738,7 @@ export function createServer(
         if (typeof payload.amount !== "number" || !Number.isFinite(payload.amount) || payload.amount <= 0 || payload.amount > 0.5) return badRequest("invalid_amount", "amount must be a number above 0 and at most 0.5");
         try {
           const resized = await paneResize(payload.pane_id, payload.direction, payload.amount);
-          await refreshRoster();
+          refreshRoster();
           return jsonResponse(resized);
         } catch (error) {
           return errorResponse(error);
@@ -1765,7 +1759,7 @@ export function createServer(
         if (mode !== "toggle" && mode !== "on" && mode !== "off") return badRequest("invalid_mode", "mode must be toggle, on or off");
         try {
           const zoomed = await paneZoom(payload.pane_id, mode);
-          await refreshRoster();
+          refreshRoster();
           return jsonResponse(zoomed);
         } catch (error) {
           return errorResponse(error);

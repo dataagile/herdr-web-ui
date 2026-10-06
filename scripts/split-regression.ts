@@ -221,6 +221,15 @@ try {
   await shot(page, "split-3-panes");
   console.log("PASS Split down from the header adds a focused pane beside the one it split");
 
+  // a header button of a pane that is not in front acts without taking the focus
+  const inFront = await page.locator(".split-pane.is-focused").getAttribute("data-split-pane");
+  const aside = three.panes.find((pane) => pane.pane_id !== inFront)!.pane_id;
+  await page.locator(`[data-split-pane="${aside}"]`).getByRole("button", { name: "Split", exact: true }).click();
+  await page.getByRole("menu").waitFor();
+  assert.equal(await page.locator(".split-pane.is-focused").getAttribute("data-split-pane"), inFront, "a header button leaves the focus where it was");
+  await page.keyboard.press("Escape");
+  await page.getByRole("menu").waitFor({ state: "detached" });
+
   // the pane menu: right-click opens it with the agent picker and the zoom
   await page.locator(`[data-split-pane="${made.pane_id}"] .split-pane-body`).click({ button: "right" });
   const menu = page.getByRole("menu");

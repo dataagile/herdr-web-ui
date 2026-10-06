@@ -10,8 +10,7 @@ const xtermSource = normalizePath(buildXtermSource(fileURLToPath(new URL(".", im
 let revision: string | null = null;
 try { revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* non-Git build */ }
 // the sidebar footer's commit (components/MachineSidebar.tsx): short, and "dev" where Git cannot say
-let commit = "dev";
-try { commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim() || "dev"; } catch { /* non-Git build */ }
+const commit = revision?.slice(0, 7) || "dev";
 
 // agentSvgMarks.ts carries LobeHub Icons paths (MIT): their notice ships with every built client
 const thirdPartyNotices: Plugin = {

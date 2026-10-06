@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Bell, Columns2, Ellipsis, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
-import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo } from "../shared/protocol.ts";
+import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
 import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
@@ -22,7 +22,7 @@ import { focusWorkspaceListToggle } from "./lib/focus.ts";
 import { headerCrumb, showsChat } from "./lib/headerCrumb.ts";
 import { paneStorageId, type Machine, type MachineEvent } from "../shared/machines.ts";
 import { takeAuthTokenFromUrl } from "./lib/authLink.ts";
-import { applyLayout, applyPaneStatus } from "./lib/snapshot.ts";
+import { applyLayout, applyPaneStatus, pinLayouts, type LayoutPin } from "./lib/snapshot.ts";
 import { showsSplit, SPLIT_MIN_WIDTH, tabLayout, type ResizeStep } from "./lib/splitLayout.ts";
 import { rosterPanes } from "./lib/dagPane.ts";
 import { SnapshotRequests } from "./lib/snapshotRequests.ts";
@@ -270,10 +270,12 @@ export function App() {
     try { const next = await fetchHealth(); setHealth((previous) => sameData(previous, next) ? previous : next); } catch { setHealth(null); }
   }, []);
   const snapshotRequests = useRef(new SnapshotRequests());
+  // layouts herdr answered a resize or a zoom with: held over any roster read before them (a remote PC's included)
+  const layoutPins = useRef(new Map<string, LayoutPin>());
   const load = useCallback(async () => {
     try {
       await snapshotRequests.current.read(fetchMachines, (next) => {
-        setMachines((previous) => sameData(previous, next) ? previous : next);
+        setMachines((previous) => sameData(previous, next) ? previous : pinLayouts(next, layoutPins.current, Date.now()));
         setError(null); setLocked(false);
       });
     }
@@ -378,7 +380,7 @@ export function App() {
       snapshotRequests.current.invalidate();
       if (payload.type === "machines") {
         seed(payload.machines);
-        setMachines((previous) => sameData(previous, payload.machines) ? previous : payload.machines);
+        setMachines((previous) => sameData(previous, payload.machines) ? previous : pinLayouts(payload.machines, layoutPins.current, Date.now()));
         return;
       }
       const machine = machinesRef.current.find((m) => m.id === payload.machine_id);
@@ -572,7 +574,9 @@ export function App() {
   const selectedLayout = tabLayout(snapshot?.layouts, selectedPane?.tab_id);
   const splitting = terminalAttach && showsSplit(selectedLayout, wide);
   const zoomed = selectedLayout !== null && selectedLayout.zoomed && selectedLayout.panes.length > 1;
-  const zoomIndex = selectedLayout === null ? 0 : selectedLayout.panes.findIndex((entry) => entry.pane_id === selectedPaneId) + 1;
+  // herdr's zoomed pane is the one it has focused: the label and Unzoom follow it, not the page's selection
+  const zoomedPaneId = zoomed && selectedLayout ? selectedLayout.focused_pane_id : null;
+  const zoomIndex = selectedLayout === null || zoomedPaneId === null ? 0 : selectedLayout.panes.findIndex((entry) => entry.pane_id === zoomedPaneId) + 1;
 
   // the lens follows the selected pane: each pane remembers its own. It is settled in the render
   // that selects the pane, not in an effect after it: the pane's terminal attaches in that render's
@@ -658,6 +662,7 @@ export function App() {
   const adoptLayout = useCallback((machineId: string, layout: Parameters<typeof applyLayout>[1]): void => {
     // a roster read that started before the answer must not put the old layout back
     snapshotRequests.current.invalidate();
+    layoutPins.current.set(`${machineId}:${layout.tab_id}`, { machineId, layout, at: Date.now() });
     setMachines((list) => list.map((machine) => machine.id === machineId && machine.snapshot ? { ...machine, snapshot: applyLayout(machine.snapshot, layout) } : machine));
   }, []);
 
@@ -674,33 +679,41 @@ export function App() {
     void load();
   }, [selectPane, adoptLayout, selectedMachineId, load]);
 
-  const resizeSplit = useCallback(async (step: ResizeStep): Promise<void> => {
-    try { adoptLayout(selectedMachineId, (await resizePane(step.paneId, step.direction, step.amount, selectedMachineId)).layout); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  const resizeSplit = useCallback(async (step: ResizeStep): Promise<PaneLayoutSnapshot | null> => {
+    try {
+      const { layout } = await resizePane(step.paneId, step.direction, step.amount, selectedMachineId);
+      adoptLayout(selectedMachineId, layout);
+      return layout;
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); return null; }
   }, [adoptLayout, selectedMachineId]);
 
   // a new pane beside this one, in its folder, with a shell or the agent chosen; it takes the focus
   const doSplit = useCallback(async (paneId: string, target: SplitTarget): Promise<void> => {
     try {
       const made = await splitPane(paneId, target.direction, null, selectedMachineId, target.agent ?? undefined);
-      await load();
       selectTarget(selectedMachineId, made.pane_id);
+      // herdr's pane.created reaches the roster a moment after this answer: read it again until it is there
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        await load();
+        if (machinesRef.current.find((machine) => machine.id === selectedMachineId)?.snapshot?.panes.some((pane) => pane.pane_id === made.pane_id)) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+      }
       if (made.agent_started === false && made.error) setError(made.error.message);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   }, [selectedMachineId, load, selectTarget]);
 
   // Escape leaves a zoom, but only from the page's chrome: in the terminal or the message box it is the agent's own key
   useEffect(() => {
-    if (!zoomed || selectedPaneId === null) return;
+    if (zoomedPaneId === null) return;
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
       const target = event.target instanceof Element ? event.target : null;
       if (target?.closest(".xterm, input, textarea, select, [role=\"dialog\"], [role=\"menu\"], [contenteditable]")) return;
-      void zoomSplitPane(selectedPaneId, "off");
+      void zoomSplitPane(zoomedPaneId, "off");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomed, selectedPaneId, zoomSplitPane]);
+  }, [zoomedPaneId, zoomSplitPane]);
 
   const cancelPress = useCallback((): void => {
     if (pressTimer.current !== null) { window.clearTimeout(pressTimer.current); pressTimer.current = null; }
@@ -913,8 +926,8 @@ export function App() {
             <span className="header-desktop-only">{t("Split")}</span>
           </button>
         )}
-        {selectedPane && zoomed && (
-          <button type="button" className="btn header-unzoom" title={t("Unzoom")} onClick={() => void zoomSplitPane(selectedPane.pane_id, "off")}>
+        {selectedPane && zoomedPaneId !== null && (
+          <button type="button" className="btn header-unzoom" title={t("Unzoom")} onClick={() => void zoomSplitPane(zoomedPaneId ?? selectedPane.pane_id, "off")}>
             <Minimize2 aria-hidden="true" />
             <span className="header-desktop-only">{t("Unzoom")}</span>
           </button>
@@ -1047,7 +1060,7 @@ export function App() {
                   followGrid={grid}
                   active={active}
                   {...(active ? { onRoleAck: setRole, onConnectionChange: (next: boolean) => { setConnected(next); if (next) setOutputStopped(false); } } : {})}
-                  onServerMessage={handleServerMessage}
+                  {...(active ? { onServerMessage: handleServerMessage } : {})}
                 />
               )}
             />

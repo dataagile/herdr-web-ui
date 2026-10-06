@@ -24,8 +24,8 @@ export interface SplitViewProps {
   onSplit: (paneId: string, anchor: HTMLElement) => void;
   onZoom: (paneId: string) => void;
   onClose: (paneId: string) => void;
-  /** sends one pane.resize; settles once herdr has answered and the layout is in place */
-  onResize: (step: ResizeStep) => Promise<void>;
+  /** sends one pane.resize; answers herdr's layout after it, or null when it failed */
+  onResize: (step: ResizeStep) => Promise<PaneLayoutSnapshot | null>;
   /** one pane's live terminal: `grid` is its cells in herdr's layout */
   renderTerminal: (pane: PaneInfo, active: boolean, grid: { cols: number; rows: number }) => ReactNode;
 }
@@ -54,10 +54,10 @@ export function SplitView({ layout, panes, selectedPaneId, onFocus, onSplit, onZ
   const cellsOf = useMemo(() => new Map(layout.panes.map((entry) => [entry.pane_id, { cols: entry.rect.width, rows: entry.rect.height }])), [layout]);
 
   // one resize at a time, in order: two in flight could land the second first
-  const send = useCallback((step: ResizeStep): Promise<void> => {
-    sending.current = sending.current.then(() => onResize(step)).catch(() => undefined);
+  const enqueue = useCallback((job: () => Promise<void>): Promise<void> => {
+    sending.current = sending.current.then(job).catch(() => undefined);
     return sending.current;
-  }, [onResize]);
+  }, []);
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>, divider: DividerPlacement): void => {
     const box = area.current?.getBoundingClientRect();
@@ -73,10 +73,16 @@ export function SplitView({ layout, panes, selectedPaneId, onFocus, onSplit, onZ
     let timer: number | null = null;
     const flush = (): void => {
       timer = null;
-      const step = resizeStep(split, known, wanted);
-      if (step === null) return;
-      known = wanted;
-      void send(step);
+      // read when its turn comes: herdr may have moved the border less than asked, and each answer
+      // rebases the next step on the ratio herdr really has
+      void enqueue(async () => {
+        const step = resizeStep(split, known, wanted);
+        if (step === null) return;
+        const layout = await onResize(step);
+        const tree = layout === null ? null : layoutTree(layout);
+        const now = tree === null ? null : findSplit(tree, divider.splitId);
+        known = now?.ratio ?? known;
+      });
     };
     const move = (move: PointerEvent): void => {
       const pointer = divider.direction === "right" ? (move.clientX - box.left) / box.width : (move.clientY - box.top) / box.height;
@@ -91,7 +97,7 @@ export function SplitView({ layout, panes, selectedPaneId, onFocus, onSplit, onZ
       if (timer !== null) window.clearTimeout(timer);
       flush();
       // herdr's layout replaces the preview once the last resize has been answered
-      void sending.current.then(() => {
+      void enqueue(async () => {
         setDragged((current) => { const { [divider.splitId]: _gone, ...rest } = current; return rest; });
         setDragging((current) => current === divider.splitId ? null : current);
       });
@@ -108,7 +114,7 @@ export function SplitView({ layout, panes, selectedPaneId, onFocus, onSplit, onZ
     if (delta === 0 || split === null) return;
     event.preventDefault();
     const step = resizeStep(split, split.ratio, split.ratio + delta);
-    if (step !== null) void send(step);
+    if (step !== null) void enqueue(async () => { await onResize(step); });
   };
 
   // a divider gone from the layout (the pane next to it closed) takes its preview with it
@@ -132,7 +138,7 @@ export function SplitView({ layout, panes, selectedPaneId, onFocus, onSplit, onZ
                 className={`split-pane${active ? " is-focused" : ""}`}
                 data-split-pane={place.paneId}
                 aria-label={title}
-                onPointerDownCapture={() => { if (!active) onFocus(place.paneId); }}
+                onPointerDownCapture={(event) => { if (!active && !(event.target instanceof Element && event.target.closest(".split-pane-button"))) onFocus(place.paneId); }}
               >
                 <header className="split-pane-head">
                   {agent && <AgentMark agent={agent} size={14} />}

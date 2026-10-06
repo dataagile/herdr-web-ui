@@ -2264,9 +2264,6 @@ describe("pane split, focus, resize and zoom", () => {
       expect(answer.changed).toBe(true);
       expect(answer.layout.splits[0]!.ratio).toBeCloseTo(before + 0.1, 5);
       expect((await layoutOf(tabId)).splits[0]!.ratio).toBeCloseTo(before + 0.1, 5);
-      // the roster the browsers poll carries the new layout at once, not after the next 5 s refresh
-      const roster = await (await fetch(`${base()}/api/machines`)).json() as { machines: { id: string; snapshot: SessionSnapshot | null }[] };
-      expect(roster.machines.find((machine) => machine.id === "local")!.snapshot!.layouts.find((layout) => layout.tab_id === tabId)!.splits[0]!.ratio).toBeCloseTo(before + 0.1, 5);
       // a border moves back with the pane on its other side
       const back = await (await post("resize", { pane_id: second, direction: "left", amount: 0.1 })).json() as { layout: { splits: { ratio: number }[] } };
       expect(back.layout.splits[0]!.ratio).toBeCloseTo(before, 5);

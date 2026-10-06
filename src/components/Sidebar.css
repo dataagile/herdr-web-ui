@@ -39,7 +39,8 @@
 .tree-state-empty .tree-state { padding: 0; }
 
 /* one row per workspace, as herdr's Spaces sidebar; the row's menu and strip reach its panes */
-.workspace-list {
+.workspace-list,
+.agent-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -210,12 +211,14 @@
   list-style: none;
 }
 
-.pane-item {
+.pane-item,
+.agent-item {
   position: relative;
   border-radius: var(--radius-md);
 }
 
-.pane-row {
+.pane-row,
+.agent-row {
   position: relative;
   display: flex;
   align-items: center;
@@ -228,13 +231,17 @@
 
 .pane-item:hover .pane-row,
 .pane-item:focus-within .pane-row,
-.pane-item.is-selected .pane-row {
+.pane-item.is-selected .pane-row,
+.agent-item:hover .agent-row,
+.agent-item:focus-within .agent-row,
+.agent-item.is-selected .agent-row {
   background: var(--bg-hover);
 }
 
 /* the selected rail: a straight bar outside the rounded box, not an inset shadow that
    would follow the corners */
-.pane-item.is-selected .pane-row::before {
+.pane-item.is-selected .pane-row::before,
+.agent-item.is-selected .agent-row::before {
   content: "";
   position: absolute;
   top: var(--space-3);
@@ -245,7 +252,8 @@
   background: var(--accent);
 }
 
-.pane-select {
+.pane-select,
+.agent-select {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -276,7 +284,8 @@
   color: var(--text-strong);
 }
 
-.pane-item.is-selected .agent-mark-holder {
+.pane-item.is-selected .agent-mark-holder,
+.agent-item.is-selected .agent-mark-holder {
   border-color: var(--accent);
   background: var(--accent-tint);
 }
@@ -440,6 +449,7 @@
 @media (prefers-reduced-motion: reduce) {
   .workspace,
   .pane-row,
+  .agent-row,
   .pane-actions {
     transition: none;
   }
@@ -474,9 +484,10 @@
   height: var(--icon-size);
 }
 
-/* an agent row is one line shorter than a workspace row: no grip, no actions */
-.agent-item .pane-row {
+/* an agent row is a compact workspace row (three quarters of --row-h, so compact density
+   shrinks it too): no grip, no actions */
+.agent-item .agent-row {
   height: auto;
-  min-height: 42px;
+  min-height: calc(var(--row-h) * 3 / 4);
   padding-right: var(--space-2);
 }

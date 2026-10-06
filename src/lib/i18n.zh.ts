@@ -165,7 +165,6 @@ export const ZH: Record<string, string> = {
   "By folder": "按文件夹",
   "Drag to reorder · Alt+↑/↓": "拖动以调整顺序 · Alt+↑/↓",
   "Shell": "Shell",
-  "Pane name": "窗格名称",
   "Rename pane": "重命名窗格",
   "More for {title}": "{title} 的更多操作",
   "Rename workspace": "重命名工作区",

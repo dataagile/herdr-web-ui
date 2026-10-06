@@ -130,12 +130,10 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
   const { settings } = useSettings();
   const byFolder = settings.sidebarGrouping === "directory";
   const machineId = useMachineId();
-  const { closePane, closeWorkspace, moveWorkspace, removeWorktree, renamePane, renameWorkspace } = useMachineApi();
+  const { closePane, closeWorkspace, moveWorkspace, removeWorktree, renameWorkspace } = useMachineApi();
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [worktreeDialog, setWorktreeDialog] = useState<{ mode: WorktreeDialogMode; workspace: WorkspaceInfo } | null>(null);
-  const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
-  const [paneLabel, setPaneLabel] = useState("");
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [workspaceLabel, setWorkspaceLabel] = useState("");
   const [workspaceOrder, setWorkspaceOrder] = useState<string[]>([]);
@@ -144,12 +142,15 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => storedCollapsed(machineId, snapshot ? groupDirectories(snapshot.workspaces, snapshot.panes).map((group) => group.key) : []));
   const [folded, setFolded] = useState<Record<Section, boolean>>(() => ({ spaces: storedSectionFolded(machineId, "spaces"), agents: storedSectionFolded(machineId, "agents") }));
   const toggleSection = (section: Section): void => {
-    const next = !folded[section];
-    setFolded({ ...folded, [section]: next });
-    try {
-      if (next) localStorage.setItem(sectionKey(machineId, section), "1");
-      else localStorage.removeItem(sectionKey(machineId, section));
-    } catch {}
+    setFolded((current) => {
+      const next = !current[section];
+      // idempotent, so a doubled updater call (StrictMode) writes the same value twice
+      try {
+        if (next) localStorage.setItem(sectionKey(machineId, section), "1");
+        else localStorage.removeItem(sectionKey(machineId, section));
+      } catch {}
+      return { ...current, [section]: next };
+    });
   };
   const unfoldedFor = useRef<Partial<Record<SidebarGrouping, string>>>({});
   // the pane each workspace was last seen on: its row keeps showing and opening that one
@@ -211,6 +212,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     return workspaceOrder.map((id) => byId.get(id)).filter((workspace): workspace is WorkspaceInfo => workspace !== undefined);
   }, [snapshot, workspaceOrder]);
   const roster = useMemo(() => rosterPanes(snapshot?.panes ?? [], selectedPaneId), [snapshot?.panes, selectedPaneId]);
+  const workspaceById = useMemo(() => new Map(orderedWorkspaces.map((workspace) => [workspace.workspace_id, workspace])), [orderedWorkspaces]);
   const agents = useMemo(() => agentPanes(roster, workspaceOrder), [roster, workspaceOrder]);
   const directories = useMemo(() => groupDirectories(orderedWorkspaces, roster), [orderedWorkspaces, roster]);
   // herdr packs a repository's worktree workspaces under the one on its main checkout; a worktree
@@ -270,7 +272,6 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     // herdr's own actions on a workspace: rename, a new tab (prefix+c), its worktrees (prefix+shift+g), close
     const items: RowMenuItem[] = [
       { id: "rename-workspace", label: t("Rename workspace"), icon: Pencil, run: () => beginWorkspaceRename(workspace, state.scope) },
-      { id: "rename-pane", label: t("Rename pane"), icon: Pencil, run: () => beginPaneRename(pane) },
       { id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab({ machineId, workspaceId: workspace.workspace_id }) },
       ...(linked ? [] : [
         { id: "new-worktree", label: t("New worktree"), icon: GitBranch, run: () => setWorktreeDialog({ mode: "create", workspace }) },
@@ -313,19 +314,6 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     setMenu(null);
     focusWorkspaceListToggle();
   });
-
-  const beginPaneRename = (pane: PaneInfo): void => {
-    setEditingPaneId(pane.pane_id);
-    setPaneLabel(pane.label ?? "");
-  };
-
-  const savePaneRename = (pane: PaneInfo): void => {
-    const label = paneLabel.trim();
-    setEditingPaneId(null);
-    void renamePane(pane.pane_id, label).catch((reason: unknown) => {
-      noteError(t("Rename failed: {reason}", { reason: reason instanceof Error ? reason.message : String(reason) }), pane.workspace_id);
-    });
-  };
 
   // By folder, one workspace can show under several folders: only the copy that was clicked edits.
   // Two mounted inputs would take the focus from each other, and the blur closes both.
@@ -419,8 +407,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     if (visiblePanes.length === 0) return null;
     const pane = currentPane(workspace, visiblePanes);
     const fullTitle = paneTitle(pane);
-    // Under a folder header the row names the workspace. By workspace it names the workspace
-    // and the folder, each only when the title or the other does not already say it.
+    const agentName = pane.agent ?? pane.display_agent;
     const folder = cwdBasename(pane.cwd);
     const said = folder === workspace.label;
     const agentCount = visiblePanes.filter(isAgentPane).length;
@@ -428,7 +415,6 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     // (the folder header already says it when grouped by folder)
     const place = [agentCount > 1 ? t("{n} agents", { n: agentCount }) : "", byFolder || said ? "" : folder].filter(Boolean).join(" · ");
     const selected = visiblePanes.some((candidate) => candidate.pane_id === selectedPaneId);
-    const editingPane = editingPaneId === pane.pane_id;
     const editingWorkspace = editingWorkspaceId === `${scope}\u0000${workspace.workspace_id}`;
     const menuOpen = menu?.workspace.workspace_id === workspace.workspace_id && menu.scope === scope;
     return (
@@ -467,29 +453,12 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
               actions.selectPane(pane.pane_id);
             }}
           >
-            <span className={`agent-mark-holder${pane.agent ? "" : " is-shell"}`} title={pane.agent ?? t("Shell")}>
-              {pane.agent ? <AgentMark agent={pane.agent} size={22} /> : <Terminal aria-hidden="true" />}
+            <span className={`agent-mark-holder${agentName ? "" : " is-shell"}`} title={agentName ?? t("Shell")}>
+              {agentName ? <AgentMark agent={agentName} size={22} /> : <Terminal aria-hidden="true" />}
             </span>
             <span className="pane-copy">
               <span className="pane-primary">
-                {editingPane ? (
-                  <input
-                    className="input pane-rename-input"
-                    aria-label={t("Pane name")}
-                    autoFocus
-                    value={paneLabel}
-                    onClick={(event) => event.stopPropagation()}
-                    onChange={(event) => setPaneLabel(event.target.value)}
-                    onBlur={() => setEditingPaneId(null)}
-                    onKeyDown={(event) => {
-                      event.stopPropagation();
-                      if (event.key === "Enter") savePaneRename(pane);
-                      if (event.key === "Escape") setEditingPaneId(null);
-                    }}
-                  />
-                ) : (
-                  <span className="pane-title">{workspace.label}</span>
-                )}
+                <span className="pane-title">{workspace.label}</span>
               </span>
               {editingWorkspace ? (
                 <input
@@ -565,14 +534,14 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
         ))}</ul>)}
         {agents.length > 0 && <>
           <SectionHeader section="agents" label={t("Agents")} count={agents.length} folded={folded.agents} onToggle={toggleSection} />
-          {!folded.agents && <ul className="workspace-list agent-list">{agents.map((pane) => {
-            const workspace = orderedWorkspaces.find((candidate) => candidate.workspace_id === pane.workspace_id);
+          {!folded.agents && <ul className="agent-list">{agents.map((pane) => {
+            const workspace = workspaceById.get(pane.workspace_id);
             const selected = pane.pane_id === selectedPaneId;
             return (
-              <li className={`pane-item agent-item${selected ? " is-selected" : ""}`} key={pane.pane_id}>
-                <div className="pane-row">
+              <li className={`agent-item${selected ? " is-selected" : ""}`} key={pane.pane_id}>
+                <div className="agent-row">
                   <div
-                    className="pane-select"
+                    className="agent-select"
                     role="button"
                     tabIndex={0}
                     aria-current={selected ? "true" : undefined}

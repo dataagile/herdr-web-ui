@@ -163,7 +163,6 @@ export const JA: Record<string, string> = {
   "By folder": "フォルダー別",
   "Drag to reorder · Alt+↑/↓": "ドラッグで並べ替え · Alt+↑/↓",
   "Shell": "シェル",
-  "Pane name": "ペイン名",
   "Rename pane": "ペインの名前を変更",
   "More for {title}": "{title} のその他",
   "Rename workspace": "ワークスペース名を変更",

@@ -28,11 +28,6 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   new tab in that workspace) and an Agents section (one compact row per agent pane across all
   its workspaces and tabs, a plain shell excluded). Each section folds, remembered per PC.
 
-### Changed
-- The browser shows one pane at a time, so a split made there only looked like a new pane
-  covering the old one: the Split menu and its palette entries are gone, and a second
-  shell or agent in the same workspace is reached as a new tab.
-
 ### Fixed
 - The folder browser's POST no longer resolves a relative parent against the server's own
   folder when the pane it belonged to is gone: that path is refused like the listing already

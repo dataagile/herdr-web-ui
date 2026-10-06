@@ -262,7 +262,9 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
     const q = (query.get("q") ?? "").toLowerCase();
     return json({ files: DEMO_FILES.filter((file) => file.toLowerCase().includes(q)).slice(0, Number(query.get("limit") ?? 20)) });
   }
-  if (path === "/api/pane/input" || path === "/api/pane/keys") return json({ ok: true });
+  if (path === "/api/pane/input" || path === "/api/pane/keys" || path === "/api/pane/focus") return json({ ok: true });
+  // the demo's session is one pane per tab: there is no layout to split, resize or zoom
+  if (path === "/api/pane/split" || path === "/api/pane/resize" || path === "/api/pane/zoom") return error("not_in_demo", "Splits are not part of the demo", 400);
   if (path === "/api/pane/rename") {
     const body = await bodyOf(init, input);
     const pane = paneOf(String(body["pane_id"] ?? ""));

@@ -83,6 +83,7 @@ export class MachineManager {
   private listeners = new Set<(event: MachineEvent) => void>();
   private stopped = false;
   private localBusy = false;
+  private localDone: Promise<void> = Promise.resolve();
   private localRefreshQueued = false;
   private localRevision = 0;
   private localTimer: ReturnType<typeof setInterval>;
@@ -142,10 +143,15 @@ export class MachineManager {
     }
     if (message.type === "session-changed" || message.type === "pane-exited") void this.refreshLocal();
   }
-  async refreshLocal(): Promise<void> {
-    if (this.stopped) return;
-    if (this.localBusy) { this.localRefreshQueued = true; return; }
+  /** settles when the roster has been read again: a call that finds a read running waits for the one it queues */
+  refreshLocal(): Promise<void> {
+    if (this.stopped) return Promise.resolve();
+    if (this.localBusy) { this.localRefreshQueued = true; return this.localDone; }
     this.localBusy = true;
+    this.localDone = this.readLocalRoster();
+    return this.localDone;
+  }
+  private async readLocalRoster(): Promise<void> {
     try {
       do {
         this.localRefreshQueued = false;

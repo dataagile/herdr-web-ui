@@ -103,6 +103,15 @@
 
 .tab-strip-item.has-panes .tab-strip-panes {
   display: inline-flex;
+  width: auto;
+  gap: 2px;
+  padding: 0 var(--space-1);
+}
+
+/* how many panes the tab holds, or which one is in front of how many (a phone, a zoom) */
+.tab-strip-panes-count {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 /* the x keeps its place in every tab, so a tab does not change width under the pointer; it
@@ -194,6 +203,11 @@
 
   .tab-strip-item.is-active .tab-strip-panes {
     display: inline-flex;
+  }
+
+  /* the count widens the picker: never below a finger's width */
+  .tab-strip-item.has-panes .tab-strip-panes {
+    min-width: var(--touch-target);
   }
 
   /* a finger closes a tab from its menu: an x this small beside the name would be hit by mistake */

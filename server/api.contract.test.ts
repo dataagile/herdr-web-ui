@@ -246,7 +246,7 @@ describe("mutation body validation", () => {
     for (const path of [
       "/api/workspace/create", "/api/tab/create", "/api/tab/rename", "/api/tab/close", "/api/workspace/rename", "/api/workspace/move", "/api/workspace/close",
       "/api/pane/rename", "/api/pane/input", "/api/pane/keys", "/api/pane/close", "/api/pane/image",
-      "/api/pane/scroll",
+      "/api/pane/scroll", "/api/pane/split", "/api/pane/focus", "/api/pane/resize", "/api/pane/zoom",
     ]) {
       for (const body of [null, [], "text", 42, true]) {
         const response = await fetch(`${base()}${path}`, {
@@ -262,6 +262,17 @@ describe("mutation body validation", () => {
     for (const [path, body, code] of [
       ["/api/pane/input", { pane_id: true, text: "echo bad" }, "missing_pane_id"],
       ["/api/pane/close", { pane_id: 5 }, "missing_pane_id"],
+      ["/api/pane/split", { pane_id: "", direction: "right" }, "missing_pane_id"],
+      ["/api/pane/split", { pane_id: "unknown", direction: "sideways" }, "invalid_direction"],
+      ["/api/pane/split", { pane_id: "unknown", direction: "right", agent: { kind: 3 } }, "invalid_agent"],
+      ["/api/pane/focus", { pane_id: 7 }, "missing_pane_id"],
+      ["/api/pane/resize", { direction: "left", amount: 0.1 }, "missing_pane_id"],
+      ["/api/pane/resize", { pane_id: "unknown", direction: "diagonal", amount: 0.1 }, "invalid_direction"],
+      ["/api/pane/resize", { pane_id: "unknown", direction: "left", amount: 0 }, "invalid_amount"],
+      ["/api/pane/resize", { pane_id: "unknown", direction: "left", amount: 0.9 }, "invalid_amount"],
+      ["/api/pane/resize", { pane_id: "unknown", direction: "left", amount: "0.1" }, "invalid_amount"],
+      ["/api/pane/zoom", { pane_id: "unknown", mode: "sideways" }, "invalid_mode"],
+      ["/api/pane/zoom", { pane_id: null }, "missing_pane_id"],
       ["/api/pane/keys", { pane_id: "unknown", keys: [null] }, "missing_keys"],
       ["/api/pane/image", { pane_id: "unknown", content_type: "image/png", data_base64: {} }, "invalid_image"],
       ["/api/workspace/create", { agent: { kind: "claude", args: "--help" } }, "invalid_agent"],
@@ -2165,7 +2176,7 @@ it("refuses cross-origin changes while allowing same-origin and CLI requests", a
   const base = `http://127.0.0.1:${instance.port}`;
   const created = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-origin" });
   try {
-    for (const path of ["pane/input", "pane/keys", "pane/close", "workspace/create", "tab/create", "tab/rename", "tab/close", "push/subscribe"]) {
+    for (const path of ["pane/input", "pane/keys", "pane/close", "pane/split", "pane/focus", "pane/resize", "pane/zoom", "workspace/create", "tab/create", "tab/rename", "tab/close", "push/subscribe"]) {
       const response = await fetch(`${base}/api/${path}`, { method: "POST", headers: { origin: "http://other.example", "content-type": "text/plain" }, body: JSON.stringify({ pane_id: created.root_pane.pane_id, text: "must not type", keys: ["Enter"] }) });
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ error: { code: "invalid_origin" } });
@@ -2209,4 +2220,65 @@ it("creates a folder over /api/workspace/directories and refuses bad input", asy
     expect(orphan.status).toBe(400);
     expect((await fetch(`${base()}/api/workspace/directories`)).status).toBe(200);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// the layout herdr keeps for a tab: split, focus, resize and zoom, against a real herdr
+describe("pane split, focus, resize and zoom", () => {
+  const post = (path: string, body: unknown) => fetch(`${base()}/api/pane/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const layoutOf = async (tabId: string) => (await herdrRpc<{ snapshot: SessionSnapshot }>("session.snapshot", {})).snapshot.layouts.find((layout) => layout.tab_id === tabId)!;
+
+  it("splits a pane beside it, focused, and answers the new pane", async () => {
+    const created = await workspaceCreate({ cwd: tmpdir(), label: "herdr-web-ui-test-split" });
+    try {
+      const first = created.root_pane.pane_id;
+      const response = await post("split", { pane_id: first, direction: "right" });
+      expect(response.status).toBe(200);
+      const body = await response.json() as { pane_id: string; agent_started: boolean };
+      expect(body.agent_started).toBe(false);
+      expect(body.pane_id).not.toBe(first);
+      const layout = await layoutOf(created.root_pane.tab_id);
+      expect(layout.panes.map((pane) => pane.pane_id).sort()).toEqual([first, body.pane_id].sort());
+      expect(layout.focused_pane_id).toBe(body.pane_id);
+      // a column: the second split goes below the new pane
+      const down = await post("split", { pane_id: body.pane_id, direction: "down" });
+      expect(down.status).toBe(200);
+      expect((await layoutOf(created.root_pane.tab_id)).panes).toHaveLength(3);
+      expect((await post("split", { pane_id: "no-such-pane", direction: "right" })).status).toBe(404);
+    } finally { await workspaceClose(created.workspace.workspace_id); }
+  });
+
+  it("focuses a pane, moves a border and zooms, each answering herdr's own layout", async () => {
+    const created = await workspaceCreate({ cwd: tmpdir(), label: "herdr-web-ui-test-layout" });
+    try {
+      const first = created.root_pane.pane_id;
+      const second = ((await (await post("split", { pane_id: first, direction: "right" })).json()) as { pane_id: string }).pane_id;
+      const tabId = created.root_pane.tab_id;
+      expect((await post("focus", { pane_id: first })).status).toBe(200);
+      expect((await layoutOf(tabId)).focused_pane_id).toBe(first);
+      expect(await (await post("focus", { pane_id: first })).json()).toEqual({ ok: true });
+
+      const before = (await layoutOf(tabId)).splits[0]!.ratio;
+      const resized = await post("resize", { pane_id: first, direction: "right", amount: 0.1 });
+      expect(resized.status).toBe(200);
+      const answer = await resized.json() as { changed: boolean; layout: { splits: { ratio: number }[] } };
+      expect(answer.changed).toBe(true);
+      expect(answer.layout.splits[0]!.ratio).toBeCloseTo(before + 0.1, 5);
+      expect((await layoutOf(tabId)).splits[0]!.ratio).toBeCloseTo(before + 0.1, 5);
+      // the roster the browsers poll carries the new layout at once, not after the next 5 s refresh
+      const roster = await (await fetch(`${base()}/api/machines`)).json() as { machines: { id: string; snapshot: SessionSnapshot | null }[] };
+      expect(roster.machines.find((machine) => machine.id === "local")!.snapshot!.layouts.find((layout) => layout.tab_id === tabId)!.splits[0]!.ratio).toBeCloseTo(before + 0.1, 5);
+      // a border moves back with the pane on its other side
+      const back = await (await post("resize", { pane_id: second, direction: "left", amount: 0.1 })).json() as { layout: { splits: { ratio: number }[] } };
+      expect(back.layout.splits[0]!.ratio).toBeCloseTo(before, 5);
+
+      const zoomed = await (await post("zoom", { pane_id: first })).json() as { zoomed: boolean; layout: { zoomed: boolean } };
+      expect(zoomed).toMatchObject({ zoomed: true, layout: { zoomed: true } });
+      expect((await layoutOf(tabId)).zoomed).toBe(true);
+      const off = await (await post("zoom", { pane_id: first, mode: "off" })).json() as { zoomed: boolean };
+      expect(off.zoomed).toBe(false);
+      expect((await layoutOf(tabId)).zoomed).toBe(false);
+      for (const path of ["focus", "resize", "zoom"]) expect((await post(path, { pane_id: "no-such-pane", direction: "left", amount: 0.1 })).status).toBe(404);
+      for (const path of ["split", "focus", "resize", "zoom"]) expect((await fetch(`${base()}/api/pane/${path}`)).status).toBe(400);
+    } finally { await workspaceClose(created.workspace.workspace_id); }
+  });
 });

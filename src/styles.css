@@ -1178,6 +1178,12 @@ button {
   color: var(--accent);
 }
 
+/* a lens that is not offered (Chat while a tab shows several panes side by side) */
+.segmented > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* keyboard key hint */
 .kbd {
   display: inline-flex;
@@ -1498,6 +1504,7 @@ button {
   .pill-offline,
   .brand-name,
   .palette-button,
+  .header-split,
   .header-desktop-only {
     display: none;
   }

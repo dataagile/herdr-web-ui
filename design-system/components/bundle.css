@@ -731,6 +731,12 @@ button {
   color: var(--accent);
 }
 
+/* a lens that is not offered (Chat while a tab shows several panes side by side) */
+.segmented > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* keyboard key hint */
 .kbd {
   display: inline-flex;
@@ -1051,6 +1057,7 @@ button {
   .pill-offline,
   .brand-name,
   .palette-button,
+  .header-split,
   .header-desktop-only {
     display: none;
   }
@@ -7346,6 +7353,15 @@ button, a, [role="button"] {
 
 .tab-strip-item.has-panes .tab-strip-panes {
   display: inline-flex;
+  width: auto;
+  gap: 2px;
+  padding: 0 var(--space-1);
+}
+
+/* how many panes the tab holds, or which one is in front of how many (a phone, a zoom) */
+.tab-strip-panes-count {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 /* the x keeps its place in every tab, so a tab does not change width under the pointer; it
@@ -7437,6 +7453,11 @@ button, a, [role="button"] {
 
   .tab-strip-item.is-active .tab-strip-panes {
     display: inline-flex;
+  }
+
+  /* the count widens the picker: never below a finger's width */
+  .tab-strip-item.has-panes .tab-strip-panes {
+    min-width: var(--touch-target);
   }
 
   /* a finger closes a tab from its menu: an x this small beside the name would be hit by mistake */
@@ -9230,4 +9251,180 @@ button, a, [role="button"] {
     border-right: none;
     border-bottom: 1px solid var(--portal-border);
   }
+}
+
+/* ---- split tab (components/SplitView.css, SplitMenu.css) ---- */
+/*
+ * A split tab (SplitView.tsx): the panes side by side as herdr lays them. The cells are placed in
+ * percentages of the area (lib/splitLayout.ts); the gap between two is the cell's own padding, and
+ * a divider sits over that gap with a wider hit area than the line it draws. Tokens only.
+ */
+.split-view {
+  height: 100%;
+  padding: calc(var(--space-1) / 2);
+  background: var(--bg-panel);
+}
+
+.split-area {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.split-cell {
+  position: absolute;
+  box-sizing: border-box;
+  padding: calc(var(--space-1) / 2);
+}
+
+.split-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--term-bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* the pane that holds the keyboard: the one amber edge of the tab */
+.split-pane.is-focused {
+  border-color: var(--accent);
+}
+
+.split-pane-head {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--space-1);
+  padding: 0 var(--space-1) 0 var(--space-2);
+  background: var(--bg-panel);
+  border-bottom: var(--hairline) solid var(--border);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-tight);
+  user-select: none;
+}
+
+.split-pane-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--space-1) 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-pane-title b {
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+
+.split-pane-button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: calc(var(--icon-size) + var(--space-2));
+  height: calc(var(--icon-size) + var(--space-2));
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.split-pane-button:hover,
+.split-pane-button:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.split-pane-button svg {
+  width: var(--fs-md);
+  height: var(--fs-md);
+}
+
+.split-pane-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* the divider: a line in the gap, a wider strip to grab it by */
+.split-divider {
+  position: absolute;
+  z-index: var(--z-banner);
+  touch-action: none;
+}
+
+.split-divider.is-vertical {
+  width: var(--space-2);
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+.split-divider.is-horizontal {
+  height: var(--space-2);
+  transform: translateY(-50%);
+  cursor: row-resize;
+}
+
+.split-divider::after {
+  content: "";
+  position: absolute;
+  background: transparent;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.split-divider.is-vertical::after {
+  inset: 0 calc(var(--space-1) * 1.5);
+}
+
+.split-divider.is-horizontal::after {
+  inset: calc(var(--space-1) * 1.5) 0;
+}
+
+.split-divider:hover::after,
+.split-divider:focus-visible::after,
+.split-divider.is-dragging::after {
+  background: var(--accent);
+}
+
+.split-divider:focus-visible {
+  outline: none;
+}
+
+/* while a divider is dragged, no terminal takes the pointer from it */
+.split-view[data-dragging] .split-pane-body {
+  pointer-events: none;
+}
+
+.split-menu-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.split-menu-title {
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-menu-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* a split tab's pane: the grid is herdr's and its font is scaled to the box (PaneTerminal `follow`),
+   so the mount never scrolls and never has a cell to spare */
+.pane-terminal[data-follow-grid] {
+  overflow: hidden;
 }

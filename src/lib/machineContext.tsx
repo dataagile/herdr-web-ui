@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import * as api from "./api.ts";
-import type { CreateWorktreeRequest, OpenWorktreeRequest, RemoveWorktreeRequest } from "../../shared/protocol.ts";
+import type { CreateWorktreeRequest, OpenWorktreeRequest, RemoveWorktreeRequest, ResizeDirection, SplitDirection, ZoomMode } from "../../shared/protocol.ts";
 export const MachineContext = createContext("local");
 export const useMachineId = () => useContext(MachineContext);
 /** Bound functions retain their owner across an async upload or a fast PC switch. */
@@ -22,6 +22,10 @@ export function useMachineApi() {
     listWorktrees: (workspace: string) => api.listWorktrees(workspace, id),
     openWorktree: (request: OpenWorktreeRequest) => api.openWorktree(request, id),
     removeWorktree: (request: RemoveWorktreeRequest) => api.removeWorktree(request, id),
+    splitPane: (pane: string, direction: SplitDirection, cwd: string | null, agent?: { kind: string; args?: string[] }) => api.splitPane(pane, direction, cwd, id, agent),
+    focusPane: (pane: string) => api.focusPane(pane, id),
+    resizePane: (pane: string, direction: ResizeDirection, amount: number) => api.resizePane(pane, direction, amount, id),
+    zoomPane: (pane: string, mode: ZoomMode) => api.zoomPane(pane, mode, id),
     renamePane: (pane: string, label: string) => api.renamePane(pane, label, id),
     renameWorkspace: (workspace: string, label: string) => api.renameWorkspace(workspace, label, id),
     moveWorkspace: (workspace: string, index: number) => api.moveWorkspace(workspace, index, id),

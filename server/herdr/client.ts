@@ -5,7 +5,7 @@ import type {
   ReadSource,
   SessionSnapshot,
 } from "../../shared/protocol.ts";
-import type { AgentManifestInfo, AgentStartParams, PaneInfo, PaneScrollInfo, TabInfo, WorkspaceInfo } from "../../shared/herdr-api.generated.ts";
+import type { AgentManifestInfo, AgentStartParams, PaneInfo, PaneLayoutSnapshot, PaneScrollInfo, TabInfo, WorkspaceInfo } from "../../shared/herdr-api.generated.ts";
 import type { HerdrIdentity } from "../../shared/machines.ts";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -234,6 +234,49 @@ export async function agentStart(
 
 export async function paneRename(paneId: string, label: string | null, socketPath?: string): Promise<void> {
   await herdrRpc("pane.rename", { pane_id: paneId, label }, socketPath);
+}
+
+/** Splits a pane and answers the pane herdr made; `focus` puts the user's focus in it. */
+export async function paneSplit(
+  options: { targetPaneId: string; direction: "right" | "down"; cwd?: string | null; focus?: boolean; ratio?: number },
+  socketPath?: string,
+): Promise<{ pane: PaneInfo }> {
+  return await herdrRpc<{ pane: PaneInfo }>("pane.split", {
+    target_pane_id: options.targetPaneId,
+    direction: options.direction,
+    ...(options.cwd == null ? {} : { cwd: options.cwd }),
+    ...(options.focus === undefined ? {} : { focus: options.focus }),
+    ...(options.ratio === undefined ? {} : { ratio: options.ratio }),
+  }, socketPath);
+}
+
+/** Moves herdr's focus to a pane (its tab opens too). */
+export async function paneFocus(paneId: string, socketPath?: string): Promise<void> {
+  await herdrRpc("pane.focus", { pane_id: paneId }, socketPath);
+}
+
+/**
+ * Moves the border of `paneId` on the `direction` side by `amount`, a fraction of the split it
+ * belongs to. Answers whether anything moved and the tab's layout afterwards.
+ */
+export async function paneResize(
+  paneId: string,
+  direction: "left" | "right" | "up" | "down",
+  amount: number,
+  socketPath?: string,
+): Promise<{ changed: boolean; layout: PaneLayoutSnapshot }> {
+  const result = await herdrRpc<{ resize: { changed: boolean; layout: PaneLayoutSnapshot } }>("pane.resize", { pane_id: paneId, direction, amount }, socketPath);
+  return { changed: result.resize.changed, layout: result.resize.layout };
+}
+
+/** Zooms the pane to its tab (or back): `toggle` unless a mode says. Answers the zoom state and the layout. */
+export async function paneZoom(
+  paneId: string,
+  mode: "toggle" | "on" | "off",
+  socketPath?: string,
+): Promise<{ zoomed: boolean; layout: PaneLayoutSnapshot }> {
+  const result = await herdrRpc<{ zoom: { zoomed: boolean; layout: PaneLayoutSnapshot } }>("pane.zoom", { pane_id: paneId, mode }, socketPath);
+  return { zoomed: result.zoom.zoomed, layout: result.zoom.layout };
 }
 
 export async function workspaceRename(workspaceId: string, label: string, socketPath?: string): Promise<void> {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AgentStatus, SessionSnapshot } from "../../shared/protocol.ts";
-import { applyPaneStatus } from "./snapshot.ts";
+import { applyLayout, applyPaneStatus } from "./snapshot.ts";
 
 function snapshotFixture(): SessionSnapshot {
   return {
@@ -50,5 +50,20 @@ describe("applyPaneStatus", () => {
   it("returns the same snapshot object when the pane is unknown", () => {
     const current = snapshotFixture();
     expect(applyPaneStatus(current, "w9:p9", "done" as AgentStatus)).toBe(current);
+  });
+});
+
+describe("applyLayout", () => {
+  const layout = (tab: string, ratio: number) => ({ workspace_id: "w1", tab_id: tab, zoomed: false, area: { x: 0, y: 0, width: 120, height: 40 }, focused_pane_id: "w1:p1", panes: [], splits: [{ id: "s", direction: "right", ratio, rect: { x: 0, y: 0, width: 120, height: 40 } }] });
+
+  it("replaces the tab's own layout and keeps the others", () => {
+    const current = { ...snapshotFixture(), layouts: [layout("w1:t1", 0.5), layout("w1:t2", 0.5)] };
+    const next = applyLayout(current, layout("w1:t1", 0.6));
+    expect(next.layouts.map((entry) => [entry.tab_id, entry.splits[0]!.ratio])).toEqual([["w1:t1", 0.6], ["w1:t2", 0.5]]);
+    expect(next.layouts[1]).toBe(current.layouts[1]);
+  });
+
+  it("adds a layout the snapshot did not have", () => {
+    expect(applyLayout(snapshotFixture(), layout("w1:t1", 0.5)).layouts).toHaveLength(1);
   });
 });

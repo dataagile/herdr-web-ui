@@ -297,3 +297,9 @@
 .terminal-stack.is-chat .pane-terminal {
   content-visibility: hidden;
 }
+
+/* a split tab's pane: the grid is herdr's and its font is scaled to the box (PaneTerminal `follow`),
+   so the mount never scrolls and never has a cell to spare */
+.pane-terminal[data-follow-grid] {
+  overflow: hidden;
+}

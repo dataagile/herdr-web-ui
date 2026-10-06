@@ -42,9 +42,11 @@ export interface TabStripProps {
   selectedPane: PaneInfo;
   onSelectPane: (paneId: string) => void;
   onNewTab: () => void;
+  /** the open tab shows its panes side by side: its picker counts them, else it says which one is in front ("1/2") */
+  sideBySide?: boolean;
 }
 
-export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNewTab }: TabStripProps) {
+export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNewTab, sideBySide = false }: TabStripProps) {
   const t = useT();
   const machineId = useMachineId();
   const { closeTab, renameTab } = useMachineApi();
@@ -308,6 +310,7 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
               )}
               <button type="button" className="tab-strip-panes" aria-label={own.length > 1 ? t("Panes in {tab}", { tab: name }) : t("Actions for {tab}", { tab: name })} aria-haspopup="menu" aria-expanded={pickerOpen} onClick={(event) => openPicker(event, tab)}>
                 <ChevronDown aria-hidden="true" />
+                {own.length > 1 && <span className="tab-strip-panes-count">{active && !sideBySide ? `${own.findIndex((pane) => pane.pane_id === selectedPane.pane_id) + 1}/${own.length}` : own.length}</span>}
               </button>
               <button type="button" className="tab-strip-close" aria-label={t("Close tab {name}", { name })} title={t("Close tab")} onClick={() => requestClose(tab)}>
                 <X aria-hidden="true" />

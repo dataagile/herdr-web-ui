@@ -290,7 +290,12 @@ One set for both themes: the card is island black wherever it shows.
   title then the PC › workspace › folder crumb; segmented Chat/Terminal switch; the connection
   chip while the bridge is not live (herdr version in its tooltip), the offline pill, sign out and
   the More menu (`⋯`). Theme lives in Settings and the palette; the herdr version is also read
-  in Settings.
+  in Settings. Beside **New tab** sits **Split** (`.header-split`, a ghost button; icon only at
+  `<=480px`, where it is the More menu's second item, under the palette), which opens the split menu for the pane in front; while the tab is zoomed an
+  **Unzoom** button (`.header-unzoom`) joins the switch, and the crumb's last part reads
+  "zoom n/N". With several panes side by side the **Chat** half of the switch is disabled
+  (`opacity: 0.45`, `not-allowed` cursor, tooltip "Chat: zoom (⤢) a pane") and every pane shows
+  its terminal.
 - From `769px` the header is two zones. Over the sidebar, `.header-side` is the sidebar's own top
   row (toggle at its start, palette at its end) on `--bg-panel`, as wide as `--sidebar-w`, and the
   sidebar's seam runs to the top of the window. Over the pane, the header takes the pane's
@@ -308,8 +313,9 @@ One set for both themes: the card is island black wherever it shows.
   from the left `24px` edge opens the drawer and a swipe to the left closes it (`56px` of travel).
 - The terminal stack contains a positioned terminal surface, then composer or key bar. The xterm
   mount stays alive under the chat lens; changing views never creates a second connection.
-- At `<=480px` the brand name, the offline pill and desktop-only control labels go, and the
-  palette's button gives its room to the title: the palette is the More menu's first item there.
+- At `<=480px` the brand name, the offline pill, the Split button and desktop-only control labels go,
+  and the palette's button gives its room to the title: the palette is the More menu's first item
+  there and Split its second.
   Icons and selected context remain.
 
 ## 5. Components
@@ -433,8 +439,14 @@ One set for both themes: the card is island black wherever it shows.
   sit under the row of the workspace on its main checkout, packed behind a hairline
   (`.worktree-children`), as herdr's Spaces sidebar keeps them; a worktree whose repository
   workspace is not open stays at the top level.
-- Footer holds the contextual **Install app** action and Settings with the plan meters beside it.
-  It carries no product name or version: the running versions are read in Settings.
+- Footer holds the contextual **Install app** action and Settings with the plan meters beside it,
+  and under them, last, the build line (`.sidebar-version`): `Data Agile Dev · v<app version> ·
+  <short commit>` in `--font-mono`, `--fs-xs`, `--text-dim`, one line, ellipsis, selectable. The
+  version is package.json's (`__APP_VERSION__`); the commit and the build time are written by
+  vite.config.ts (`git rev-parse --short HEAD`, `dev` where Git cannot answer; a bundle that lacks
+  them says `dev` too). Its tooltip reads `herdr <version> · build <date>`: the herdr of the PC in
+  front, and the build in the reader's own date format. The phone's drawer carries the same line.
+  The brand words are not translated; the tooltip is.
 
 ### Plan meters (`.usage*`)
 - Beside Settings, one button holding up to four chips (three and `+N` past that), one per
@@ -490,6 +502,50 @@ One set for both themes: the card is island black wherever it shows.
 - `--control-h` tall on a hairline over `--bg-panel`, scrolling sideways without a scrollbar;
   touch grows the buttons to `--touch-target`, and puts the pane picker beside its tab's name
   instead of pulling it over the name's padding. The same strip on a phone.
+- A tab with several panes counts them beside its chevron (`.tab-strip-panes-count`, `--fs-xs`,
+  tabular figures): "2" while the open tab shows its panes side by side, "1/2" when one pane is in
+  front (a phone, a window under 1024px, a zoomed pane) — the picker then says which.
+
+### Split tab (`.split-view`)
+- From `1024px` a tab with more than one pane draws all of them, laid out as herdr lays them
+  (`PaneLayoutSnapshot`: the panes' rectangles, and the splits with direction and ratio, rebuilt
+  as a tree in `lib/splitLayout.ts`). Each pane is a `.split-pane` placed in percentages of the
+  area, its gap the cell's own `--space-1 / 2` padding on a `--bg-panel` ground; nothing is a
+  flex or grid track, so a divider drag previews by moving the ratio and the panes inside it.
+- A pane is a hairline-bordered `--radius-sm` box on `--term-bg`. The one that holds the keyboard
+  has a `--accent` border: the tab's only amber edge. Its head (`.split-pane-head`, `--bg-panel`,
+  `--fs-xs`) reads **agent** (strong, semibold) · the pane's name, and ends in three
+  `.split-pane-button`s of `--icon-size + --space-2`: split (`Columns2`, opens the pane menu), zoom
+  (`Maximize2`) and close (`X`, asking first when an agent in it is working or blocked, as the pane
+  menu does). A press anywhere in the pane focuses it, in the page and in herdr (`pane.focus`);
+  the keyboard goes to the focused pane only.
+- The divider between two panes (`.split-divider`, `role="separator"`) is a `--space-2` wide strip
+  with a `--space-1 / 2`-inset line that turns `--accent` on hover, focus and while dragged. A drag
+  previews at once and sends `pane.resize` when the pointer rests for 150ms and on release; herdr's
+  layout in the answer replaces the preview. A pane cannot be dragged below 10 columns or 4 rows, and
+  one step is at most half a split. Arrow keys on a focused divider move it by 5%.
+- **Split** (header button, the pane's head button, the pane menu on a right-click or a long
+  press) is one menu (`.split-menu-head` over the row menu): the pane's name, an **Agent** select
+  (Shell by default, or an agent) with the **Arguments** field the New tab dialog has, remembered per
+  agent; then **Split right**, **Split down**, and, from the pane menu, **Zoom**, **New tab** and
+  **Close pane**. The new pane takes the focus and the pane's folder. On a phone it is the sheet.
+- **Zoom** (`pane.zoom`) leaves one pane on the whole tab: it is the app's usual single-pane view
+  (fitted to the window, the Chat available), with **Unzoom** in the header and "zoom n/N" in the
+  crumb. Unzoom, or Escape pressed outside the terminal and the message box (inside them it is the
+  agent's own key), returns to the split in the terminal lens.
+- **The Chat belongs to one pane at a time:** with several panes side by side it is disabled and
+  every pane shows its terminal; a zoomed pane, a tab of one pane and a phone have it as before.
+- Under `1024px` nothing changes: one pane at a time, the tab's picker saying which ("1/N"), and the
+  split menu still works and shows the pane it made.
+- **Terminal size: the browser follows, it never drives.** A pty has one size, shared with herdr's
+  own client and every other device, and herdr does not resize it when its layout changes. So a pane
+  of a split tab (`PaneTerminal follow`) is never fitted to its box: it attaches with `keep_size`
+  (the server then leaves the pty as it is, and creates it at the pane's own cells when nobody
+  has), sends no `resize`, adopts the cols×rows the server reports for the pane (`pane-geometry`,
+  with the pane's cells in herdr's layout as the grid until it says), and scales its *font* to
+  fill its box (`fittedFontSize`). It has no key bar or input line. Only an explicit divider drag
+  changes sizes, and that goes through herdr (`pane.resize`). A zoomed pane is the one place the
+  browser sizes a pty, as it does for any single pane.
 
 ### Worktree dialog (`.worktree-modal`)
 - From a workspace row's menu, as herdr's prefix+shift+g: **New worktree** asks for the branch
@@ -882,6 +938,8 @@ One set for both themes: the card is island black wherever it shows.
 - Terminal banners stack top-right for ended, reconnecting, observe and held-draft review states.
 - The mobile key bar is Esc, Tab, one-shot Ctrl, arrows and `^C`; it never steals xterm focus.
 - The mobile drawer slides over a scrim. Closed visibility removes its controls from the tab order.
+- A split tab's panes (see **Split tab**) are terminals that follow herdr's grid: their mount
+  (`.pane-terminal[data-follow-grid]`) never scrolls, and the font, not the grid, takes the box's size.
 
 ### In-app alert
 - While the app is on screen, a pane that needs input, finishes a turn (by the device's Finished

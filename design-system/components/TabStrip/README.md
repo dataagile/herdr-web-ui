@@ -8,7 +8,7 @@ herdr's tab row over the pane: one tab per herdr tab of the selected workspace, 
 - `.tab-strip` (`role="tablist"`, labelled "Tabs of {workspace}"): a horizontally scrolling row without a scrollbar, `--control-h` tall on a hairline.
 - Per tab `.tab-strip-item` (+ `.is-active`, `.has-panes`, `.is-editing`):
   - `.tab-strip-tab` (`role="tab"`, `aria-selected`, roving `tabindex`) holding an optional `.tab-strip-dot[data-status]` and `.tab-strip-label`.
-  - `.tab-strip-panes`: the chevron that opens the pane picker / tab menu (shown on multi-pane tabs; on touch also on the open tab).
+  - `.tab-strip-panes`: the chevron that opens the pane picker / tab menu (shown on multi-pane tabs; on touch also on the open tab). On a multi-pane tab it carries `.tab-strip-panes-count`: the number of panes ("2") while the tab shows them side by side, or which one is in front ("1/2") when one pane at a time is shown (a phone, a narrow window, a zoom).
   - `.tab-strip-close`: the 20px x, its place kept in every tab so widths never move.
   - `.tab-strip-rename`: the input that replaces the tab while renaming.
 - `.tab-strip-add`: the `+`, sticky at the strip's end while tabs scroll under it.

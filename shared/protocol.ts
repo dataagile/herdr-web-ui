@@ -12,6 +12,10 @@ export type {
   AgentSessionInfo,
   AgentStatus,
   PaneInfo,
+  PaneLayoutPane,
+  PaneLayoutRect,
+  PaneLayoutSnapshot,
+  PaneLayoutSplit,
   PaneReadResult,
   PaneScrollInfo,
   ReadFormat,
@@ -22,7 +26,7 @@ export type {
   WorkspaceInfo,
 } from "./herdr-api.generated.ts";
 
-import type { AgentStatus, PaneInfo, SessionSnapshot, TabInfo, WorkspaceInfo } from "./herdr-api.generated.ts";
+import type { AgentStatus, PaneInfo, PaneLayoutSnapshot, SessionSnapshot, TabInfo, WorkspaceInfo } from "./herdr-api.generated.ts";
 
 /** Friendly aliases used across the UI. */
 export type HerdrWorkspace = WorkspaceInfo;
@@ -100,6 +104,14 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *         herdr would keep it as the name)
  *  POST   /api/tab/close  { tab_id } -> { ok: true } (tab.close: every pane in the tab closes, and
  *         a workspace's last tab takes the workspace with it)
+ *  POST   /api/pane/split { pane_id, direction: "right"|"down", cwd?, agent?: { kind, name?, args? } }
+ *         -> SplitResult (pane.split with focus on the new pane, in the target's folder unless cwd is
+ *         given, then the same agent launch as a new tab; without agent the new pane is a shell)
+ *  POST   /api/pane/focus { pane_id } -> { ok: true } (pane.focus)
+ *  POST   /api/pane/resize { pane_id, direction: "left"|"right"|"up"|"down", amount } -> PaneResizeResult
+ *         (pane.resize: the border of that pane on that side moves that way by `amount`, a fraction
+ *         of its split, 0 < amount <= 0.5)
+ *  POST   /api/pane/zoom { pane_id, mode?: "toggle"|"on"|"off" } -> PaneZoomResult (pane.zoom)
  *  POST   /api/workspace/rename { workspace_id, label } -> { ok: true }
  *  POST   /api/workspace/move   { workspace_id, insert_index } -> { ok: true } (sidebar reorder)
  *  POST   /api/workspace/close  { workspace_id, close_group? } -> { ok: true } (close_group takes the
@@ -427,6 +439,32 @@ export interface FileInfo {
 export interface FileWriteRequest {
   path: string;
   content: string;
+}
+
+/** POST /api/pane/split: the edge a new pane takes, and what herdr made of it. */
+export type SplitDirection = "right" | "down";
+
+export interface SplitResult {
+  pane_id: string;
+  agent_started: boolean;
+  error?: { code: string; message: string };
+}
+
+/** POST /api/pane/resize: the direction a pane's border moves in. */
+export type ResizeDirection = "left" | "right" | "up" | "down";
+
+/** POST /api/pane/resize: whether a border moved, and the tab's layout afterwards. */
+export interface PaneResizeResult {
+  changed: boolean;
+  layout: PaneLayoutSnapshot;
+}
+
+/** POST /api/pane/zoom: the zoom state after the call, and the tab's layout. */
+export type ZoomMode = "toggle" | "on" | "off";
+
+export interface PaneZoomResult {
+  zoomed: boolean;
+  layout: PaneLayoutSnapshot;
 }
 
 export interface AgentKind {

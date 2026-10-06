@@ -19,8 +19,14 @@ import type {
   PushKey,
   RemoteAccess,
   RemoveWorktreeRequest,
+  PaneResizeResult,
+  PaneZoomResult,
+  ResizeDirection,
   SessionSnapshot,
   SlashCommand,
+  SplitDirection,
+  SplitResult,
+  ZoomMode,
   TabCreated,
   UsageReport,
   WorkspaceCreated,
@@ -319,6 +325,37 @@ export async function fetchPaneSelection(paneId: string, anchor: PaneTextPoint, 
  */
 export async function closePane(paneId: string, machineId = "local"): Promise<void> {
   await sendJson(machinePath(machineId, "pane/close"), "POST", { pane_id: paneId });
+}
+
+/**
+ * POST /api/pane/split: a new pane beside the given one (same folder), optionally starting an
+ * agent in it. Resolves with the new pane's id; `agent_started:false` carries an error.
+ */
+export async function splitPane(paneId: string, direction: SplitDirection, cwd: string | null, machineId = "local", agent?: { kind: string; args?: string[] }): Promise<SplitResult> {
+  const response = await sendJson(machinePath(machineId, "pane/split"), "POST", {
+    pane_id: paneId,
+    direction,
+    ...(cwd ? { cwd } : {}),
+    ...(agent ? { agent } : {}),
+  });
+  return (await response.json()) as SplitResult;
+}
+
+/** POST /api/pane/focus: herdr's focus moves to the pane (the keyboard goes to it in herdr's own client too). */
+export async function focusPane(paneId: string, machineId = "local"): Promise<void> {
+  await sendJson(machinePath(machineId, "pane/focus"), "POST", { pane_id: paneId });
+}
+
+/** POST /api/pane/resize: the pane's border on that side moves that way by a fraction of its split. */
+export async function resizePane(paneId: string, direction: ResizeDirection, amount: number, machineId = "local"): Promise<PaneResizeResult> {
+  const response = await sendJson(machinePath(machineId, "pane/resize"), "POST", { pane_id: paneId, direction, amount });
+  return (await response.json()) as PaneResizeResult;
+}
+
+/** POST /api/pane/zoom: the pane fills its tab, or the tab's layout comes back. */
+export async function zoomPane(paneId: string, mode: ZoomMode, machineId = "local"): Promise<PaneZoomResult> {
+  const response = await sendJson(machinePath(machineId, "pane/zoom"), "POST", { pane_id: paneId, mode });
+  return (await response.json()) as PaneZoomResult;
 }
 
 /** POST /api/pane/rename: sets the pane's label in herdr (an empty label clears it). */

@@ -8,6 +8,25 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- A tab split in herdr shows all its panes side by side in the browser (from 1024px), laid out
+  as herdr lays them, each with a thin header (agent, name, split, zoom, close) over its own live
+  terminal; the focused pane has the amber edge and a click focuses it, here and in herdr.
+  **Split** is back in the header, beside New tab, and in the pane's menu (right-click, long
+  press or its ◫ button): Split right or down with a shell or an agent (and its arguments);
+  the new pane appears beside the old and takes the focus. Dragging the divider between two
+  panes resizes them through herdr (`pane.resize`, previewed while dragging, a pane never below
+  10 columns or 4 rows). **Zoom** (`pane.zoom`) gives one pane the whole tab, with **Unzoom**,
+  "zoom n/N" and Escape to come back. The Chat is for one pane at a time: it is disabled
+  while several panes are side by side ("Chat: zoom (⤢) a pane"), and as before in a zoomed pane,
+  a tab of one pane and on a phone, which keeps one pane at a time with the tab's "1/N" picker.
+  A pane of a split tab never resizes its pty to its box: it draws the grid herdr and the other
+  devices gave it and scales its font to fit, so a split tab does not disturb herdr's own client.
+  New endpoints: `POST /api/pane/split`, `/focus`, `/resize` and `/zoom`.
+  ([#9](https://github.com/dataagile/herdr-web-ui/pull/9) by @tbc-joaovitor)
+- The sidebar footer (and the phone's drawer) ends with the build: `Data Agile Dev · v0.3.52 ·
+  <commit>`, with the herdr version and the build time in its tooltip. The commit comes from
+  `git rev-parse --short HEAD` at build time, and reads `dev` where Git cannot answer.
+  ([#9](https://github.com/dataagile/herdr-web-ui/pull/9) by @tbc-joaovitor)
 - Voice input can use your own OpenAI-compatible transcription server: Settings → Voice input →
   Transcription server takes a Server URL and key, a **Test and list models** button that fills
   the Transcription and Tidy model lists (speech-to-text first), and a dictation language

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Bell, Ellipsis, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
+import { Bell, Columns2, Ellipsis, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
-import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane } from "../shared/protocol.ts";
-import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, pairDevice, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
+import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
+import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { PaneTerminal } from "./components/PaneTerminal.tsx";
+import { SplitView } from "./components/SplitView.tsx";
+import { SplitMenu, type SplitTarget } from "./components/SplitMenu.tsx";
 import { AccessGate } from "./components/AccessGate.tsx";
 import { AgentMark } from "./components/AgentMark.tsx";
 import { NewSessionDialog, type NewTabTarget } from "./components/NewSessionDialog.tsx";
@@ -20,7 +22,8 @@ import { focusWorkspaceListToggle } from "./lib/focus.ts";
 import { headerCrumb, showsChat } from "./lib/headerCrumb.ts";
 import { paneStorageId, type Machine, type MachineEvent } from "../shared/machines.ts";
 import { takeAuthTokenFromUrl } from "./lib/authLink.ts";
-import { applyPaneStatus } from "./lib/snapshot.ts";
+import { applyLayout, applyPaneStatus, pinLayouts, type LayoutPin } from "./lib/snapshot.ts";
+import { showsSplit, SPLIT_MIN_WIDTH, tabLayout, type ResizeStep } from "./lib/splitLayout.ts";
 import { rosterPanes } from "./lib/dagPane.ts";
 import { SnapshotRequests } from "./lib/snapshotRequests.ts";
 import { alertPrefs, useSettings, type DefaultView } from "./lib/settings.ts";
@@ -221,8 +224,19 @@ export function App() {
   // the dialog makes a tab in this workspace instead of a workspace, while set
   const [newTab, setNewTab] = useState<NewTabTarget | null>(null);
   // a pane's context menu (right-click or long-press), opened at the pointer
-  const [paneMenu, setPaneMenu] = useState<{ anchor: HTMLElement; point: { top: number; left: number } } | null>(null);
-  const [confirmClosePane, setConfirmClosePane] = useState(false);
+  // `pane` names the pane it is for (a split tab has several); `whole` is the full pane menu, else the header's Split menu
+  const [paneMenu, setPaneMenu] = useState<{ anchor: HTMLElement; point?: { top: number; left: number }; paneId: string; whole: boolean } | null>(null);
+  // the pane a close is waiting on the user's word for
+  const [confirmClosePane, setConfirmClosePane] = useState<string | null>(null);
+  // side by side from 1024px, one pane at a time below (a phone, a narrow window)
+  const [wide, setWide] = useState(() => window.matchMedia?.(`(min-width: ${SPLIT_MIN_WIDTH}px)`).matches === true);
+  useEffect(() => {
+    const media = window.matchMedia?.(`(min-width: ${SPLIT_MIN_WIDTH}px)`);
+    if (!media) return;
+    const onChange = (): void => setWide(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
   const pressTimer = useRef<number | null>(null);
   const pressPoint = useRef<{ x: number; y: number } | null>(null);
   const [connected, setConnected] = useState(false);
@@ -256,10 +270,12 @@ export function App() {
     try { const next = await fetchHealth(); setHealth((previous) => sameData(previous, next) ? previous : next); } catch { setHealth(null); }
   }, []);
   const snapshotRequests = useRef(new SnapshotRequests());
+  // layouts herdr answered a resize or a zoom with: held over any roster read before them (a remote PC's included)
+  const layoutPins = useRef(new Map<string, LayoutPin>());
   const load = useCallback(async () => {
     try {
       await snapshotRequests.current.read(fetchMachines, (next) => {
-        setMachines((previous) => sameData(previous, next) ? previous : next);
+        setMachines((previous) => sameData(previous, next) ? previous : pinLayouts(next, layoutPins.current, Date.now()));
         setError(null); setLocked(false);
       });
     }
@@ -364,7 +380,7 @@ export function App() {
       snapshotRequests.current.invalidate();
       if (payload.type === "machines") {
         seed(payload.machines);
-        setMachines((previous) => sameData(previous, payload.machines) ? previous : payload.machines);
+        setMachines((previous) => sameData(previous, payload.machines) ? previous : pinLayouts(payload.machines, layoutPins.current, Date.now()));
         return;
       }
       const machine = machinesRef.current.find((m) => m.id === payload.machine_id);
@@ -554,6 +570,13 @@ export function App() {
   // unknown herdr (offline, or a server that predates the flag) counts as attach-capable
   // a server that repaints the pane's screen instead (terminal_mirror) has a terminal lens too
   const terminalAttach = targetHerdr?.terminal_attach !== false || targetHerdr?.terminal_mirror === true;
+  // the tab's layout as herdr keeps it: several panes show side by side (SplitView), one at a time otherwise
+  const selectedLayout = tabLayout(snapshot?.layouts, selectedPane?.tab_id);
+  const splitting = terminalAttach && showsSplit(selectedLayout, wide);
+  const zoomed = selectedLayout !== null && selectedLayout.zoomed && selectedLayout.panes.length > 1;
+  // herdr's zoomed pane is the one it has focused: the label and Unzoom follow it, not the page's selection
+  const zoomedPaneId = zoomed && selectedLayout ? selectedLayout.focused_pane_id : null;
+  const zoomIndex = selectedLayout === null || zoomedPaneId === null ? 0 : selectedLayout.panes.findIndex((entry) => entry.pane_id === zoomedPaneId) + 1;
 
   // the lens follows the selected pane: each pane remembers its own. It is settled in the render
   // that selects the pane, not in an effect after it: the pane's terminal attaches in that render's
@@ -615,32 +638,101 @@ export function App() {
     document.title = selectedTitle ? `${selectedTitle} · herdr` : APP_TITLE;
   }, [selectedTitle]);
 
-  const doClosePane = useCallback(async (): Promise<void> => {
-    if (selectedPaneId === null) return;
-    try { await closePane(selectedPaneId, selectedMachineId); }
+  const doClosePane = useCallback(async (paneId: string): Promise<void> => {
+    // the pane in front closing: the one beside it in its tab takes its place, not herdr's pick across workspaces
+    const beside = selectionRef.current.paneId === paneId
+      ? tabLayout(snapshotRef.current?.layouts, snapshotRef.current?.panes.find((pane) => pane.pane_id === paneId)?.tab_id)?.panes.find((entry) => entry.pane_id !== paneId)
+      : undefined;
+    try {
+      await closePane(paneId, selectedMachineId);
+      if (beside && selectionRef.current.paneId === paneId) selectPane(beside.pane_id);
+      void load();
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-  }, [selectedPaneId, selectedMachineId]);
+  }, [selectedMachineId, selectPane, load]);
 
   // an agent still at work would die with the pane: ask first
-  const requestClosePane = useCallback((): void => {
-    const status = knownStatus(selectedPane?.agent_status);
-    if (status === "working" || status === "blocked") setConfirmClosePane(true);
-    else void doClosePane();
-  }, [selectedPane, doClosePane]);
+  const requestClosePane = useCallback((paneId: string): void => {
+    const status = knownStatus(snapshotRef.current?.panes.find((pane) => pane.pane_id === paneId)?.agent_status);
+    if (status === "working" || status === "blocked") setConfirmClosePane(paneId);
+    else void doClosePane(paneId);
+  }, [doClosePane]);
+
+  // herdr's answer to a resize or a zoom is the layout that stands: it goes into the roster at once
+  const adoptLayout = useCallback((machineId: string, layout: Parameters<typeof applyLayout>[1]): void => {
+    // a roster read that started before the answer must not put the old layout back
+    snapshotRequests.current.invalidate();
+    layoutPins.current.set(`${machineId}:${layout.tab_id}`, { machineId, layout, at: Date.now() });
+    setMachines((list) => list.map((machine) => machine.id === machineId && machine.snapshot ? { ...machine, snapshot: applyLayout(machine.snapshot, layout) } : machine));
+  }, []);
+
+  // a click in a split tab's pane: the keyboard goes there, here and in herdr
+  const focusSplitPane = useCallback((paneId: string): void => {
+    selectPane(paneId);
+    void focusPane(paneId, selectedMachineId).catch(() => { /* the next poll shows where herdr's focus is */ });
+  }, [selectPane, selectedMachineId]);
+
+  const zoomSplitPane = useCallback(async (paneId: string, mode: "on" | "off"): Promise<void> => {
+    if (mode === "on") selectPane(paneId);
+    try { adoptLayout(selectedMachineId, (await zoomPane(paneId, mode, selectedMachineId)).layout); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    void load();
+  }, [selectPane, adoptLayout, selectedMachineId, load]);
+
+  const resizeSplit = useCallback(async (step: ResizeStep): Promise<PaneLayoutSnapshot | null> => {
+    try {
+      const { layout } = await resizePane(step.paneId, step.direction, step.amount, selectedMachineId);
+      adoptLayout(selectedMachineId, layout);
+      return layout;
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); return null; }
+  }, [adoptLayout, selectedMachineId]);
+
+  // a new pane beside this one, in its folder, with a shell or the agent chosen; it takes the focus
+  const doSplit = useCallback(async (paneId: string, target: SplitTarget): Promise<void> => {
+    try {
+      const made = await splitPane(paneId, target.direction, null, selectedMachineId, target.agent ?? undefined);
+      selectTarget(selectedMachineId, made.pane_id);
+      // herdr's pane.created reaches the roster a moment after this answer: read it again until it is there
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        await load();
+        if (machinesRef.current.find((machine) => machine.id === selectedMachineId)?.snapshot?.panes.some((pane) => pane.pane_id === made.pane_id)) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+      }
+      if (made.agent_started === false && made.error) setError(made.error.message);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  }, [selectedMachineId, load, selectTarget]);
+
+  // Escape leaves a zoom, but only from the page's chrome: in the terminal or the message box it is the agent's own key
+  useEffect(() => {
+    if (zoomedPaneId === null) return;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest(".xterm, input, textarea, select, [role=\"dialog\"], [role=\"menu\"], [contenteditable]")) return;
+      void zoomSplitPane(zoomedPaneId, "off");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomedPaneId, zoomSplitPane]);
 
   const cancelPress = useCallback((): void => {
     if (pressTimer.current !== null) { window.clearTimeout(pressTimer.current); pressTimer.current = null; }
     pressPoint.current = null;
   }, []);
 
+  // the pane under a pointer: a split tab's cell says which, else it is the one in front
+  const paneUnder = (target: EventTarget | null): string | null =>
+    (target instanceof Element ? target.closest("[data-split-pane]")?.getAttribute("data-split-pane") : null) ?? selectedPaneId;
+
   const onPanePointerDown = (event: ReactPointerEvent<HTMLElement>): void => {
     // a long press on a touch screen opens the same menu a right-click does
-    if (selectedPaneId === null || event.pointerType !== "touch") return;
+    const paneId = paneUnder(event.target);
+    if (paneId === null || event.pointerType !== "touch") return;
     cancelPress();
     pressPoint.current = { x: event.clientX, y: event.clientY };
     const anchor = event.currentTarget;
     const point = { top: event.clientY, left: event.clientX };
-    pressTimer.current = window.setTimeout(() => { pressTimer.current = null; setPaneMenu({ anchor, point }); }, 500);
+    pressTimer.current = window.setTimeout(() => { pressTimer.current = null; setPaneMenu({ anchor, point, paneId, whole: true }); }, 500);
   };
 
   const onPanePointerMove = (event: ReactPointerEvent<HTMLElement>): void => {
@@ -660,7 +752,8 @@ export function App() {
         if (next) selectPane(next.pane_id);
       },
       setView,
-      toggleView: () => setView(view === "chat" ? "terminal" : "chat"),
+      // side by side every pane shows its terminal: there is no lens to switch
+      toggleView: () => { if (!splitting) setView(view === "chat" ? "terminal" : "chat"); },
       openNewSession: () => {
         setDrawerOpen(false);
         setNewSessionMachineId(selectedMachineId);
@@ -708,7 +801,7 @@ export function App() {
       refresh: () => void load(),
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
     }),
-    [selectPane, selectedPaneId, selectedMachineId, setView, view, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.run, enableNotifications, load],
+    [selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.run, enableNotifications, load],
   );
 
   useShortcuts(actions, locked === false);
@@ -727,7 +820,11 @@ export function App() {
 
   // the chat's surface is what the pane column shows: the header's pane zone and the tab strip
   // take it (from 769px). A pane herdr could not restore draws a placeholder, not the chat.
-  const chatShown = showsChat(selectedPane, view);
+  // the Chat is for one pane at a time: with several side by side, each shows its terminal
+  const shownView: PaneView = splitting ? "terminal" : view;
+  const chatShown = showsChat(selectedPane, shownView);
+
+  const menuPane = paneMenu === null ? null : snapshot?.panes.find((pane) => pane.pane_id === paneMenu.paneId) ?? null;
 
   if (locked === null) {
     // the auth state is unknown until /api/health or /api/session answers (ten seconds when
@@ -803,6 +900,12 @@ export function App() {
                   <span>{crumb.folder}</span>
                 </>
               )}
+              {zoomed && selectedLayout && zoomIndex > 0 && (
+                <>
+                  <span className="context-sep" aria-hidden="true">·</span>
+                  <span>{t("zoom {n}/{total}", { n: zoomIndex, total: selectedLayout.panes.length })}</span>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -815,12 +918,27 @@ export function App() {
           </button>
         )}
         {selectedPane && (
+          <button type="button" className="btn btn-ghost header-split" aria-haspopup="menu" aria-expanded={paneMenu?.whole === false} title={t("Split")} onClick={(event) => {
+            const anchor = event.currentTarget;
+            setPaneMenu(paneMenu?.whole === false ? null : { anchor, paneId: selectedPane.pane_id, whole: false });
+          }}>
+            <Columns2 aria-hidden="true" />
+            <span className="header-desktop-only">{t("Split")}</span>
+          </button>
+        )}
+        {selectedPane && zoomedPaneId !== null && (
+          <button type="button" className="btn header-unzoom" title={t("Unzoom")} onClick={() => void zoomSplitPane(zoomedPaneId ?? selectedPane.pane_id, "off")}>
+            <Minimize2 aria-hidden="true" />
+            <span className="header-desktop-only">{t("Unzoom")}</span>
+          </button>
+        )}
+        {selectedPane && (
           <div className="segmented view-switch" role="group" aria-label="Pane view">
-            <button type="button" aria-pressed={view === "chat"} onClick={() => setView("chat")} title={t("Chat transcript (⌘⇧J)")}>
+            <button type="button" aria-pressed={shownView === "chat"} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
               <MessageSquare />
               <span className="header-desktop-only">{t("Chat")}</span>
             </button>
-            <button type="button" aria-pressed={view === "terminal"} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
+            <button type="button" aria-pressed={shownView === "terminal"} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
               <SquareTerminal />
               <span className="header-desktop-only">{t("Terminal")}</span>
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
@@ -873,7 +991,7 @@ export function App() {
                 {crumb.path !== null && <span className="header-more-path">{crumb.path}</span>}
               </div>
             ) : undefined}
-            items={more.phone ? [paletteItem, ...moreItems] : moreItems}
+            items={more.phone ? [paletteItem, ...(selectedPane ? [{ id: "split", label: t("Split"), icon: Columns2, run: () => setPaneMenu({ anchor: more.anchor, paneId: selectedPane.pane_id, whole: false }) }] : []), ...moreItems] : moreItems}
             onClose={closeMore}
           />
         )}
@@ -882,7 +1000,7 @@ export function App() {
       <div className="app-body">
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}
-          <MachineSidebar machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} onSelect={selectTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
+          <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} onSelect={selectTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
         </aside>
 
         {drawerOpen && <div className="scrim" aria-hidden="true" onClick={() => setDrawerOpen(false)} />}
@@ -894,17 +1012,59 @@ export function App() {
         <UpdateNotice updates={updates} onOpen={() => setSettingsOpen(true)} />
         <MachineActionBanner machines={machines} onSetup={(machine, update = false) => { setDrawerOpen(false); setUpdateRemote(update); setMachineDialog(machine); }} />
         {snapshot && selectedPane && selectedWorkspace && (
-          <TabStrip snapshot={snapshot} workspace={selectedWorkspace} selectedPane={selectedPane} onSelectPane={selectPane} onNewTab={() => actions.openNewTab()} />
+          <TabStrip snapshot={snapshot} workspace={selectedWorkspace} selectedPane={selectedPane} onSelectPane={selectPane} onNewTab={() => actions.openNewTab()} sideBySide={splitting} />
         )}
         <main
           className="terminal-host"
-          onContextMenu={selectedPaneId !== null ? (event) => { event.preventDefault(); setPaneMenu({ anchor: event.currentTarget, point: { top: event.clientY, left: event.clientX } }); } : undefined}
+          onContextMenu={selectedPaneId !== null ? (event) => {
+            event.preventDefault();
+            const paneId = paneUnder(event.target);
+            if (paneId === null) return;
+            if (splitting && paneId !== selectedPaneId) focusSplitPane(paneId);
+            setPaneMenu({ anchor: event.currentTarget, point: { top: event.clientY, left: event.clientX }, paneId, whole: true });
+          } : undefined}
           onPointerDown={onPanePointerDown}
           onPointerMove={onPanePointerMove}
           onPointerUp={cancelPress}
           onPointerCancel={cancelPress}
           onPointerLeave={cancelPress}
         >
+          {splitting && selectedLayout ? (
+            <SplitView
+              key={selectedMachineId}
+              layout={selectedLayout}
+              panes={snapshot?.panes ?? []}
+              selectedPaneId={selectedPaneId}
+              onFocus={focusSplitPane}
+              onSplit={(paneId, anchor) => setPaneMenu({ anchor, paneId, whole: true })}
+              onZoom={(paneId) => void zoomSplitPane(paneId, "on")}
+              onClose={requestClosePane}
+              onResize={resizeSplit}
+              renderTerminal={(pane: PaneInfo, active, grid) => (
+                <PaneTerminal
+                  paneId={pane.restore_error ? null : pane.pane_id}
+                  restoreError={pane.restore_error ?? null}
+                  agent={pane.agent ?? null}
+                  agentStatus={pane.agent_status}
+                  backgroundTasks={(pane as HerdrPane).background_tasks ?? 0}
+                  cwd={pane.cwd ?? null}
+                  machineName={selectedMachine?.name ?? selectedMachineId}
+                  view="terminal"
+                  terminalFontSize={settings.terminalFontSize}
+                  terminalWheelSpeed={settings.terminalWheelSpeed}
+                  terminalFontFamily={settings.terminalFontFamily}
+                  theme={resolvedTheme}
+                  palette={settings.palette}
+                  role={role}
+                  follow
+                  followGrid={grid}
+                  active={active}
+                  {...(active ? { onRoleAck: setRole, onConnectionChange: (next: boolean) => { setConnected(next); if (next) setOutputStopped(false); } } : {})}
+                  {...(active ? { onServerMessage: handleServerMessage } : {})}
+                />
+              )}
+            />
+          ) : (
           <PaneTerminal
             key={selectedMachineId}
             paneId={selectedPane?.restore_error ? null : selectedPaneId}
@@ -926,6 +1086,7 @@ export function App() {
             onConnectionChange={(next) => { setConnected(next); if (next) setOutputStopped(false); }}
             onServerMessage={handleServerMessage}
           />
+          )}
         </main>
         </div>
         </OpenFileContext.Provider>
@@ -960,25 +1121,31 @@ export function App() {
         <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={closeFile} onOpen={(path) => openFile({ ...viewing, path })} />
       </MachineContext.Provider>}
       {paneMenu && (
-        <RowMenu
+        <SplitMenu
           anchor={paneMenu.anchor}
-          point={paneMenu.point}
-          align="start"
-          title={t("Pane")}
+          {...(paneMenu.point ? { point: paneMenu.point } : {})}
+          title={menuPane === null ? t("Pane") : paneMenu.whole ? t("Pane {name}", { name: displayPaneTitle(menuPane) }) : t("Split {name}", { name: displayPaneTitle(menuPane) })}
           onClose={() => setPaneMenu(null)}
-          items={[
+          onSplit={(target) => void doSplit(paneMenu.paneId, target)}
+          more={paneMenu.whole ? [
+            // a phone shows one pane at a time: nothing to zoom out of
+            ...(wide && selectedLayout && selectedLayout.panes.length > 1
+              ? [zoomed
+                ? { id: "unzoom", label: t("Unzoom"), icon: Minimize2, divider: true, run: () => void zoomSplitPane(paneMenu.paneId, "off") }
+                : { id: "zoom", label: t("Zoom"), icon: Maximize2, divider: true, run: () => void zoomSplitPane(paneMenu.paneId, "on") }]
+              : []),
             { id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab() },
-            { id: "close-pane", label: t("Close pane"), icon: X, danger: true, divider: true, run: requestClosePane },
-          ]}
+            { id: "close-pane", label: t("Close pane"), icon: X, danger: true, divider: true, run: () => requestClosePane(paneMenu.paneId) },
+          ] : []}
         />
       )}
-      {confirmClosePane && (
+      {confirmClosePane !== null && (
         <ConfirmDialog
           title={t("Close this pane?")}
           body={t("An agent in it is still at work, and stops with the pane.")}
           confirmLabel={t("Close pane")}
-          onConfirm={async () => { setConfirmClosePane(false); await doClosePane(); }}
-          onClose={() => setConfirmClosePane(false)}
+          onConfirm={async () => { const paneId = confirmClosePane; setConfirmClosePane(null); await doClosePane(paneId); }}
+          onClose={() => setConfirmClosePane(null)}
         />
       )}
       <CommandPalette key={selectedMachineId} open={paletteOpen} onClose={() => setPaletteOpen(false)} snapshot={snapshot} selectedPaneId={selectedPaneId} view={view} actions={actions} />

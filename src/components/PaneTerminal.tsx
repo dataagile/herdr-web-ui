@@ -35,6 +35,7 @@ import { isAppShortcut } from "../lib/shortcuts.ts";
 import { OpenFileContext } from "../lib/filePaths.ts";
 import { fileUriPath, terminalFileLinkProvider } from "../lib/terminalFileLinks.ts";
 import { adjustTerminalGlyphs } from "../lib/terminalGlyphs.ts";
+import { fittedFontSize } from "../lib/splitLayout.ts";
 
 /** How long a resize must rest before the grid refits and the pty follows it. */
 const RESIZE_SETTLE_MS = 120;
@@ -78,6 +79,17 @@ export interface PaneTerminalProps {
   onConnectionChange?: (connected: boolean) => void;
   /** Every server frame also reaches App: it merges pane-status and schedules refetches. */
   onServerMessage?: (message: ServerMessage) => void;
+  /**
+   * One pane of a split tab (SplitView): the grid is herdr's, never this browser's. The terminal
+   * attaches without a size, adopts the one the server reports for the pane (`pane-geometry`) and
+   * scales its font to fill its box, so rendering it resizes nothing under herdr's own client or
+   * another device. Only the lens stays terminal: the chat belongs to a zoomed or single pane.
+   */
+  follow?: boolean;
+  /** with `follow`: the grid before the server says (the pane's cells in herdr's layout) */
+  followGrid?: { cols: number; rows: number } | null;
+  /** with `follow`: this pane holds the keyboard */
+  active?: boolean;
 }
 
 
@@ -120,6 +132,9 @@ export function PaneTerminal({
   onRoleAck,
   onConnectionChange,
   onServerMessage,
+  follow = false,
+  followGrid = null,
+  active = true,
 }: PaneTerminalProps) {
   const t = useT();
   const openFile = useContext(OpenFileContext);
@@ -132,6 +147,14 @@ export function PaneTerminal({
   const chatView = view === "chat";
   const chatViewRef = useRef(chatView);
   chatViewRef.current = chatView;
+  // fixed for the mount (SplitView keys it): a terminal is either this browser's grid or herdr's
+  const followRef = useRef(follow);
+  const followGridRef = useRef(followGrid);
+  followGridRef.current = followGrid;
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  /** the mount's own font fit, for the effects outside it */
+  const fitFontRef = useRef<() => void>(() => {});
   /** read by the wheel handler, which is attached once for the terminal's life */
   const wheelSpeedRef = useRef(terminalWheelSpeed);
   wheelSpeedRef.current = terminalWheelSpeed;
@@ -205,7 +228,7 @@ export function PaneTerminal({
     return () => observer.disconnect();
   }, [settings.chatWidth]);
   const directTyping = settings.terminalInputMode === "direct" || (settings.terminalInputMode === "auto" && (!coarse || storedDirectTyping()));
-  const inputLine = !directTyping && !chatView;
+  const inputLine = !directTyping && !chatView && !follow;
   const inputLineRef = useRef(inputLine);
   inputLineRef.current = inputLine;
   // input typed while disconnected, held for the user to review and send
@@ -301,9 +324,10 @@ export function PaneTerminal({
   onServerMessageRef.current = onServerMessage;
   onRoleAckRef.current = onRoleAck;
 
+  // one pane of a split tab speaks for the header: the one that holds the keyboard
   useEffect(() => {
-    onConnectionChangeRef.current?.(connected);
-  }, [connected]);
+    if (active) onConnectionChangeRef.current?.(connected);
+  }, [connected, active]);
 
   const noteClipboard = useCallback((note: string) => {
     if (clipboardTimerRef.current !== null) window.clearTimeout(clipboardTimerRef.current);
@@ -354,6 +378,46 @@ export function PaneTerminal({
     term.loadAddon(new WebLinksAddon((_event, uri) => { window.open(uri, "_blank", "noopener,noreferrer"); }));
     term.registerLinkProvider(terminalFileLinkProvider(() => term.buffer.active, (path, event) => { if (linkPressed(event)) openFileRef.current?.(path); }));
     term.open(host);
+    // a split tab's pane: the font scales to the box, the grid is herdr's (see `follow`)
+    host.toggleAttribute("data-follow-grid", followRef.current);
+    let fontFrame: number | null = null;
+    // whole-pixel cells make the scaled size bounce between two values: a settle takes at most a
+    // few passes and never grows again once it had to shrink
+    let fontPasses = 0;
+    let fontShrank = false;
+    const fitFont = (): void => {
+      fontFrame = null;
+      const screen = term.element?.querySelector<HTMLElement>(".xterm-screen");
+      if (!followRef.current || !term.element || !screen || screen.offsetWidth === 0 || host.clientWidth === 0) return;
+      const style = getComputedStyle(term.element);
+      const room = {
+        width: host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        height: host.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom),
+      };
+      const size = term.options.fontSize ?? terminalFontSize;
+      const next = fittedFontSize(size, { width: screen.offsetWidth, height: screen.offsetHeight }, room);
+      if (next === size || fontPasses >= 4 || (fontShrank && next > size)) return;
+      fontPasses += 1;
+      if (next < size) fontShrank = true;
+      term.options.fontSize = next;
+      // the cell is measured again once the font applies: one more pass settles on it
+      fontFrame = window.requestAnimationFrame(fitFont);
+    };
+    const fitFontSoon = (): void => {
+      if (!followRef.current || fontFrame !== null) return;
+      fontPasses = 0;
+      fontShrank = false;
+      fontFrame = window.requestAnimationFrame(fitFont);
+    };
+    fitFontRef.current = fitFontSoon;
+    const onGridResize = term.onResize(fitFontSoon);
+    // a followed grid leaves margins the box is wider or taller than: a press there is still a press on the pane
+    const onMarginPress = (event: MouseEvent): void => {
+      if (!followRef.current || event.target !== host || event.button !== 0 || coarseRef.current) return;
+      event.preventDefault();
+      term.focus();
+    };
+    host.addEventListener("mousedown", onMarginPress);
     const compositionStart = () => setComposing(true);
     const compositionEnd = () => setComposing(false);
     host.addEventListener("compositionstart", compositionStart);
@@ -753,7 +817,7 @@ export function PaneTerminal({
         setObserving(nowObserving);
         term.options.disableStdin = nowObserving || secretRef.current !== null || heldRef.current;
         onRoleAckRef.current?.(message.mode);
-        if (!nowObserving && !fixedGridRef.current && !chatViewRef.current) {
+        if (!nowObserving && !fixedGridRef.current && !chatViewRef.current && !followRef.current) {
           try {
             fit.fit();
           } catch {
@@ -773,8 +837,9 @@ export function PaneTerminal({
         // chat lens entered later must draw its hidden screen for that grid, not this device's
         sharedGridRef.current = { cols: message.cols, rows: message.rows };
         // the chat lens adopts the shared grid too: the screen it reads (a masked prompt) is drawn for it
-        if (!observeRef.current && !fixedGridRef.current && !chatViewRef.current) return;
+        if (!observeRef.current && !fixedGridRef.current && !chatViewRef.current && !followRef.current) return;
         if (term.cols !== message.cols || term.rows !== message.rows) term.resize(message.cols, message.rows);
+        fitFontSoon();
         panned = false;
         followCursor();
       } else if (message.type === "error") {
@@ -951,6 +1016,8 @@ export function PaneTerminal({
     // lagged: fit once the size has settled.
     let resizeTimer: number | null = null;
     const observer = new ResizeObserver(() => {
+      // a followed grid has no size to send: the font follows the box at once, drag included
+      if (followRef.current) { fitFontSoon(); return; }
       if (resizeTimer !== null) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         resizeTimer = null;
@@ -1029,7 +1096,7 @@ export function PaneTerminal({
     // connections never do this: they own no geometry to re-assert.
     const refit = (): void => {
       const current = paneRef.current;
-      if (!current || observeRef.current || fixedGridRef.current || chatViewRef.current) return;
+      if (!current || observeRef.current || fixedGridRef.current || chatViewRef.current || followRef.current) return;
       try {
         fit.fit();
       } catch {
@@ -1047,6 +1114,9 @@ export function PaneTerminal({
       disposed = true;
       window.clearInterval(poll);
       observer.disconnect();
+      onGridResize.dispose();
+      host.removeEventListener("mousedown", onMarginPress);
+      if (fontFrame !== null) window.cancelAnimationFrame(fontFrame);
       if (resizeTimer !== null) window.clearTimeout(resizeTimer);
       host.removeEventListener("touchstart", onTouchStart);
       host.removeEventListener("touchmove", onTouchMove);
@@ -1102,9 +1172,11 @@ export function PaneTerminal({
     const apply = (): void => {
       // a newer font, or an unmounted terminal, took over while the faces loaded
       if (superseded || termRef.current !== term) return;
-      if (term.options.fontSize === terminalFontSize && term.options.fontFamily === fontFamily) return;
-      term.options.fontSize = terminalFontSize;
+      if ((followRef.current || term.options.fontSize === terminalFontSize) && term.options.fontFamily === fontFamily) return;
+      // a followed grid keeps the size its box gives it (fitFont); the setting is the base for the rest
+      if (!followRef.current) term.options.fontSize = terminalFontSize;
       term.options.fontFamily = fontFamily;
+      if (followRef.current) { fitFontRef.current(); return; }
       if (observeRef.current || fixedGridRef.current || chatViewRef.current) return;
       try {
         fitRef.current?.fit();
@@ -1122,6 +1194,8 @@ export function PaneTerminal({
   // the grid must re-fit when the lens switches back: the chat lens covered it, and a
   // resize while covered may have been skipped by a zero-size layout
   useEffect(() => {
+    // a followed grid is never this browser's to fit
+    if (followRef.current) return;
     if (chatView) {
       const pane = paneRef.current;
       if (pane) socketRef.current?.keepSize(pane);
@@ -1159,6 +1233,8 @@ export function PaneTerminal({
     setUnsupported(false);
     fixedGridRef.current = false;
     sharedGridRef.current = null;
+    // a followed grid starts at the pane's cells in herdr's layout, until the server reports its own
+    const start = followRef.current ? followGridRef.current : null;
     // the next pane's grid is this browser's again unless it says otherwise (pane-geometry)
     hostRef.current?.toggleAttribute("data-adopted-grid", observeRef.current);
     secretRef.current = null;
@@ -1179,20 +1255,29 @@ export function PaneTerminal({
     altRef.current = false;
     setAltArmed(false);
     if (!paneId) return;
-    try {
-      fit?.fit();
-    } catch {
-      /* not laid out yet; the ResizeObserver will follow up */
+    if (start) term.resize(start.cols, start.rows);
+    else if (!followRef.current) {
+      try {
+        fit?.fit();
+      } catch {
+        /* not laid out yet; the ResizeObserver will follow up */
+      }
     }
-    socket.attach(paneId, term.cols, term.rows, chatViewRef.current);
+    // a followed grid attaches like the chat lens does: the pty keeps the size it has
+    socket.attach(paneId, term.cols, term.rows, chatViewRef.current || followRef.current);
     // the chat lens covers the grid and its composer takes the keyboard: focusing the hidden
     // grid sent the keys straight to the pane, and showed a phone's IME text mid-screen
-    if (!chatViewRef.current && !autoSelected && !coarseRef.current) term.focus();
+    if (!chatViewRef.current && !autoSelected && !coarseRef.current && (!followRef.current || activeRef.current)) term.focus();
     return () => {
       socket.detach(paneId);
     };
   }, [paneId]);
 
+
+  // a split tab's pane that gets the focus takes the keyboard with it
+  useEffect(() => {
+    if (follow && active && !coarseRef.current) termRef.current?.focus();
+  }, [follow, active]);
 
   // the user picked the pane App had switched to on its own (the same row or lens again,
   // which changes neither the pane nor the lens): the grid takes the keyboard now

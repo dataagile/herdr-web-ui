@@ -346,7 +346,7 @@ One set for both themes: the card is island black wherever it shows.
 - Hover or `aria-selected` uses `--bg-hover`. Headings are dim uppercase micro labels.
 - The sidebar's row menu (`.row-menu`) is a `.menu` drawn through a portal at fixed coordinates,
   under its `⋯` with right edges aligned, above it when the screen ends first, and over the drawer.
-  A workspace row offers Rename workspace, Rename pane (the pane the row shows), New tab, New worktree,
+  A workspace row offers Rename workspace, New tab, New worktree,
   Open worktree…, then Close under a hairline (Close workspace when the workspace has several panes). A worktree workspace's row has no worktree items and ends in
   **Delete worktree checkout…** after Close. The
   danger item takes `--status-blocked`. At `<=640px` it is a `.modal` bottom sheet (`.row-sheet`):
@@ -373,13 +373,21 @@ One set for both themes: the card is island black wherever it shows.
   and the PC groups. A workspace starts from the `+` on its PC's header, or from the **New workspace**
   button in the dashed **No workspaces yet** box of an empty PC. **Add PC** lives in Settings →
   Remote PCs and in the command palette. Search lives in the command palette, not the roster.
-- One row per workspace, as herdr's Spaces sidebar: no workspace headers, numbers or folds. The
-  row stands for the workspace through its *current pane*: the selected pane when it is in the
-  workspace, else the pane last viewed there, else the one herdr has in front. Its mark, title
-  and folder are that pane's; its state word is the roll-up of every pane in the workspace
-  (blocked, then working, then done, then ready), as herdr rolls a workspace up. The other panes
-  of a workspace are reached from the tab strip over the pane, the command palette and
-  **Needs you**.
+- Each PC group holds two foldable sections, as herdr's own sidebar: **Spaces** above **Agents**,
+  each headed by its name and count (Spaces counts the workspaces that draw a row). Folds are
+  remembered per PC; both start open.
+- **Spaces** is one row per workspace. The row is titled with the workspace's label and opens its
+  *current pane*: the selected pane when it is in the workspace, else the pane last viewed there,
+  else the one herdr has in front. Its mark is that pane's agent (a shell glyph without one); its
+  state word is the roll-up of every pane in the workspace (blocked, then working, then done, then
+  ready), as herdr rolls a workspace up. Line two leads with "{n} agents" when it holds more than
+  one agent.
+- **Agents** lists every agent pane of the PC — a pane with a detected or reported agent
+  (`agent || display_agent`), never a plain shell, as herdr's `aggregate.rs` does — in workspace
+  order, then pane order. A shell that starts an agent joins the list on the next snapshot. Each
+  row is shorter (three quarters of `--row-h`): mark, the pane's title, then its state word and
+  "workspace · agent". It selects exactly that pane and ends in a `⋯` whose one item is
+  **Rename pane**, edited in place of the title. It has no handle and no `+`.
 - Appearance's **Sidebar grouping** is **By workspace** by default. **By folder** opts into the
   grouping below. The choice applies immediately and persists in the browser's existing Settings
   record; folder folds are remembered per PC and path.
@@ -392,19 +400,18 @@ One set for both themes: the card is island black wherever it shows.
   remembered per PC and path; opening a pane unfolds its folder, but status updates do not.
 - Folder order follows the first workspace in server order; workspace handles still reorder
   workspaces, not filesystem directories. Workspace names and rename actions remain inside the group.
-- Every row is two lines: agent/shell mark, then the editable title alone on line one (full
+- Every Spaces row is two lines: agent/shell mark, then the editable title alone on line one (full
   width), and the state word followed by the row's place on line two. Mark boxes are neutral;
   the selected row gets the amber rail and an amber-edged mark box. The row carries the
   workspace's reorder handle in its left gutter (drag, or `Alt+↑/↓` on the handle) and ends in
-  one `⋯` (`.row-menu-toggle`: shown on hover, focus, selection and while its menu is open;
-  always on touch) that opens the row menu. Inline server failures stay beside their row. In the
+  a `+` (New tab in that workspace) and a `⋯` (`.row-menu-toggle`), both shown on hover, focus,
+  selection and while the menu is open, always on touch; the `⋯` opens the row menu. Inline server failures stay beside their row. In the
   By workspace view a repository's workspace moves past the next or previous group as one, with its
   worktrees, and a worktree moves among its siblings only.
 - A title that is a working directory written out (`/home/me/dev/api`, `~/dev/api`, `C:\work\api`)
   shows as its last folder, here, in the header, the palette and every alert; the full path stays
-  in the row's tooltip. Line two names what is not already said: by workspace, the workspace and
-  the folder, each only when the title or the other does not already say it; under a folder
-  header, the workspace. The palette, which has no header, names the workspace and the folder,
+  in the row's tooltip. On a Spaces row line two names the folder unless the workspace label already says it, and
+  nothing more under a folder header, which names it. The palette, which has no header, names the workspace and the folder,
   once when they are the same.
 - A PC group header is caret, monitor, name, “Host” for the local machine, a state dot
   (done = connected, working pulse = connecting/reconnecting, blocked = error), then a `+` that
@@ -437,7 +444,7 @@ One set for both themes: the card is island black wherever it shows.
 - Submit calls `POST /api/workspace/create`; the server performs `workspace.create` and, when an
   agent was chosen, `agent.start` in its root pane. Pending and partial agent-start failure are
   explicit before the created pane opens.
-- As **New tab** (from a row's `⋯` menu, the header's More menu, the strip's `+` or the palette),
+- As **New tab** (from a Spaces row's `+` or `⋯` menu, the header's New tab button or More menu, the right-click pane menu, the strip's `+` or the palette),
   the same dialog is titled `New tab · <workspace>`, shows the workspace's folder as a fact in a
   dashed box (`.new-session-folder`: a worktree's checkout, else the folder of the pane in front)
   instead of asking for one, and its name is the tab's (optional; the placeholder is the number

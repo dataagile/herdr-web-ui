@@ -72,8 +72,8 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *         -> { text } (pane.selection.read: both cells inclusive, rows from the top of the
  *         history, soft-wrapped lines joined; a terminal selection that outlives one screen)
  *  POST   /api/pane/input  { pane_id, text }   -> { ok: true }
- *  GET    /api/workspace/history?cwd=&since=&automated=&offset=&limit=  -> WorkspaceHistory (the Claude Code
- *         sessions of this PC's config dir that ran in `cwd` or below it, last activity since `since`
+ *  GET    /api/workspace/history?cwd=&cwd=&since=&automated=&offset=&limit=  -> WorkspaceHistory (the Claude Code
+ *         sessions of this PC's config dir that ran in any `cwd` (1 to 20: the project's folder and its worktrees') or below it, last activity since `since`
  *         (epoch ms), newest first, `limit` 1..50; read only. Not in the PC proxy's allowlist: a remote
  *         bridge from an older build does not have it)
  *  GET    /api/pane/conversation?pane_id=    -> ConversationResponse (structured agent

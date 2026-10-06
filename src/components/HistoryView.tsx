@@ -11,11 +11,11 @@ import "./HistoryView.css";
 
 import type { HistorySession } from "../../shared/protocol.ts";
 import type { PaneInfo, WorkspaceInfo } from "../../shared/herdr-api.generated.ts";
-import { createTab, fetchWorkspaceHistory } from "../lib/api.ts";
 import { rememberedAgentArgs } from "../lib/agentArgs.ts";
 import { copyText } from "../lib/clipboard.ts";
 import { groupByDay, HISTORY_RANGES, matchingSessions, openPaneOf, resumeArgs, resumeCommand, resumeCommandIn, sinceFor, type HistoryRange } from "../lib/history.ts";
 import { useLocale, useT } from "../lib/i18n.ts";
+import { useMachineApi } from "../lib/machineContext.tsx";
 
 const RANGE_KEY = "herdr-web-ui:history-range";
 const AUTOMATED_KEY = "herdr-web-ui:history-automated";
@@ -37,11 +37,11 @@ function remember(key: string, value: string): void {
 }
 
 interface Props {
-  machineId: string;
   /** history is read from the PC this app runs on; a remote bridge has no such endpoint */
   local: boolean;
   workspace: WorkspaceInfo;
-  folder: string | null;
+  /** the project's folder and its worktrees', as the project was when History opened: a pane's `cd` does not move it */
+  folders: readonly string[];
   /** the PC's panes, to tell which sessions are open */
   panes: readonly PaneInfo[];
   onGoTo: (paneId: string) => void;
@@ -49,8 +49,10 @@ interface Props {
   onOpened: (paneId: string) => void;
 }
 
-export function HistoryView({ machineId, local, workspace, folder, panes, onGoTo, onOpened }: Props) {
+export function HistoryView({ local, workspace, folders: openedFolders, panes, onGoTo, onOpened }: Props) {
   const t = useT();
+  const { fetchWorkspaceHistory } = useMachineApi();
+  const [folders] = useState(openedFolders);
   const locale = useLocale();
   const [range, setRange] = useState(storedRange);
   const [automated, setAutomated] = useState(storedAutomated);
@@ -69,21 +71,22 @@ export function HistoryView({ machineId, local, workspace, folder, panes, onGoTo
   useEffect(() => { root.current?.focus({ preventScroll: true }); }, []);
 
   const load = useCallback((offset: number) => {
-    if (!local || folder === null) return;
+    if (!local || folders.length === 0) return;
     const mine = ++request.current;
     const stamp = Date.now();
     setLoading(true);
     setError(null);
-    fetchWorkspaceHistory({ cwd: folder, since: sinceFor(range, stamp), automated, offset }, machineId)
+    fetchWorkspaceHistory({ folders, since: sinceFor(range, stamp), automated, offset })
       .then((page) => {
         if (mine !== request.current) return;
         setNow(stamp);
-        setSessions((current) => offset === 0 ? page.sessions : [...current, ...page.sessions]);
+        // a session written to since the first page moves up, so a later page can repeat one
+        setSessions((current) => offset === 0 ? page.sessions : [...current, ...page.sessions.filter((next) => !current.some((known) => known.session_id === next.session_id))]);
         setHasMore(page.has_more);
       })
       .catch((reason: unknown) => { if (mine === request.current) setError(reason instanceof Error ? reason.message : String(reason)); })
       .finally(() => { if (mine === request.current) setLoading(false); });
-  }, [local, folder, range, automated, machineId]);
+  }, [local, folders, range, automated, fetchWorkspaceHistory]);
 
   useEffect(() => { setSessions([]); setHasMore(false); load(0); }, [load]);
 
@@ -120,14 +123,14 @@ export function HistoryView({ machineId, local, workspace, folder, panes, onGoTo
           {t("Show automated (claude -p)")}
         </label>
       </div>
-      {folder !== null && <p className="history-folder" title={folder}>{folder}</p>}
+      {folders[0] !== undefined && <p className="history-folder" title={folders.join("\n")}>{folders[0]}{folders.length > 1 && ` +${folders.length - 1}`}</p>}
 
-      {folder === null && <p className="history-state" role="status">{t("This project has no folder to look in")}</p>}
-      {error && <p className="history-state history-error" role="alert">{error} <button type="button" className="btn btn-ghost" onClick={() => load(0)}>{t("Retry")}</button></p>}
-      {folder !== null && !error && sessions.length === 0 && (
+      {folders.length === 0 && <p className="history-state" role="status">{t("This project has no folder to look in")}</p>}
+      {error && <p className="history-state history-error" role="status">{error} <button type="button" className="btn btn-ghost" onClick={() => load(0)}>{t("Retry")}</button></p>}
+      {folders.length > 0 && !error && sessions.length === 0 && (
         <p className="history-state" role="status">{loading ? t("Loading history…") : t("No sessions in this range")}</p>
       )}
-      {sessions.length > 0 && shown.length === 0 && <p className="history-state" role="status">{t("No sessions match")}</p>}
+      {sessions.length > 0 && shown.length === 0 && <p className="history-state" role="status">{t(hasMore ? "No match in the loaded sessions. Show more to search further." : "No sessions match")}</p>}
 
       {groups.map((group) => (
         <section key={group.key} className="history-day" aria-label={dayLabel(group)}>
@@ -174,7 +177,6 @@ export function HistoryView({ machineId, local, workspace, folder, panes, onGoTo
           title={titleOf(resuming)}
           when={new Date(resuming.last_activity).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}
           workspaceId={workspace.workspace_id}
-          machineId={machineId}
           onClose={() => setResuming(null)}
           onOpened={(paneId) => { setResuming(null); onOpened(paneId); }}
         />
@@ -183,8 +185,9 @@ export function HistoryView({ machineId, local, workspace, folder, panes, onGoTo
   );
 }
 
-function ResumeDialog({ session, title, when, workspaceId, machineId, onClose, onOpened }: { session: HistorySession; title: string; when: string; workspaceId: string; machineId: string; onClose: () => void; onOpened: (paneId: string) => void }) {
+function ResumeDialog({ session, title, when, workspaceId, onClose, onOpened }: { session: HistorySession; title: string; when: string; workspaceId: string; onClose: () => void; onOpened: (paneId: string) => void }) {
   const t = useT();
+  const { createTab } = useMachineApi();
   const saved = useRef(rememberedAgentArgs("claude")).current;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -209,7 +212,7 @@ function ResumeDialog({ session, title, when, workspaceId, machineId, onClose, o
     setError(null);
     try {
       // the agent launch is the New tab dialog's: the arguments saved for claude go after --resume
-      const result = await createTab({ workspace_id: workspaceId, cwd: session.cwd, label: null, agent: { kind: "claude", args: resumeArgs(session.session_id, saved) } }, machineId);
+      const result = await createTab({ workspace_id: workspaceId, cwd: session.cwd, label: null, agent: { kind: "claude", args: resumeArgs(session.session_id, saved) } });
       setPending(false);
       if (!result.agent_started && result.error?.message) { setError(result.error.message); setCreatedPaneId(result.pane_id); return; }
       onOpened(result.pane_id);
@@ -237,7 +240,7 @@ function ResumeDialog({ session, title, when, workspaceId, machineId, onClose, o
             <code className="history-code">{resumeCommand(session.session_id, saved)}</code>
           </div>
           {pending && <p className="field-hint" role="status">{t("Starting claude… up to 60s")}</p>}
-          {error && <p className="field-hint history-error" role="alert">{error}</p>}
+          {error && <p className="field-hint history-error" role="status">{error}</p>}
         </div>
         <footer className="modal-footer">
           <button type="button" className="btn btn-ghost" disabled={pending} onClick={onClose}>{t("Cancel")}</button>

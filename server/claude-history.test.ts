@@ -29,7 +29,7 @@ function write(project: string, id: string, lines: string[], ageMs = 0): string 
   return path;
 }
 
-const query = () => ({ configDir: dir, folder: "/work/app", since: 0, automated: false, offset: 0, limit: 50 });
+const query = () => ({ configDir: dir, folders: ["/work/app"], since: 0, automated: false, offset: 0, limit: 50 });
 
 describe("claudeHistory", () => {
   it("titles a session by its /rename, else by its first real prompt", async () => {
@@ -71,6 +71,13 @@ describe("claudeHistory", () => {
     write("p1", C, [user("sibling", { cwd: "/work/app-other" })], 2000);
     write("p1", D, [user("elsewhere", { cwd: "/work" })], 3000);
     expect((await claudeHistory(query())).sessions.map((s) => s.session_id)).toEqual([A, B]);
+  });
+
+  it("treats every sdk- entrypoint as automated and matches any of several folders", async () => {
+    write("p", A, [user("sdk ts", { entrypoint: "sdk-ts" })]);
+    write("q", B, [user("sibling worktree", { cwd: "/work/app-feature/src" })], 1000);
+    expect((await claudeHistory({ ...query(), folders: ["/work/app", "/work/app-feature"] })).sessions.map((s) => s.session_id)).toEqual([B]);
+    expect((await claudeHistory({ ...query(), automated: true, folders: ["/work/app", "/work/app-feature"] })).sessions.map((s) => s.session_id)).toEqual([A, B]);
   });
 
   it("filters by last activity before reading, newest first", async () => {

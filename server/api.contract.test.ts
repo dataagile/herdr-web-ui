@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
-import { chmodSync, mkdtempSync, existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { createServer } from "./index.ts";
@@ -2220,6 +2220,29 @@ it("creates a folder over /api/workspace/directories and refuses bad input", asy
     expect(orphan.status).toBe(400);
     expect((await fetch(`${base()}/api/workspace/directories`)).status).toBe(200);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+it("lists Claude Code history from the configured store and refuses bad input", async () => {
+  const config = mkdtempSync(join(tmpdir(), "herdr-history-api-"));
+  const id = "11111111-1111-4111-8111-111111111111";
+  const history = createServer({ port: 0, stateDir: mkdtempSync(join(tmpdir(), "herdr-history-state-")), claudeConfigDir: config });
+  const get = (query: string, method = "GET") => fetch(`http://localhost:${history.port}/api/workspace/history${query}`, { method });
+  try {
+    mkdirSync(join(config, "projects", "p"), { recursive: true });
+    writeFileSync(join(config, "projects", "p", `${id}.jsonl`), `${JSON.stringify({ type: "user", cwd: "/work/app/wt", entrypoint: "cli", message: { content: "hello there" } })}\n`);
+    const found = await (await get("?cwd=%2Fwork%2Fapp&cwd=%2Fother")).json() as { sessions: { session_id: string; title: string }[]; has_more: boolean };
+    expect(found.sessions.map((s) => [s.session_id, s.title])).toEqual([[id, "hello there"]]);
+    expect(found.has_more).toBe(false);
+    expect(((await (await get("?cwd=%2Fnowhere")).json()) as { sessions: unknown[] }).sessions).toEqual([]);
+    const tooMany = Array.from({ length: 21 }, () => "cwd=%2Fa").join("&");
+    for (const query of ["", "?cwd=relative", `?${tooMany}`, "?cwd=%2Fa&since=x", "?cwd=%2Fa&offset=-1", "?cwd=%2Fa&limit=0", "?cwd=%2Fa&limit=51"]) {
+      const response = await get(query);
+      expect([query, response.status]).toEqual([query, 400]);
+      expect(await response.json()).toMatchObject({ error: { code: expect.any(String) } });
+    }
+    // GET only: a POST is refused by the same-origin guard or the method check, never read
+    expect((await get("?cwd=%2Fa", "POST")).status).toBeGreaterThanOrEqual(400);
+  } finally { history.stop(); rmSync(config, { recursive: true, force: true }); }
 });
 
 // the layout herdr keeps for a tab: split, focus, resize and zoom, against a real herdr

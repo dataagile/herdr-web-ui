@@ -309,8 +309,14 @@ try {
   await page.getByRole("button", { name: "Close settings", exact: true }).click();
   console.log("PASS settings shortcut and theme");
 
-  // Add PC lives in Settings → Remote PCs, not in the sidebar; opening it closes Settings behind it
-  assert.equal(await page.locator(".sidebar").getByRole("button", { name: "Add PC", exact: true }).count(), 0, "the sidebar has no Add PC button");
+  // Add PC is in the sidebar footer and in Settings → Remote PCs; either opens the PC dialog
+  const footerAddPc = page.locator(".sidebar-footer").getByRole("button", { name: "Add PC", exact: true });
+  assert.equal(await footerAddPc.count(), 1, "the sidebar footer has an Add PC button");
+  await footerAddPc.click();
+  await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Close PC setup", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor({ state: "hidden" });
+  // from Settings it closes Settings behind it
   await page.keyboard.press("ControlOrMeta+Shift+Comma");
   await page.getByRole("dialog", { name: "Settings" }).getByRole("button", { name: "Add PC", exact: true }).click();
   await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor();
@@ -319,7 +325,7 @@ try {
   await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor({ state: "hidden" });
   // its trigger went with Settings: focus lands on the header's workspace-list toggle instead of nowhere
   await until(async () => await page.evaluate(() => document.activeElement?.matches(".sidebar-toggle, .drawer-toggle") ?? false), "focus returns to the workspace-list toggle after Add PC closes");
-  console.log("PASS Add PC opens from Settings, and the sidebar has no top bar");
+  console.log("PASS Add PC opens from the sidebar footer and from Settings, and the sidebar has no top bar");
 
   // An update request answered while the page is hidden (a phone app sent to the background) must
   // still release the buttons: the status poll stops with the page, the request does not.

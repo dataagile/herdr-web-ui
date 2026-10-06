@@ -19,9 +19,18 @@ export function sinceFor(range: HistoryRange, now: number): number {
   return midnight.getTime();
 }
 
-/** The project's folder: a worktree's checkout, else where its first pane is. */
+/** The project's folder: a worktree's checkout, else where its first pane is (as New tab resolves it). */
 export function projectFolder(workspace: Pick<WorkspaceInfo, "workspace_id" | "worktree">, panes: readonly Pick<PaneInfo, "workspace_id" | "cwd">[]): string | null {
   return workspace.worktree?.checkout_path ?? panes.find((pane) => pane.workspace_id === workspace.workspace_id && pane.cwd)?.cwd ?? null;
+}
+
+/** The folders a project's History looks in: its own, and the checkouts of its worktree projects (a repository's project, not a worktree's own). */
+export function historyFolders(workspace: Pick<WorkspaceInfo, "workspace_id" | "worktree">, workspaces: readonly Pick<WorkspaceInfo, "workspace_id" | "worktree">[], folder: string | null): string[] {
+  const own = workspace.worktree;
+  const linked = own && !own.is_linked_worktree
+    ? workspaces.filter((other) => other.worktree?.is_linked_worktree && other.worktree.repo_key === own.repo_key).map((other) => other.worktree!.checkout_path)
+    : [];
+  return [...new Set([...(folder === null ? [] : [folder]), ...linked])].slice(0, 20);
 }
 
 /** Sessions whose title or first prompt holds `query`, case-insensitively; all of them for a blank one. */

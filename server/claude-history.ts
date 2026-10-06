@@ -21,14 +21,16 @@ const CHUNK_BYTES = 128 * 1024;
 /** Above this a transcript is not read whole: its message count is unknown (null). */
 const COUNT_MAX_BYTES = 4 * 1024 * 1024;
 const PREVIEW_CHARS = 140;
+/** How long a listing of the store is reused: Show more and a changed filter do not stat every transcript again. */
+const LISTING_TTL_MS = 3000;
 const READ_BATCH = 16;
 /** Content that starts a user line without being something the user wrote. */
 const NOT_A_PROMPT = ["<local-command-caveat>", "<local-command-stdout>", "<system-reminder>", "<command-name>", "<command-message>", "[Request interrupted"];
 
 export interface HistoryQuery {
   configDir: string;
-  /** an absolute folder: a session matches when it ran there or below it */
-  folder: string;
+  /** absolute folders (a project's, and its worktrees'): a session matches when it ran in or below any */
+  folders: readonly string[];
   /** epoch ms: sessions with no activity since then are left out */
   since: number;
   /** `claude -p` sessions (entrypoint sdk-cli) are left out unless asked for */
@@ -70,7 +72,7 @@ function readLines(text: string, meta: Meta, tail: boolean): void {
     try { entry = JSON.parse(line) as Record<string, unknown>; } catch { continue; }
     if (meta.cwd === null && typeof entry["cwd"] === "string") {
       meta.cwd = entry["cwd"];
-      meta.automated = entry["entrypoint"] === "sdk-cli";
+      meta.automated = typeof entry["entrypoint"] === "string" && entry["entrypoint"].startsWith("sdk-");
     }
     if (meta.branch === null && typeof entry["gitBranch"] === "string" && entry["gitBranch"] !== "") meta.branch = entry["gitBranch"];
     if (entry["type"] === "custom-title" && typeof entry["customTitle"] === "string" && entry["customTitle"].trim() !== "") meta.title = entry["customTitle"].trim().slice(0, 200);
@@ -99,7 +101,10 @@ async function chunk(path: string, start: number, length: number, size: number):
 const metaCache = new Map<string, Meta>();
 const META_CACHE_MAX = 1000;
 
-export function forgetClaudeHistory(): void { metaCache.clear(); }
+const countCache = new Map<string, number>();
+const listings = new Map<string, { at: number; files: Candidate[] }>();
+
+export function forgetClaudeHistory(): void { metaCache.clear(); countCache.clear(); listings.clear(); }
 
 async function metaOf(path: string, size: number, mtime: number): Promise<Meta> {
   const key = `${path}\0${size}\0${mtime}`;
@@ -115,12 +120,17 @@ async function metaOf(path: string, size: number, mtime: number): Promise<Meta> 
 }
 
 /** user + assistant lines, or null for a transcript too big to read whole. A line is matched, not parsed. */
-async function countMessages(path: string, size: number): Promise<number | null> {
+async function countMessages(path: string, size: number, mtime: number): Promise<number | null> {
   if (size > COUNT_MAX_BYTES) return null;
+  const key = `${path}\0${size}\0${mtime}`;
+  const known = countCache.get(key);
+  if (known !== undefined) return known;
   let count = 0;
   for (const line of (await readFile(path, "utf8")).split("\n")) {
     if (line.startsWith("{") && (line.includes('"type":"user"') || line.includes('"type":"assistant"'))) count += 1;
   }
+  if (countCache.size >= META_CACHE_MAX) countCache.delete(countCache.keys().next().value!);
+  countCache.set(key, count);
   return count;
 }
 
@@ -128,6 +138,14 @@ interface Candidate { path: string; id: string; size: number; mtime: number }
 
 /** Every transcript in the store touched since `since`, newest first. Symlinks are not followed. */
 async function candidates(configDir: string, since: number): Promise<Candidate[]> {
+  const known = listings.get(configDir);
+  if (known && Date.now() - known.at < LISTING_TTL_MS) return known.files.filter((file) => file.mtime >= since);
+  const files = await listStore(configDir);
+  listings.set(configDir, { at: Date.now(), files });
+  return files.filter((file) => file.mtime >= since);
+}
+
+async function listStore(configDir: string): Promise<Candidate[]> {
   const projects = join(configDir, "projects");
   let dirs;
   try { dirs = await readdir(projects, { withFileTypes: true }); } catch { return []; }
@@ -139,7 +157,7 @@ async function candidates(configDir: string, since: number): Promise<Candidate[]
       const path = join(projects, dir.name, file.name);
       try {
         const info = await stat(path);
-        if (info.mtimeMs >= since) found.push({ path, id: SESSION_FILE.exec(file.name)![1]!.toLowerCase(), size: info.size, mtime: Math.round(info.mtimeMs) });
+        found.push({ path, id: SESSION_FILE.exec(file.name)![1]!.toLowerCase(), size: info.size, mtime: Math.round(info.mtimeMs) });
       } catch { /* gone since the listing */ }
     }));
   }));
@@ -156,11 +174,11 @@ export async function claudeHistory(query: HistoryQuery): Promise<{ sessions: Hi
     const metas = await Promise.all(batch.map((file) => metaOf(file.path, file.size, file.mtime).catch(() => null)));
     batch.forEach((file, index) => {
       const meta = metas[index];
-      if (meta?.cwd && insideFolder(meta.cwd, query.folder) && (query.automated || !meta.automated)) matched.push({ ...file, meta });
+      if (meta?.cwd && query.folders.some((folder) => insideFolder(meta.cwd!, folder)) && (query.automated || !meta.automated)) matched.push({ ...file, meta });
     });
   }
   const page = matched.slice(query.offset, query.offset + query.limit);
-  const counts = await Promise.all(page.map((file) => countMessages(file.path, file.size).catch(() => null)));
+  const counts = await Promise.all(page.map((file) => countMessages(file.path, file.size, file.mtime).catch(() => null)));
   return {
     has_more: matched.length > query.offset + query.limit,
     sessions: page.map((file, index) => ({

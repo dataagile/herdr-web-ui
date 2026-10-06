@@ -1046,7 +1046,8 @@ export function createServer(
       // drops it before forwarding: `/api/machines/<id>//fs/file` would pass as not a file read.
       if (pathname.startsWith("/api/") && pathname.includes("//")) return jsonResponse({ error: { code: "not_found", message: "not found" } }, 404);
       // Watching a terminal grants no arbitrary filesystem access: those files include credentials.
-      const fileRead = /^\/api\/(?:machines\/[^/]+\/)?fs\//.test(pathname);
+      // the History list quotes prompts, which can hold secrets, so it is a file read too
+      const fileRead = /^\/api\/(?:machines\/[^/]+\/)?(?:fs\/|workspace\/history$)/.test(pathname);
       const ownPreferences = pathname === "/api/auth" || pathname === "/api/push/subscribe" || pathname === "/api/push/test";
       if (readOnly && (fileRead || mutating && !ownPreferences)) {
         return jsonResponse({ error: { code: "read_only", message: "this device can only watch" } }, 403);
@@ -1223,9 +1224,11 @@ export function createServer(
       if (pathname === "/api/workspace/history") {
         if (request.method !== "GET") return badRequest("method_not_allowed", "use GET");
         const params = url.searchParams;
-        const folder = params.get("cwd") ?? "";
-        // the folder is only compared with the cwd a transcript records, but a relative one would match nothing useful
-        if (!isAbsolute(folder) && !/^[A-Za-z]:[\\/]/.test(folder)) return badRequest("invalid_cwd", "cwd must be an absolute path");
+        // the project's folder and its worktrees': only compared with the cwd a transcript records, never opened
+        const folders = params.getAll("cwd");
+        if (folders.length === 0 || folders.length > 20 || !folders.every((folder) => folder.length <= 4096 && (isAbsolute(folder) || /^[A-Za-z]:[\\/]/.test(folder)))) {
+          return badRequest("invalid_cwd", "cwd must be one to 20 absolute paths");
+        }
         const count = (name: string, fallback: number, max: number): number | null => {
           const raw = params.get(name);
           if (raw === null) return fallback;
@@ -1241,7 +1244,7 @@ export function createServer(
         try {
           return jsonResponse(await claudeHistory({
             configDir: options.claudeConfigDir ?? defaultClaudeConfigDir(process.env["HOME"] ?? homedir()),
-            folder, since, offset, limit, automated: params.get("automated") === "1",
+            folders, since, offset, limit, automated: params.get("automated") === "1",
           }));
         } catch (error) {
           return errorResponse(error);

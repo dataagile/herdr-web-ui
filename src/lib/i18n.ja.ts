@@ -872,4 +872,5 @@ export const JA: Record<string, string> = {
   "Command": "コマンド",
   "Starting claude… up to 60s": "claude を起動しています… 最大 60 秒",
   "Open in new tab": "新しいタブで開く",
+  "No match in the loaded sessions. Show more to search further.": "読み込み済みのセッションに一致するものはありません。「さらに表示」で検索を続けます。",
 };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type { HistorySession } from "../../shared/protocol.ts";
-import { groupByDay, matchingSessions, openPaneOf, projectFolder, resumeArgs, resumeCommand, resumeCommandIn, sinceFor } from "./history.ts";
+import { groupByDay, historyFolders, matchingSessions, openPaneOf, projectFolder, resumeArgs, resumeCommand, resumeCommandIn, sinceFor } from "./history.ts";
 
 const session = (id: string, last_activity: number, title = id, first_prompt = ""): HistorySession => ({ session_id: id, title, first_prompt, last_activity, message_count: 1, git_branch: null, model: null, cwd: "/w", automated: false });
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
@@ -61,5 +61,16 @@ describe("projectFolder", () => {
     expect(projectFolder({ workspace_id: "w1" }, panes)).toBe("/a");
     expect(projectFolder({ workspace_id: "w1", worktree: { checkout_path: "/wt", is_linked_worktree: true, repo_key: "", repo_name: "", repo_root: "" } }, panes)).toBe("/wt");
     expect(projectFolder({ workspace_id: "w9" }, panes)).toBeNull();
+  });
+});
+
+describe("historyFolders", () => {
+  const tree = (path: string, linked: boolean, repo = "r") => ({ checkout_path: path, is_linked_worktree: linked, repo_key: repo, repo_name: "", repo_root: "" });
+  const all = [{ workspace_id: "a", worktree: tree("/r", false) }, { workspace_id: "b", worktree: tree("/r-feat", true) }, { workspace_id: "c", worktree: tree("/o-feat", true, "other") }, { workspace_id: "d" }];
+  it("adds a repository project's worktree checkouts, and only those", () => {
+    expect(historyFolders(all[0]!, all, "/r")).toEqual(["/r", "/r-feat"]);
+    expect(historyFolders(all[1]!, all, "/r-feat")).toEqual(["/r-feat"]);
+    expect(historyFolders(all[3]!, all, "/x")).toEqual(["/x"]);
+    expect(historyFolders(all[3]!, all, null)).toEqual([]);
   });
 });

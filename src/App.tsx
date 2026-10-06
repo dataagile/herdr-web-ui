@@ -6,7 +6,7 @@ import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetc
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { HistoryView } from "./components/HistoryView.tsx";
-import { projectFolder } from "./lib/history.ts";
+import { historyFolders, projectFolder } from "./lib/history.ts";
 import { PaneTerminal } from "./components/PaneTerminal.tsx";
 import { SplitView } from "./components/SplitView.tsx";
 import { SplitMenu, type SplitTarget } from "./components/SplitMenu.tsx";
@@ -1116,16 +1116,17 @@ export function App() {
           />
           )}
           {historyShown && snapshot && selectedWorkspace && selectedMachine && (
-            <HistoryView
-              key={`${selectedMachineId}:${selectedWorkspace.workspace_id}`}
-              machineId={selectedMachineId}
-              local={selectedMachine.kind === "local"}
-              workspace={selectedWorkspace}
-              folder={projectFolder(selectedWorkspace, snapshot.panes)}
-              panes={snapshot.panes}
-              onGoTo={selectPane}
-              onOpened={(paneId) => { selectTarget(selectedMachineId, paneId); void load(); }}
-            />
+            <MachineContext.Provider value={selectedMachineId}>
+              <HistoryView
+                key={`${selectedMachineId}:${selectedWorkspace.workspace_id}`}
+                local={selectedMachine.kind === "local"}
+                workspace={selectedWorkspace}
+                folders={historyFolders(selectedWorkspace, snapshot.workspaces, projectFolder(selectedWorkspace, snapshot.panes))}
+                panes={snapshot.panes}
+                onGoTo={selectPane}
+                onOpened={(paneId) => { selectTarget(selectedMachineId, paneId); void load(); }}
+              />
+            </MachineContext.Provider>
           )}
         </main>
         </div>

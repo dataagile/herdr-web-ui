@@ -874,4 +874,5 @@ export const ZH: Record<string, string> = {
   "Command": "命令",
   "Starting claude… up to 60s": "正在启动 claude… 最长 60 秒",
   "Open in new tab": "在新标签页中打开",
+  "No match in the loaded sessions. Show more to search further.": "已加载的会话中没有匹配项。点击“显示更多”继续搜索。",
 };

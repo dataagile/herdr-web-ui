@@ -851,4 +851,5 @@ export const PT: Record<string, string> = {
   "Command": "Comando",
   "Starting claude… up to 60s": "Iniciando o claude… até 60 s",
   "Open in new tab": "Abrir em nova aba",
+  "No match in the loaded sessions. Show more to search further.": "Nada encontrado nas sessões carregadas. Use Mostrar mais para buscar além.",
 };

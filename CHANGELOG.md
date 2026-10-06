@@ -17,6 +17,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   names and `.local`/`.lan`/`.internal`/`.home.arpa`/`.ts.net`; checked again on every use) with no
   credentials, query or fragment, redirects are never followed, and a saved key is never sent to a
   different server.
+  ([#7](https://github.com/dataagile/herdr-web-ui/pull/7) by @tbc-joaovitor)
 - A text file in the file viewer can be edited in place and saved: an Edit button over the
   content, Save and Discard, Mod+S to save, and a prompt before closing with unsaved changes.
   A file past 2 MB, or anything that is not text, stays read-only.

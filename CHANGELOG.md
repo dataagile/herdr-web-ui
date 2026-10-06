@@ -22,9 +22,11 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   A pane of a split tab never resizes its pty to its box: it draws the grid herdr and the other
   devices gave it and scales its font to fit, so a split tab does not disturb herdr's own client.
   New endpoints: `POST /api/pane/split`, `/focus`, `/resize` and `/zoom`.
+  ([#9](https://github.com/dataagile/herdr-web-ui/pull/9) by @tbc-joaovitor)
 - The sidebar footer (and the phone's drawer) ends with the build: `Data Agile Dev · v0.3.52 ·
   <commit>`, with the herdr version and the build time in its tooltip. The commit comes from
   `git rev-parse --short HEAD` at build time, and reads `dev` where Git cannot answer.
+  ([#9](https://github.com/dataagile/herdr-web-ui/pull/9) by @tbc-joaovitor)
 - Voice input can use your own OpenAI-compatible transcription server: Settings → Voice input →
   Transcription server takes a Server URL and key, a **Test and list models** button that fills
   the Transcription and Tidy model lists (speech-to-text first), and a dictation language

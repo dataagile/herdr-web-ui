@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ArrowUp, FileText, Folder, FolderPlus, House } from "lucide-react";
 
 import "./DirectoryBrowser.css";
@@ -29,6 +29,27 @@ function childPath(parent: string, name: string): string {
 }
 
 /**
+ * Keys of a text field inside a dialog. Enter confirms an IME candidate and Escape dismisses it:
+ * neither is the field's, and neither may reach the dialog's own Escape, which closes it. Enter
+ * never submits a form; Escape is the field's only when `escape` handles it (returns true), and
+ * then it stops here. Otherwise it goes on to close the dialog.
+ */
+function fieldKeys(event: KeyboardEvent<HTMLInputElement>, on: { enter?: () => void; escape: () => boolean }): void {
+  if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+    event.stopPropagation();
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    on.enter?.();
+  }
+  if (event.key === "Escape" && on.escape()) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
+/**
  * A folder browser for the new-session dialog: one directory at a time, fetched from the
  * PC the session starts on. Nothing is kept but the folder shown now.
  */
@@ -36,6 +57,7 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
   const t = useT();
   const { fetchDirectories, createDirectory } = useMachineApi();
   const [listing, setListing] = useState<DirectoryListing | null>(null);
+  const [query, setQuery] = useState("");
   const [hidden, setHidden] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +74,7 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
     try {
       const next = await fetchDirectories(path, showHidden, onOpenFile !== undefined);
       if (id !== request.current) return;
+      if (listing !== null && next.path !== listing.path) setQuery("");
       setListing(next);
       setError(null);
       listRef.current?.scrollTo({ top: 0 });
@@ -65,7 +88,7 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
     } finally {
       if (id === request.current) setLoading(false);
     }
-  }, [fetchDirectories]);
+  }, [fetchDirectories, listing, onOpenFile, t]);
 
   useEffect(() => { void open(start, false, true); }, []);
 
@@ -91,6 +114,10 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
 
   const path = listing?.path ?? "";
   const shown = listing ? homeRelative(listing.path, listing.home) : start || "~";
+  const normalizedQuery = query.trim().toLowerCase();
+  const directories = listing === null || onPick === undefined || normalizedQuery === ""
+    ? listing?.directories
+    : listing.directories.filter((name) => name.toLowerCase().includes(normalizedQuery));
 
   return (
     <div className="dir-browser" role="group" aria-label={t("Choose a folder")} aria-busy={loading}>
@@ -117,22 +144,37 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
               value={newName}
               disabled={busy}
               onChange={(event) => setNewName(event.target.value)}
-              onKeyDown={(event) => {
-                // an IME's Enter and Escape are the composition's, not the field's
-                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
-                if (event.key === "Enter") { event.preventDefault(); void create(); }
-                if (event.key === "Escape") { event.preventDefault(); setCreating(false); setNewName(""); setCreateError(null); }
-              }}
+              onKeyDown={(event) => fieldKeys(event, {
+                enter: () => void create(),
+                escape: () => { setCreating(false); setNewName(""); setCreateError(null); return true; },
+              })}
             />
             <button type="button" className="btn btn-primary" disabled={busy || newName.trim() === ""} onClick={() => void create()}>{t("Create")}</button>
           </div>
           {createError !== null && <p className="dir-browser-error dir-browser-new-error" role="alert">{createError}</p>}
         </div>
       )}
+      {onPick !== undefined && (
+        <label className="field dir-browser-search">
+          <span className="field-label">{t("Filter folders")}</span>
+          {/* a touch screen would raise its keyboard over the list just opened; Escape clears the
+              filter before it reaches the dialog's own Escape, which closes the dialog */}
+          <input type="search" className="input" value={query} autoFocus={window.matchMedia?.("(pointer: coarse)").matches !== true}
+            autoComplete="off" spellCheck={false}
+            onChange={(event) => { setQuery(event.target.value); listRef.current?.scrollTo({ top: 0 }); }}
+            onKeyDown={(event) => fieldKeys(event, {
+              escape: () => {
+                if (query === "") return false;
+                setQuery("");
+                return true;
+              },
+            })} />
+        </label>
+      )}
       {error !== null ? <p className="dir-browser-note dir-browser-error" role="alert">{error}</p> : (
         <ul className="dir-browser-list" ref={listRef}>
           {listing === null && <li className="dir-browser-note" role="status">{t("Loading…")}</li>}
-          {listing?.directories.map((name) => (
+          {directories?.map((name) => (
             <li key={name}>
               <button type="button" className="dir-browser-item" disabled={loading} onClick={() => void open(childPath(path, name), hidden, false)}>
                 <Folder aria-hidden="true" />
@@ -149,8 +191,10 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
               </button>
             </li>
           ))}
-          {listing !== null && listing.directories.length === 0 && (listing.files ?? []).length === 0 && <li className="dir-browser-note">{t(onOpenFile ? "Nothing here" : "No folders here")}</li>}
+          {listing !== null && onPick !== undefined && normalizedQuery !== "" && directories?.length === 0 && <li className="dir-browser-note" role="status">{t("No matching folders")}</li>}
+          {listing !== null && normalizedQuery === "" && listing.directories.length === 0 && (listing.files ?? []).length === 0 && <li className="dir-browser-note">{t(onOpenFile ? "Nothing here" : "No folders here")}</li>}
           {listing?.truncated && <li className="dir-browser-note">{t("Showing the first {n} folders; type the rest of the path to go further.", { n: listing.directories.length })}</li>}
+          {listing?.truncated && onPick !== undefined && <li className="dir-browser-note">{t("Search is limited to the {n} loaded folders.", { n: listing.directories.length })}</li>}
         </ul>
       )}
       <div className="dir-browser-footer">

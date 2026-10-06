@@ -12,7 +12,7 @@ chrome color, amber: selection, focus, the terminal cursor and the user's own ac
 buttons). Agent states carry the remaining saturated colors and none of them is amber. The user's
 chat turns are neutral raised cards, so a long thread never turns into a wall of color. Dark is the
 default, light follows the same hierarchy, and comfortable or compact density changes scale without
-changing information architecture. A dark report look, a neutral charcoal one and Catppuccin are
+changing information architecture. A dark report look, a neutral charcoal one, Catppuccin and lilac are
 opt-in palettes (Settings → Appearance → Colors); amber stays the default and the look before settings load.
 
 The signature is the amber status rail: a 3px bar on the selected pane row (whose mark box also
@@ -60,14 +60,14 @@ Only tokens overridden by `[data-theme="light"]` have a light value. Both column
 
 ### Opt-in palettes
 
-`settings.palette` (`amber` default, `report`, `charcoal`, `catppuccin`) is written as `data-palette`. The
-tables above are amber, the base blocks; the three opt-in palettes override them in
+`settings.palette` (`amber` default, `report`, `charcoal`, `catppuccin`, `lilac`) is written as `data-palette`. The
+tables above are amber, the base blocks; the four opt-in palettes override them in
 `[data-theme][data-palette]` blocks of `src/styles.css`, which hold the complete values.
 
 `--bubble-border` is the edge of the chat's user bubble. It is `transparent` where `--bg-elevated`
-alone parts the bubble from `--bg`: dark amber, dark report and dark charcoal. It is `var(--border)`
+alone parts the bubble from `--bg`: dark amber, dark report, dark charcoal and dark lilac. It is `var(--border)`
 where the two surfaces sit close: every light theme (the `[data-theme="light"]` block sets it for
-all four palettes) and dark Catppuccin, whose elevated surface is darker than its canvas.
+all palettes) and dark Catppuccin, whose elevated surface is darker than its canvas.
 
 - **Dark report** is a near-black blue-grey canvas with hairlines: `--bg` `#0a0d12`, panel and
   terminal `#0f1319`, text `#b4bdc9` / `#8792a3` / `#e8ecf2`. Primary (the user's action) is white
@@ -95,6 +95,16 @@ all four palettes) and dark Catppuccin, whose elevated surface is darker than it
   `#d2d4dc`. Latte's accents are under 4.5:1 on these surfaces, so each keeps its hue and is darkened
   until it passes AA: Mauve `#712fc6` (primary hover is plain Latte Mauve `#8839ef`), Blue `#1750bf`,
   Red `#ac0c2f`, Green `#28651b`. It keeps amber's rounded corners.
+- **Lilac** is one quiet lavender, flat on every surface (no gradient, no translucency). Light is
+  the look it was drawn for: a pale lavender canvas `--bg` `#f0eefc` under paler chrome `--bg-panel`
+  `#f6f5fe` (elevated `#fbfaff`, hover `#e8e5f8`, input `#fdfcff`), indigo ink (text `#2b2d4d` /
+  `#545779` / `#17193a`), and an indigo accent and primary `#4a42c2` with white text. States are
+  darkened until their badges pass AA on a hovered row: working `#1f4aa6`, input `#9c2044`, done
+  `#1f5c39`, idle `#545779`. Terminal `#f8f7fe`, cursor `#4a42c2`, selection `#dcd7f8`. Dark is the
+  same hue at night: canvas `#16152b`, chrome `#1c1b34` (elevated `#23223f`, hover `#2c2a4f`), text
+  `#dcdaf4` / `#a5a2cc` / `#f2f1ff`, a pale lilac accent and primary `#b3abff` with `#17163a` text,
+  states working `#85b8ff`, input `#ff94ad`, done `#92d9ab`, terminal `#18172f`, selection
+  `#3a3768`. It keeps amber's rounded corners and card shadow, tinted indigo in light.
 
 ### Terminal theme
 
@@ -179,7 +189,7 @@ CSS tokens verbatim for each resolved theme and palette (`settings.test.ts` chec
 
 ### Settings
 - `theme`: `dark`, `light`, or `system`; default `dark`.
-- `palette`: `amber`, `report`, `charcoal` or `catppuccin`; default `amber`.
+- `palette`: `amber`, `report`, `charcoal`, `catppuccin` or `lilac`; default `amber`.
 - `density`: `comfortable` or `compact`; default `comfortable`.
 - Terminal font size is independent: default `13px`, clamped to `10–22px`.
 - Terminal and chat font families are comma-separated lists, default empty. They go in front of the
@@ -550,6 +560,9 @@ One set for both themes: the card is island black wherever it shows.
   first 20 behind **Show all N lines**. On touch a block has a header strip (language, copy);
   with a mouse and no touch screen the strip becomes a corner control over the block's top right,
   shown on hover or focus-within (no transition under reduced motion).
+  A table fills the reply's width; its cells, file paths included, break between words only, so a
+  column is never narrower than its longest word, and a table without room scrolls sideways in
+  its own box.
   Thinking renders as a folded block only when **Show thinking** is enabled.
 - Auto-follow stops when the reader scrolls up; later output raises a **New messages** pill.
 - An empty chat is greeted from the composer (`.composer-greeting`, below), only where the agent's
@@ -595,6 +608,18 @@ One set for both themes: the card is island black wherever it shows.
   failure count leave and end in an ellipsis. `· 1 failed` (`.work-block-failed`) is its own item
   and is never cut, because the fold hides the failed row; at the largest chat type on the
   narrowest phone the title wraps to a second line instead.
+- An OmO or omp `task` row opens to the tasks it starts (`.chat-task-calls`): each summary in
+  `--text`, the agent as a hairline mono pill, the prompt in the bounded mono input box.
+
+### Background tasks ended (`.chat-task-results`)
+- Where OmO reports background tasks that ended, the transcript shows one `--bg-elevated` card
+  (hairline edge, `--radius-lg`) on the prose column: a dim `--fs-xs` line with the layers icon,
+  "2 background tasks ended" and the time, then one hairline-separated row per task.
+- A row is the status icon (`--status-done` check, `--status-blocked` x, dim slash for
+  cancelled), the task's summary (`--fs-sm`, medium) over a dim `--fs-xs` meta line (agent ·
+  model · duration · turns · tool calls · tokens), and the status word at the right in the
+  icon's color, with the skill caret. Opened, the task's answer renders as Markdown, indented to
+  the title, bounded to 60vh.
 
 ### Prompt card (`.prompt-card`)
 - Appears in chat while the agent is blocked and the visible pane contains a supported Claude, omp,

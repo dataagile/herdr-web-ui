@@ -26,6 +26,7 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
   // a Test's answer counts only while the fields it was asked with are still the fields
   const testId = useRef(0);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // the fields start from, and return to, what the server says it holds
   useEffect(() => {
@@ -39,6 +40,8 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
   }, [voice]);
 
   /** the fields the list was made from changed (or a save started): it no longer describes them */
+  /** the model fields were edited: a Test still running was asked about other values */
+  const ignoreRunningTest = () => { testId.current += 1; setTesting(false); };
   const invalidateList = () => { testId.current += 1; setTesting(false); setModels(null); setTestError(null); };
 
   const test = async () => {
@@ -49,10 +52,15 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
       // exactly the URL in the field: empty is OpenAI's, never the saved server (whose key it would take)
       const ids = await fetchVoiceModels({ base_url: url.trim() || VOICE_DEFAULTS.base_url, ...(key.trim() ? { api_key: key.trim() } : {}) });
       if (id !== testId.current) return;
+      // the fields stay as they are, saved model included, when there is nothing to choose from
       if (ids.length === 0) {
-        // the fields stay as they are, saved model included
         setModels(null);
         setTestError(t("No models available for this key"));
+        return;
+      }
+      if (voicePartition(ids).speech.length === 0) {
+        setModels(null);
+        setTestError(t("No speech-to-text model found on this server"));
         return;
       }
       if (voice) {
@@ -68,9 +76,10 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
     } finally { if (id === testId.current) setTesting(false); }
   };
 
-  const send = async (update: VoiceConfigUpdate) => {
+  const send = async (update: VoiceConfigUpdate): Promise<VoiceStatus | null> => {
     invalidateList();
     setBusy(true);
+    setNotice(null);
     try {
       // the save answers the new status itself: no second request that could fail after it
       const saved = await saveVoiceConfig(update);
@@ -79,15 +88,21 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
       setTestError(null);
       onSaved(saved);
       window.dispatchEvent(new Event(VOICE_CONFIG_EVENT));
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+      return saved;
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); return null; }
     finally { setBusy(false); }
   };
 
   const save = () => { if (voice) void send(voiceSaveBody(voice, { url, key, transcribe: transcribeModel, polish: polishModel, language })); };
-  const useDefaults = () => void send({
-    ...(key.trim() ? { api_key: key.trim() } : {}),
-    base_url: null, transcribe_model: null, polish_model: null, polish_enabled: null, language: null,
-  });
+  const useDefaults = async () => {
+    const hadKey = Boolean(voice?.key_stored) && !key.trim();
+    const saved = await send({
+      ...(key.trim() ? { api_key: key.trim() } : {}),
+      base_url: null, transcribe_model: null, polish_model: null, polish_enabled: null, language: null,
+    });
+    // a key saved for another server is dropped, never sent to OpenAI
+    if (saved && hadKey && !saved.key_stored) setNotice(t("The saved key was removed so it is not sent to OpenAI. Type a key to use OpenAI."));
+  };
 
   const choices = models ? voicePartition(models) : null;
   const fromEnv = voice?.source === "env";
@@ -122,7 +137,7 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
             {testError && <p className="settings-hint voice-error" role="alert">{testError}</p>}
             <label className="voice-field"><span className="field-label">{t("Transcription model")}</span>
               {choices ? (
-                <select className="input" aria-label={t("Transcription model")} value={transcribeModel} onChange={(event) => setTranscribeModel(event.target.value)}>
+                <select className="input" aria-label={t("Transcription model")} value={transcribeModel} onChange={(event) => { setTranscribeModel(event.target.value); ignoreRunningTest(); }}>
                   {choices.speech.length > 0 && <optgroup label={t("Speech-to-text")}>{choices.speech.map((id) => <option key={id} value={id}>{id}</option>)}</optgroup>}
                   {choices.other.length > 0 && (choices.speech.length > 0 ? <optgroup label={t("Other models")}>{choices.other.map((id) => <option key={id} value={id}>{id}</option>)}</optgroup> : choices.other.map((id) => <option key={id} value={id}>{id}</option>))}
                 </select>
@@ -132,7 +147,7 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
             </label>
             <label className="voice-field"><span className="field-label">{t("Tidy model (optional)")}</span>
               {choices ? (
-                <select className="input" aria-label={t("Tidy model (optional)")} value={polishModel} onChange={(event) => setPolishModel(event.target.value)}>
+                <select className="input" aria-label={t("Tidy model (optional)")} value={polishModel} onChange={(event) => { setPolishModel(event.target.value); ignoreRunningTest(); }}>
                   <option value="">{t("None (Tidy off)")}</option>
                   {models!.map((id) => <option key={id} value={id}>{id}</option>)}
                 </select>
@@ -143,17 +158,19 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
             <label className="voice-field"><span className="field-label">{t("Dictation language")}</span>
               <select className="input" aria-label={t("Dictation language")} value={language} onChange={(event) => setLanguage(event.target.value)}>
                 <option value="">{t("Auto-detect")}</option>
+                {language && !LANGUAGES.some(([code]) => code === language) && <option value={language}>{language}</option>}
                 {LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
               </select>
             </label>
             <div className="voice-actions">
               <button type="submit" className="btn btn-primary" disabled={busy || testing}>{t("Save")}</button>
-              <button type="button" className="btn" disabled={busy} onClick={useDefaults}>{t("Use OpenAI defaults")}</button>
+              <button type="button" className="btn" disabled={busy} onClick={() => void useDefaults()}>{t("Use OpenAI defaults")}</button>
               <button type="button" className="btn btn-ghost" disabled={busy || !voice.key_stored} onClick={() => void send({ api_key: null })}>{t("Remove key")}</button>
             </div>
           </form>
         )}
         {error && <p className="settings-hint voice-error" role="alert">{error}</p>}
+        {notice && <p className="settings-hint" role="status">{notice}</p>}
         <p className="settings-hint voice-privacy">
           {!voice || !voice.configured
             ? t("Without a key the browser recognizes the speech: Chrome and Edge send the audio to Google or Microsoft. Nothing is recorded until you press the mic.")

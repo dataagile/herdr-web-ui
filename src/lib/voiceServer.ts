@@ -30,7 +30,8 @@ export function voiceModelChoices(
 ): VoiceModelChoices {
   const { speech, other } = voicePartition(ids);
   const listed = (id: string) => ids.includes(id);
-  const transcribe = [current.transcribe, saved.transcribe, VOICE_FORK_MODELS.transcribe_model].find(listed) ?? speech[0] ?? ids[0] ?? "";
+  // only a speech-to-text id is ever preselected; "" when the server has none
+  const transcribe = [current.transcribe, saved.transcribe, VOICE_FORK_MODELS.transcribe_model].find((id) => speech.includes(id)) ?? speech[0] ?? "";
   const polish = current.polish === "" ? "" : listed(current.polish) ? current.polish : saved.polish !== null && listed(saved.polish) ? saved.polish : "";
   return { speech, other, transcribe, polish };
 }

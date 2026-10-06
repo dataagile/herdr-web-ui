@@ -808,7 +808,7 @@ One set for both themes: the card is island black wherever it shows.
   fills with `--accent` while recording. Dictated text is inserted at the caret, never sent.
 - The recording pill shows Cancel, a **Recording** label, the level bars, a mono timer and Done.
   Amber only; `--danger` stays for errors.
-- Settings → Voice input is four hairline cards (`.voice-group`): Microphone, Transcription server,
+- Settings → Voice input is three hairline cards (`.voice-group`): Microphone, Transcription server,
   Tidy dictated text. The Transcription server card is a status line (`Saved on this PC: host ·
   model · tidy model|off`), then stacked label-over-control fields (`.voice-field`: Server URL, API key
   as a password never prefilled with `••••` placeholder, Transcription model, Tidy model, Dictation

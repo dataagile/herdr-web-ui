@@ -420,7 +420,7 @@ describe("voice language and tidy", () => {
     const voice = service();
     voice.update({ api_key: KEY, base_url: "http://127.0.0.1:4000/v1" });
     expect(voice.update({ base_url: "http://127.0.0.1:4000/v1/" }).base_url).toBe("http://127.0.0.1:4000/v1");
-    expect(() => voice.update({ base_url: null })).toThrow("Send api_key");
+    expect(() => voice.update({ base_url: "http://127.0.0.1:5000/v1" })).toThrow("Send api_key");
     expect(voice.update({ base_url: null, api_key: KEY }).base_url).toBe("https://api.openai.com/v1");
   });
 });
@@ -515,6 +515,24 @@ describe("voice custom server defaults", () => {
   });
 });
 
+describe("voice same-server saves and defaults", () => {
+  it("a later save on the same server never flips Tidy", () => {
+    const voice = service();
+    voice.update({ api_key: KEY, base_url: "http://127.0.0.1:4000/v1", polish_model: "gemma4-12b", polish_enabled: true });
+    expect(voice.update({ language: "pt" })).toMatchObject({ polish_enabled: true, polish_model: "gemma4-12b" });
+    expect(voice.update({ base_url: "http://127.0.0.1:4000/v1/", transcribe_model: "whisper-ptbr" })).toMatchObject({ polish_enabled: true });
+  });
+
+  it("Use OpenAI defaults without the key drops the saved key instead of sending it to OpenAI", () => {
+    const voice = service();
+    voice.update({ api_key: KEY, base_url: "http://127.0.0.1:4000/v1", polish_model: "gemma4-12b", polish_enabled: true, language: "pt" });
+    const reset = voice.update({ base_url: null, transcribe_model: null, polish_model: null, polish_enabled: null, language: null });
+    expect(reset).toMatchObject({ configured: false, key_stored: false, base_url: "https://api.openai.com/v1", language: null, polish_enabled: true });
+    expect(readFileSync(join(stateDir, "voice.json"), "utf8")).not.toContain(KEY);
+    expect(requests).toHaveLength(0);
+  });
+});
+
 describe("voice refused stored URL", () => {
   const refuse = () => writeFileSync(join(stateDir, "voice.json"), JSON.stringify({ api_key: "sk-stored-123456", base_url: "http://public.example.com/v1" }));
 
@@ -555,6 +573,14 @@ describe("voice models limits", () => {
     client.abort();
     expect(upstream?.aborted).toBe(true);
     expect(await pending).toBeInstanceOf(Error);
+  });
+
+  it("says a body that stalls is not a bad list", async () => {
+    handler = () => new Response(new ReadableStream({ start(controller) { controller.error(new Error("socket hang up")); } }));
+    const response = await modelsOf(service(), { api_key: KEY });
+    expect(await response.json()).toMatchObject({ error: { code: "models_unreachable" } });
+    handler = () => new Response("<html>");
+    expect(await (await modelsOf(service(), { api_key: KEY })).json()).toMatchObject({ error: { code: "models_unsupported", message: expect.stringContaining("not JSON") } });
   });
 
   it("refuses a model list past 1 MB", async () => {

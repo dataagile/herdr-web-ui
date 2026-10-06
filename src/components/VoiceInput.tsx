@@ -19,8 +19,9 @@ function errorNote(t: Translate, error: VoiceError | VoiceUnavailable): string |
     case "insecure": return t("Voice input needs HTTPS");
     case "permission": return t("Microphone permission was denied");
     case "no_mic": return t("No microphone found");
-    case "not_configured": return t("Add an OpenAI API key in Settings > Voice input");
-    case "provider_auth": return t("The OpenAI key was refused");
+    case "not_configured": return t("Set up a transcription server in Settings > Voice input");
+    case "url_refused": return t("The saved Server URL is not allowed: fix it in Settings > Voice input");
+    case "provider_auth": return t("The transcription server refused the key");
     case "provider":
     case "network": return t("Transcription failed");
     case "too_large": return t("Recording is too long");

@@ -18,7 +18,11 @@ describe("voiceModelChoices", () => {
     expect(voiceModelChoices(IDS, { transcribe: "x", polish: "y" }, { transcribe: "my-stt", polish: "gemma4-12b" })).toMatchObject({ transcribe: "my-stt", polish: "gemma4-12b" });
     expect(voiceModelChoices(IDS, { transcribe: "gpt-transcribe", polish: "q" }, { transcribe: "gpt-transcribe", polish: "gpt-6-luna-x" })).toMatchObject({ transcribe: "whisper-ptbr-simples", polish: "" });
     expect(voiceModelChoices(["a", "x-whisper", "b"], { transcribe: "t", polish: "" }, { transcribe: "t", polish: null })).toMatchObject({ transcribe: "x-whisper", polish: "" });
-    expect(voiceModelChoices(["a", "b"], { transcribe: "t", polish: "" }, { transcribe: "t", polish: null })).toMatchObject({ transcribe: "a", polish: "" });
+  });
+
+  it("never preselects a model that is not speech-to-text", () => {
+    expect(voiceModelChoices(["a", "gemma4-12b"], { transcribe: "gemma4-12b", polish: "" }, { transcribe: "a", polish: null }).transcribe).toBe("");
+    expect(voiceModelChoices(["gemma4-12b", "whisper-x"], { transcribe: "gemma4-12b", polish: "" }, { transcribe: "gemma4-12b", polish: null }).transcribe).toBe("whisper-x");
   });
 
   it("keeps a Tidy None the user chose even when a model is saved", () => {

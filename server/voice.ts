@@ -139,39 +139,22 @@ function baseUrlOf(value: string): string {
 
 const tooLarge = () => new VoiceError("audio_too_large", 413, `A recording may hold at most ${VOICE_MAX_AUDIO_BYTES} bytes`);
 
-async function readLimited(request: Request, limit: number): Promise<Uint8Array<ArrayBuffer>> {
-  if (!request.body) return new Uint8Array();
-  const reader = request.body.getReader();
+async function readLimited(source: Request | Response, limit: number, over: () => Error = tooLarge): Promise<Uint8Array<ArrayBuffer>> {
+  if (!source.body) return new Uint8Array();
+  const reader = source.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > limit) { await reader.cancel(); throw tooLarge(); }
+    if (size > limit) { await reader.cancel(); throw over(); }
     chunks.push(value);
   }
   const body = new Uint8Array(size);
   let at = 0;
   for (const chunk of chunks) { body.set(chunk, at); at += chunk.byteLength; }
   return body;
-}
-
-/** the body as text, or a throw past `limit` bytes */
-async function readCapped(response: Response, limit: number): Promise<string> {
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let size = 0;
-  let out = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) { await reader.cancel(); throw new Error("too large"); }
-    out += decoder.decode(value, { stream: true });
-  }
-  return out + decoder.decode();
 }
 
 /** a provider's words for a failure, without the key it may quote back */
@@ -352,14 +335,17 @@ export class VoiceService {
       const target = typeof change["base_url"] === "string" && change["base_url"].trim() ? baseUrlOf(change["base_url"]) : VOICE_DEFAULTS.base_url;
       const moved = target !== (next.base_url ?? VOICE_DEFAULTS.base_url);
       if (next.api_key && moved && typeof change["api_key"] !== "string") {
-        // Leaving a URL the rules now refuse is allowed without the key, but the key stays behind:
-        // it is dropped, so it never reaches the new server and "Use OpenAI defaults" always works.
-        if (storedBaseError(next.base_url) === null) throw invalid("Send api_key with base_url: a saved key is not sent to another server");
+        // The key stays where it was saved for. Going back to OpenAI's default, or leaving a URL the
+        // rules now refuse, is still allowed without the key: it is dropped, so it never reaches the
+        // new server ("Use OpenAI defaults" always works, and the client says the key is gone).
+        // Any other move takes the key again.
+        if (target !== VOICE_DEFAULTS.base_url && storedBaseError(next.base_url) === null) throw invalid("Send api_key with base_url: a saved key is not sent to another server");
         delete next.api_key;
       }
-      // Tidy needs a model of the server it is saved for: the OpenAI default one is not, so a custom
-      // server stays untidied until a Tidy model is chosen with it.
-      if (target !== VOICE_DEFAULTS.base_url && change["polish_model"] === undefined && change["polish_enabled"] === undefined) next.polish_enabled = false;
+      // Tidy needs a model of the server it is saved for: the OpenAI default one is not. Moving to a
+      // custom server without choosing one in the same save leaves Tidy off; a later save on the same
+      // server never changes it.
+      if (moved && target !== VOICE_DEFAULTS.base_url && change["polish_model"] === undefined && change["polish_enabled"] === undefined) next.polish_enabled = false;
     }
     for (const field of FIELDS) {
       const value = change[field];
@@ -421,7 +407,14 @@ export class VoiceService {
     if (response.status === 404) throw new VoiceError("models_unsupported", 502, "The server has no model list (GET /models answered 404)");
     if (!response.ok) throw new VoiceError("models_unreachable", 502, scrub(`The server answered ${response.status}`, key));
     let data: unknown;
-    try { data = record(JSON.parse(await readCapped(response, MODELS_MAX_BYTES)))["data"]; } catch { throw new VoiceError("models_unsupported", 502, "The server's model list is not JSON"); }
+    let raw: string;
+    try {
+      raw = new TextDecoder().decode(await readLimited(response, MODELS_MAX_BYTES, () => new VoiceError("models_unsupported", 502, "The server's model list is too large")));
+    } catch (error) {
+      if (error instanceof VoiceError) throw error;
+      throw new VoiceError("models_unreachable", 502, scrub(`The model list did not arrive${signal?.aborted ? "" : " in time"}: ${error instanceof Error ? error.message : String(error)}`, key));
+    }
+    try { data = record(JSON.parse(raw))["data"]; } catch { throw new VoiceError("models_unsupported", 502, "The server's model list is not JSON"); }
     if (!Array.isArray(data)) throw new VoiceError("models_unsupported", 502, "The server's model list has no data array");
     const ids = data.map((item) => text(record(item)["id"])).filter((id): id is string => id !== null);
     return { models: [...new Set(ids)].sort((a, b) => a.localeCompare(b)) };

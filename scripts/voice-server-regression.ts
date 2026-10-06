@@ -23,6 +23,7 @@ if (shots) mkdirSync(shots, { recursive: true });
 let modelRequests = 0;
 let emptyModels = false;
 let slowModels = false;
+let textOnly = false;
 const provider = Bun.serve({
   hostname: "127.0.0.1", port: 0,
   fetch(request) {
@@ -30,6 +31,7 @@ const provider = Bun.serve({
     if (request.headers.get("authorization") !== `Bearer ${KEY}`) return Response.json({ error: { message: "bad key" } }, { status: 401 });
     if (pathname === "/v1/models") modelRequests += 1;
     if (pathname === "/v1/models" && slowModels) return new Promise((resolve) => setTimeout(() => resolve(Response.json({ data: [{ id: "late-whisper" }] })), 600));
+    if (pathname === "/v1/models" && textOnly) return Response.json({ data: [{ id: "gemma4-12b" }, { id: "gpt-oss-120b" }] });
     if (pathname === "/v1/models" && emptyModels) return Response.json({ data: [] });
     if (pathname === "/v1/models") return Response.json({ data: ["gpt-oss-120b", "gemma4-12b", "whisper-ptbr", "whisper-ptbr-simples"].map((id) => ({ id })) });
     if (pathname === "/v1/audio/transcriptions") return Response.json({ text: "ok" });
@@ -154,6 +156,15 @@ try {
   emptyModels = false;
   console.log("PASS zero models keeps free-text fields with their values");
 
+  // a server with no speech-to-text id: nothing is preselected, the fields stay as they are
+  textOnly = true;
+  await page.getByRole("button", { name: "Test and list models" }).click();
+  await page.getByRole("alert").filter({ hasText: "No speech-to-text model found on this server" }).waitFor();
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).evaluate((el) => el.tagName), "INPUT");
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).inputValue(), "whisper-ptbr");
+  textOnly = false;
+  console.log("PASS a server without speech-to-text models keeps the fields as text");
+
   // editing the URL or the key drops the list: free text again, with the current values
   await page.getByRole("button", { name: "Test and list models" }).click();
   await page.getByText("4 models found").waitFor();
@@ -194,6 +205,14 @@ try {
   assert.ok(overflow.dialog <= 0, `nothing in Voice input is wider than the phone (${overflow.dialog})`);
   if (shots) await small.locator(".voice-group", { has: small.getByRole("heading", { name: "Transcription server" }) }).screenshot({ path: join(shots, "390-card.png") });
   console.log("PASS the card fits a 390px phone without horizontal scroll");
+
+  // Use OpenAI defaults with a custom server and no typed key: the key is dropped, and the card says so
+  await page.getByLabel("API key", { exact: true }).fill("");
+  await page.getByRole("button", { name: "Use OpenAI defaults" }).click();
+  await page.getByText("The saved key was removed so it is not sent to OpenAI").waitFor();
+  await page.locator(".voice-status").getByText("No key saved").waitFor();
+  assert.equal(JSON.parse(readFileSync(join(root, "state", "voice.json"), "utf8")).api_key, undefined);
+  console.log("PASS Use OpenAI defaults drops the key kept for the custom server and says so");
 
   assert.deepEqual(errors, [], "no page errors");
 } finally {

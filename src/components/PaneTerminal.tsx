@@ -381,6 +381,10 @@ export function PaneTerminal({
     // a split tab's pane: the font scales to the box, the grid is herdr's (see `follow`)
     host.toggleAttribute("data-follow-grid", followRef.current);
     let fontFrame: number | null = null;
+    // whole-pixel cells make the scaled size bounce between two values: a settle takes at most a
+    // few passes and never grows again once it had to shrink
+    let fontPasses = 0;
+    let fontShrank = false;
     const fitFont = (): void => {
       fontFrame = null;
       const screen = term.element?.querySelector<HTMLElement>(".xterm-screen");
@@ -392,14 +396,18 @@ export function PaneTerminal({
       };
       const size = term.options.fontSize ?? terminalFontSize;
       const next = fittedFontSize(size, { width: screen.offsetWidth, height: screen.offsetHeight }, room);
-      if (next !== size) {
-        term.options.fontSize = next;
-        // the cell is measured again once the font applies: one more pass settles on it
-        fontFrame = window.requestAnimationFrame(fitFont);
-      }
+      if (next === size || fontPasses >= 4 || (fontShrank && next > size)) return;
+      fontPasses += 1;
+      if (next < size) fontShrank = true;
+      term.options.fontSize = next;
+      // the cell is measured again once the font applies: one more pass settles on it
+      fontFrame = window.requestAnimationFrame(fitFont);
     };
     const fitFontSoon = (): void => {
-      if (followRef.current && fontFrame === null) fontFrame = window.requestAnimationFrame(fitFont);
+      if (!followRef.current || fontFrame !== null) return;
+      fontPasses = 0;
+      fontShrank = false;
+      fontFrame = window.requestAnimationFrame(fitFont);
     };
     fitFontRef.current = fitFontSoon;
     const onGridResize = term.onResize(fitFontSoon);

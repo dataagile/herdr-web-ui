@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { VOICE_DEFAULTS, type VoiceConfigUpdate, type VoiceStatus } from "../../shared/voice.ts";
 import { fetchVoiceModels, saveVoiceConfig } from "../lib/api.ts";
 import { useT } from "../lib/i18n.ts";
 import { VOICE_CONFIG_EVENT } from "../lib/voice.ts";
-import { voiceFieldsOf, voiceHost, voiceModelChoices, voiceSaveBody } from "../lib/voiceServer.ts";
+import { voiceFieldsOf, voiceHost, voiceModelChoices, voicePartition, voiceSaveBody } from "../lib/voiceServer.ts";
 
 /** codes are ISO 639-1; names are written in their own language, as in a language picker */
 const LANGUAGES = [["pt", "Português"], ["en", "English"], ["es", "Español"], ["ko", "한국어"], ["ja", "日本語"], ["zh", "中文"]] as const;
@@ -23,6 +23,8 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // a Test's answer counts only while the fields it was asked with are still the fields
+  const testId = useRef(0);
   const [error, setError] = useState<string | null>(null);
 
   // the fields start from, and return to, what the server says it holds
@@ -36,12 +38,17 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
     setModels(null);
   }, [voice]);
 
+  /** the fields the list was made from changed (or a save started): it no longer describes them */
+  const invalidateList = () => { testId.current += 1; setTesting(false); setModels(null); setTestError(null); };
+
   const test = async () => {
+    const id = ++testId.current;
     setTesting(true);
     setTestError(null);
     try {
       // exactly the URL in the field: empty is OpenAI's, never the saved server (whose key it would take)
       const ids = await fetchVoiceModels({ base_url: url.trim() || VOICE_DEFAULTS.base_url, ...(key.trim() ? { api_key: key.trim() } : {}) });
+      if (id !== testId.current) return;
       if (ids.length === 0) {
         // the fields stay as they are, saved model included
         setModels(null);
@@ -55,12 +62,14 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
       }
       setModels(ids);
     } catch (e) {
+      if (id !== testId.current) return;
       setModels(null);
       setTestError(e instanceof Error ? e.message : String(e));
-    } finally { setTesting(false); }
+    } finally { if (id === testId.current) setTesting(false); }
   };
 
   const send = async (update: VoiceConfigUpdate) => {
+    invalidateList();
     setBusy(true);
     try {
       // the save answers the new status itself: no second request that could fail after it
@@ -80,7 +89,7 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
     base_url: null, transcribe_model: null, polish_model: null, polish_enabled: null, language: null,
   });
 
-  const choices = models && voice ? voiceModelChoices(models, { transcribe: transcribeModel, polish: polishModel }, { transcribe: transcribeModel, polish: polishModel || null }) : null;
+  const choices = models ? voicePartition(models) : null;
   const fromEnv = voice?.source === "env";
   const host = voice ? voiceHost(voice.base_url) : "";
 
@@ -88,7 +97,7 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
     <div className="voice-group">
       <h4 className="voice-group-title">{t("Transcription server")}</h4>
       <div className="voice-group-body">
-        {voice && (
+        {voice && !voice.error && (
           <p className="settings-hint voice-status">
             {!voice.configured
               ? t("No key saved: the browser's speech recognition is used")
@@ -101,10 +110,10 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
         {voice && !fromEnv && (
           <form className="voice-server" onSubmit={(event) => { event.preventDefault(); save(); }}>
             <label className="voice-field"><span className="field-label">{t("Server URL")}</span>
-              <input className="input" type="text" inputMode="url" value={url} placeholder={VOICE_DEFAULTS.base_url} autoComplete="off" spellCheck={false} autoCapitalize="off" autoCorrect="off" onChange={(event) => setUrl(event.target.value)} />
+              <input className="input" type="text" inputMode="url" value={url} placeholder={voice.error ? voice.base_url : VOICE_DEFAULTS.base_url} autoComplete="off" spellCheck={false} autoCapitalize="off" autoCorrect="off" onChange={(event) => { setUrl(event.target.value); invalidateList(); }} />
             </label>
             <label className="voice-field"><span className="field-label">{t("API key")}</span>
-              <input className="input" type="password" value={key} placeholder={voice.configured ? "••••" : "sk-..."} autoComplete="off" spellCheck={false} autoCapitalize="off" autoCorrect="off" onChange={(event) => setKey(event.target.value)} />
+              <input className="input" type="password" value={key} placeholder={voice.key_stored ? "••••" : "sk-..."} autoComplete="off" spellCheck={false} autoCapitalize="off" autoCorrect="off" onChange={(event) => { setKey(event.target.value); invalidateList(); }} />
             </label>
             <div className="voice-test">
               <button type="button" className="btn" disabled={testing || busy} onClick={() => void test()}>{testing ? t("Testing…") : t("Test and list models")}</button>
@@ -138,9 +147,9 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
               </select>
             </label>
             <div className="voice-actions">
-              <button type="submit" className="btn btn-primary" disabled={busy}>{t("Save")}</button>
+              <button type="submit" className="btn btn-primary" disabled={busy || testing}>{t("Save")}</button>
               <button type="button" className="btn" disabled={busy} onClick={useDefaults}>{t("Use OpenAI defaults")}</button>
-              <button type="button" className="btn btn-ghost" disabled={busy || !voice.configured} onClick={() => void send({ api_key: null })}>{t("Remove key")}</button>
+              <button type="button" className="btn btn-ghost" disabled={busy || !voice.key_stored} onClick={() => void send({ api_key: null })}>{t("Remove key")}</button>
             </div>
           </form>
         )}

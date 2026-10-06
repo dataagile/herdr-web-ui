@@ -83,7 +83,7 @@ describe("voice config", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({
-      configured: false, source: null, base_url: "https://api.openai.com/v1", transcribe_model: "gpt-transcribe", polish_model: "gpt-6-luna",
+      configured: false, key_stored: false, source: null, base_url: "https://api.openai.com/v1", transcribe_model: "gpt-transcribe", polish_model: "gpt-6-luna",
       polish_enabled: true, language: null, error: null,
     } satisfies VoiceStatus);
   });
@@ -493,5 +493,86 @@ describe("voice saved settings", () => {
     expect(requests).toHaveLength(0);
     // typing a new URL with the key again repairs it
     expect(voice.update({ api_key: KEY2, base_url: "https://example.com/v1" })).toMatchObject({ configured: true, error: null });
+  });
+});
+
+describe("voice custom server defaults", () => {
+  it("saving a custom server without a Tidy model stores Tidy off and never calls chat/completions", async () => {
+    handler = (url) => url.endsWith("/audio/transcriptions") ? transcriptAnswer() : Response.json({ choices: [{ message: { content: "tidy" } }] });
+    const voice = service();
+    const saved = voice.update({ api_key: KEY, base_url: "http://100.114.70.4:4000/v1" });
+    expect(saved).toMatchObject({ polish_enabled: false, base_url: "http://100.114.70.4:4000/v1" });
+    const lines = await events(await transcribe(voice, clipForm({ polish: "1" })));
+    expect(lines.some((event) => event.type === "polished")).toBe(false);
+    expect(requests.map((request) => request.url)).toEqual(["http://100.114.70.4:4000/v1/audio/transcriptions"]);
+  });
+
+  it("keeps Tidy on when a Tidy model is saved with the server, and for OpenAI's own", () => {
+    const voice = service();
+    expect(voice.update({ api_key: KEY, base_url: "http://127.0.0.1:4000/v1", polish_model: "gemma4-12b", polish_enabled: true })).toMatchObject({ polish_enabled: true, polish_model: "gemma4-12b" });
+    expect(voice.update({ api_key: KEY, base_url: null, polish_enabled: null }).polish_enabled).toBe(true);
+    expect(service().update({ api_key: KEY }).polish_enabled).toBe(true);
+  });
+});
+
+describe("voice refused stored URL", () => {
+  const refuse = () => writeFileSync(join(stateDir, "voice.json"), JSON.stringify({ api_key: "sk-stored-123456", base_url: "http://public.example.com/v1" }));
+
+  it("reports the key as stored, lets it be removed", () => {
+    refuse();
+    const voice = service();
+    expect(voice.status()).toMatchObject({ configured: false, key_stored: true });
+    expect(voice.status().error).not.toBeNull();
+    expect(voice.update({ api_key: null })).toMatchObject({ key_stored: false });
+  });
+
+  it("moving away without the key drops the key, with it Use OpenAI defaults works", () => {
+    refuse();
+    const voice = service();
+    expect(voice.update({ base_url: null })).toMatchObject({ configured: false, key_stored: false, error: null, base_url: "https://api.openai.com/v1" });
+    refuse();
+    expect(service().update({ base_url: "https://example.com/v1" })).toMatchObject({ key_stored: false, error: null });
+    expect(JSON.parse(readFileSync(join(stateDir, "voice.json"), "utf8"))).not.toHaveProperty("api_key");
+  });
+
+  it("typing the key with the URL repairs it", () => {
+    refuse();
+    expect(service().update({ api_key: KEY, base_url: null })).toMatchObject({ configured: true, error: null });
+  });
+});
+
+describe("voice models limits", () => {
+  it("drops the upstream request when the client's goes", async () => {
+    let upstream: AbortSignal | undefined;
+    handler = (_url, init) => new Promise<Response>((_resolve, reject) => {
+      upstream = init.signal ?? undefined;
+      upstream?.addEventListener("abort", () => reject(upstream!.reason));
+    });
+    const client = new AbortController();
+    const pending = service().models({ api_key: KEY }, client.signal).catch((error: Error) => error);
+    await Bun.sleep(5);
+    expect(upstream?.aborted).toBe(false);
+    client.abort();
+    expect(upstream?.aborted).toBe(true);
+    expect(await pending).toBeInstanceOf(Error);
+  });
+
+  it("refuses a model list past 1 MB", async () => {
+    handler = () => new Response(JSON.stringify({ data: [{ id: "a".repeat(1024 * 1024 + 10) }] }));
+    const response = await modelsOf(service(), { api_key: KEY });
+    expect(await response.json()).toMatchObject({ error: { code: "models_unsupported" } });
+  });
+
+  it("takes the env base_url, spelled differently, with the saved key", async () => {
+    writeFileSync(join(stateDir, "voice.json"), JSON.stringify({ api_key: KEY }));
+    handler = () => Response.json({ data: [{ id: "m" }] });
+    const voice = service({ HERDR_WEB_OPENAI_BASE_URL: "HTTP://Public.Example.com:80/v1/" });
+    expect(voice.status().base_url).toBe("http://public.example.com/v1");
+    const response = await modelsOf(voice, { base_url: "http://public.example.com/v1" });
+    expect(response.status).toBe(200);
+    expect(requests[0]!.url).toBe("http://public.example.com/v1/models");
+    expect(new Headers(requests[0]!.init.headers).get("authorization")).toBe(`Bearer ${KEY}`);
+    // any other public http URL still takes the rules
+    expect((await modelsOf(voice, { base_url: "http://other.example.com/v1" })).status).toBe(400);
   });
 });

@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { createServer } from "../server/index.ts";
 import { UsageService } from "../server/usage.ts";
+import { VoiceService } from "../server/voice.ts";
 
 const KEY = "sk-fake-provider-key";
 const root = realpathSync(mkdtempSync(join(tmpdir(), "herdr-web-ui-voice-browser-")));
@@ -21,12 +22,14 @@ if (shots) mkdirSync(shots, { recursive: true });
 
 let modelRequests = 0;
 let emptyModels = false;
+let slowModels = false;
 const provider = Bun.serve({
   hostname: "127.0.0.1", port: 0,
   fetch(request) {
     const { pathname } = new URL(request.url);
     if (request.headers.get("authorization") !== `Bearer ${KEY}`) return Response.json({ error: { message: "bad key" } }, { status: 401 });
     if (pathname === "/v1/models") modelRequests += 1;
+    if (pathname === "/v1/models" && slowModels) return new Promise((resolve) => setTimeout(() => resolve(Response.json({ data: [{ id: "late-whisper" }] })), 600));
     if (pathname === "/v1/models" && emptyModels) return Response.json({ data: [] });
     if (pathname === "/v1/models") return Response.json({ data: ["gpt-oss-120b", "gemma4-12b", "whisper-ptbr", "whisper-ptbr-simples"].map((id) => ({ id })) });
     if (pathname === "/v1/audio/transcriptions") return Response.json({ text: "ok" });
@@ -35,7 +38,9 @@ const provider = Bun.serve({
 });
 const providerUrl = `http://127.0.0.1:${provider.port}/v1`;
 const providerHost = `127.0.0.1:${provider.port}`;
-const server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(root, "state"), usage: new UsageService(undefined, []) });
+// its own env: nothing from the shell reaches the voice settings
+const voice = new VoiceService({ stateDir: join(root, "state"), env: {}, fetch });
+const server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(root, "state"), voice, usage: new UsageService(undefined, []) });
 const origin = `http://127.0.0.1:${server.port}`;
 let browser: Browser | undefined;
 const errors: string[] = [];
@@ -148,6 +153,27 @@ try {
   assert.equal(await page.getByLabel("Transcription model", { exact: true }).inputValue(), "whisper-ptbr", "the model is not cleared");
   emptyModels = false;
   console.log("PASS zero models keeps free-text fields with their values");
+
+  // editing the URL or the key drops the list: free text again, with the current values
+  await page.getByRole("button", { name: "Test and list models" }).click();
+  await page.getByText("4 models found").waitFor();
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).evaluate((el) => el.tagName), "SELECT");
+  await page.getByLabel("API key", { exact: true }).fill("x");
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).evaluate((el) => el.tagName), "INPUT");
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).inputValue(), "whisper-ptbr");
+  await page.getByLabel("API key", { exact: true }).fill(KEY);
+  console.log("PASS editing the URL or key reverts the model fields to free text");
+
+  // a Test that answers after the fields changed is ignored, and Save waits for a running Test
+  slowModels = true;
+  await page.getByRole("button", { name: "Test and list models" }).click();
+  assert.equal(await page.getByRole("button", { name: "Save", exact: true }).isDisabled(), true, "Save is off while a Test runs");
+  await page.getByLabel("API key", { exact: true }).fill("");
+  await page.waitForTimeout(900);
+  assert.equal(await page.getByLabel("Transcription model", { exact: true }).evaluate((el) => el.tagName), "INPUT", "the late list is ignored");
+  assert.equal(await page.getByText(/models found/).count(), 0);
+  slowModels = false;
+  console.log("PASS a Test that resolves after a field change is ignored");
 
   // a phone: the card fits and nothing scrolls sideways
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

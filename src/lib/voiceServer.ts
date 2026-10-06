@@ -3,6 +3,11 @@ import { VOICE_DEFAULTS, VOICE_FORK_MODELS, type VoiceConfigUpdate, type VoiceSt
 /** ids a transcription endpoint is likely to serve: listed first, under "Speech-to-text" */
 const SPEECH_MODEL = /whisper|transcri|speech|stt/i;
 
+/** the ids a transcription endpoint is likely to serve, apart from the rest */
+export function voicePartition(ids: readonly string[]): { speech: string[]; other: string[] } {
+  return { speech: ids.filter((id) => SPEECH_MODEL.test(id)), other: ids.filter((id) => !SPEECH_MODEL.test(id)) };
+}
+
 export interface VoiceModelChoices {
   speech: string[];
   other: string[];
@@ -23,8 +28,7 @@ export function voiceModelChoices(
   current: { transcribe: string; polish: string },
   saved: { transcribe: string; polish: string | null },
 ): VoiceModelChoices {
-  const speech = ids.filter((id) => SPEECH_MODEL.test(id));
-  const other = ids.filter((id) => !SPEECH_MODEL.test(id));
+  const { speech, other } = voicePartition(ids);
   const listed = (id: string) => ids.includes(id);
   const transcribe = [current.transcribe, saved.transcribe, VOICE_FORK_MODELS.transcribe_model].find(listed) ?? speech[0] ?? ids[0] ?? "";
   const polish = current.polish === "" ? "" : listed(current.polish) ? current.polish : saved.polish !== null && listed(saved.polish) ? saved.polish : "";
@@ -37,7 +41,8 @@ export interface VoiceFields { url: string; key: string; transcribe: string; pol
 /** The fields as the server's status says it holds them: what "unchanged" means for a save. */
 export function voiceFieldsOf(status: VoiceStatus): VoiceFields {
   return {
-    url: status.base_url === VOICE_DEFAULTS.base_url ? "" : status.base_url,
+    // a URL the server refuses is not offered back as a value: it shows as the hint, and Save sends one
+    url: status.base_url === VOICE_DEFAULTS.base_url || status.error ? "" : status.base_url,
     key: "",
     transcribe: status.transcribe_model,
     polish: status.polish_enabled ? status.polish_model : "",
@@ -54,7 +59,7 @@ export function voiceSaveBody(status: VoiceStatus, fields: VoiceFields): VoiceCo
   const was = voiceFieldsOf(status);
   const body: VoiceConfigUpdate = {};
   if (fields.key.trim()) body.api_key = fields.key.trim();
-  if (fields.url.trim() !== was.url) body.base_url = fields.url.trim() || null;
+  if (status.error || fields.url.trim() !== was.url) body.base_url = fields.url.trim() || null;
   if (fields.transcribe.trim() !== was.transcribe) body.transcribe_model = fields.transcribe.trim() || null;
   if (fields.polish.trim() !== was.polish) {
     if (fields.polish.trim()) { body.polish_model = fields.polish.trim(); body.polish_enabled = true; } else body.polish_enabled = false;

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { VoiceStatus } from "../../shared/voice.ts";
-import { voiceFieldsOf, voiceHost, voiceModelChoices, voiceSaveBody } from "./voiceServer.ts";
+import { voiceFieldsOf, voiceHost, voiceModelChoices, voicePartition, voiceSaveBody } from "./voiceServer.ts";
 
 const IDS = ["gemma4-12b", "gpt-6-luna", "whisper-ptbr", "whisper-ptbr-simples", "my-stt"];
 const was = (over: Partial<VoiceStatus> = {}): VoiceStatus => ({
   configured: true, source: "file", base_url: "https://api.openai.com/v1", transcribe_model: "gpt-transcribe", polish_model: "gpt-6-luna",
-  polish_enabled: true, language: null, error: null, ...over,
+  polish_enabled: true, language: null, error: null, key_stored: true, ...over,
 });
 
 describe("voiceModelChoices", () => {
@@ -50,6 +50,21 @@ describe("voiceSaveBody", () => {
       base_url: null, transcribe_model: "whisper-ptbr", polish_model: "gemma4-12b", polish_enabled: true,
     });
     expect(voiceSaveBody(status, { ...fields, polish: "" })).toEqual({ polish_enabled: false });
+  });
+});
+
+describe("a refused saved URL", () => {
+  const refused = was({ configured: false, base_url: "http://public.example.com/v1", error: "refused" });
+  it("starts the URL field empty and always sends base_url with the typed key", () => {
+    expect(voiceFieldsOf(refused).url).toBe("");
+    expect(voiceSaveBody(refused, { ...voiceFieldsOf(refused), key: "sk-k" })).toMatchObject({ api_key: "sk-k", base_url: null });
+    expect(voiceSaveBody(refused, { ...voiceFieldsOf(refused), key: "sk-k", url: "https://x.example/v1" })).toMatchObject({ api_key: "sk-k", base_url: "https://x.example/v1" });
+  });
+});
+
+describe("voicePartition", () => {
+  it("splits speech-to-text ids from the rest", () => {
+    expect(voicePartition(IDS)).toEqual({ speech: ["whisper-ptbr", "whisper-ptbr-simples", "my-stt"], other: ["gemma4-12b", "gpt-6-luna"] });
   });
 });
 

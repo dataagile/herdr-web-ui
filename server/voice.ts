@@ -21,6 +21,8 @@ type VoiceFile = Partial<Record<Field, string>> & { polish_enabled?: false };
 const UPDATE_FIELDS: readonly string[] = [...FIELDS, "polish_enabled"];
 const LANGUAGE_PATTERN = /^[a-z]{2}$/;
 const MODELS_TIMEOUT_MS = 10_000;
+/** a model list is a few KB; a server that sends more is not one */
+const MODELS_MAX_BYTES = 1024 * 1024;
 
 /** without a language from the client: the app's first users dictate Korean with English code terms */
 const DEFAULT_LANGUAGE = "ko";
@@ -112,6 +114,19 @@ function isPrivateHost(hostname: string): boolean {
   return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
 }
 
+/** the one spelling the saved, env and typed URLs are compared in; no rule is applied */
+function normalizedBase(value: string): string | null {
+  try { return new URL(value.trim()).href.replace(/\/+$/, ""); } catch { return null; }
+}
+
+/** why a stored base_url may not get the key, or null: the rules can change after it was saved */
+function storedBaseError(base: string | undefined): string | null {
+  if (!base) return null;
+  try { baseUrlOf(base); return null; } catch (failure) {
+    return `The saved Server URL is not allowed (${failure instanceof Error ? failure.message : String(failure)}). Enter a Server URL and the key again.`;
+  }
+}
+
 function baseUrlOf(value: string): string {
   let url: URL;
   try { url = new URL(value.trim()); } catch { throw invalid("base_url must be an http(s) URL"); }
@@ -140,6 +155,23 @@ async function readLimited(request: Request, limit: number): Promise<Uint8Array<
   let at = 0;
   for (const chunk of chunks) { body.set(chunk, at); at += chunk.byteLength; }
   return body;
+}
+
+/** the body as text, or a throw past `limit` bytes */
+async function readCapped(response: Response, limit: number): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let out = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) { await reader.cancel(); throw new Error("too large"); }
+    out += decoder.decode(value, { stream: true });
+  }
+  return out + decoder.decode();
 }
 
 /** a provider's words for a failure, without the key it may quote back */
@@ -230,7 +262,7 @@ export function parseClip(form: FormData): VoiceClip {
 
 
   const language = form.get(VOICE_FORM.language);
-  if (language !== null && (typeof language !== "string" || !/^[a-z]{2}$/.test(language))) throw invalid("language must be a two-letter ISO 639-1 code");
+  if (language !== null && (typeof language !== "string" || !LANGUAGE_PATTERN.test(language))) throw invalid("language must be a two-letter ISO 639-1 code");
   const languages = [...new Set([language ?? DEFAULT_LANGUAGE, "en"])];
 
   return { audio, filename: `audio.${extension}`, mode, polish: form.get(VOICE_FORM.polish) === "1", keywords, languages };
@@ -278,16 +310,12 @@ export class VoiceService {
     const storedBase = envKey ? undefined : file.base_url;
     // The env's base is the operator's and is trusted as set. A stored one is checked again on every
     // read: a rule added after it was saved must not let the key travel to a server it now refuses.
-    let error: string | null = null;
-    if (!envBase && storedBase) {
-      try { baseUrlOf(storedBase); } catch (failure) {
-        error = `The saved Server URL is not allowed (${failure instanceof Error ? failure.message : String(failure)}). Enter a Server URL and the key again.`;
-      }
-    }
+    const error = envBase ? null : storedBaseError(storedBase);
     return {
       error,
+      keyStored: (envKey ?? file.api_key) !== undefined,
       key: error ? null : envKey ?? file.api_key ?? null,
-      base: envBase ? envBase.replace(/\/+$/, "") : storedBase ?? VOICE_DEFAULTS.base_url,
+      base: envBase ? normalizedBase(envBase) ?? envBase.replace(/\/+$/, "") : storedBase ?? VOICE_DEFAULTS.base_url,
       transcribeModel: file.transcribe_model ?? VOICE_DEFAULTS.transcribe_model,
       polishModel: file.polish_model ?? VOICE_DEFAULTS.polish_model,
       polishEnabled: file.polish_enabled !== false,
@@ -300,6 +328,7 @@ export class VoiceService {
     const current = this.settings(file);
     return {
       configured: current.key !== null,
+      key_stored: current.keyStored,
       source: text(this.env[ENV_KEY]) ? "env" : file.api_key ? "file" : null,
       base_url: current.base,
       transcribe_model: current.transcribeModel,
@@ -322,7 +351,15 @@ export class VoiceService {
       if (text(this.env[ENV_KEY])) throw new VoiceError("key_from_env", 409, `${ENV_KEY} sets the key; its server is set by ${ENV_BASE_URL}`);
       const target = typeof change["base_url"] === "string" && change["base_url"].trim() ? baseUrlOf(change["base_url"]) : VOICE_DEFAULTS.base_url;
       const moved = target !== (next.base_url ?? VOICE_DEFAULTS.base_url);
-      if (next.api_key && moved && typeof change["api_key"] !== "string") throw invalid("Send api_key with base_url: a saved key is not sent to another server");
+      if (next.api_key && moved && typeof change["api_key"] !== "string") {
+        // Leaving a URL the rules now refuse is allowed without the key, but the key stays behind:
+        // it is dropped, so it never reaches the new server and "Use OpenAI defaults" always works.
+        if (storedBaseError(next.base_url) === null) throw invalid("Send api_key with base_url: a saved key is not sent to another server");
+        delete next.api_key;
+      }
+      // Tidy needs a model of the server it is saved for: the OpenAI default one is not, so a custom
+      // server stays untidied until a Tidy model is chosen with it.
+      if (target !== VOICE_DEFAULTS.base_url && change["polish_model"] === undefined && change["polish_enabled"] === undefined) next.polish_enabled = false;
     }
     for (const field of FIELDS) {
       const value = change[field];
@@ -346,14 +383,19 @@ export class VoiceService {
    * The model ids of an OpenAI-compatible server. A key typed in `request` goes to the server typed
    * with it (or OpenAI's); with none, only the saved key is used, and only for the saved server.
    */
-  async models(request: unknown): Promise<VoiceModelsResponse> {
+  async models(request: unknown, signal?: AbortSignal): Promise<VoiceModelsResponse> {
     if (!isJsonObject(request)) throw invalid("Send a JSON object");
     const body: VoiceModelsRequest = request;
     const typedKey = body.api_key === undefined || body.api_key === null ? null : text(body.api_key);
     if (body.api_key !== undefined && body.api_key !== null && (typedKey === null || /\s/.test(typedKey))) throw invalid("api_key must be a non-empty string without spaces");
     if (body.base_url !== undefined && body.base_url !== null && typeof body.base_url !== "string") throw invalid("base_url must be a string");
-    const typedBase = typeof body.base_url === "string" && body.base_url.trim() ? baseUrlOf(body.base_url) : null;
     const saved = this.settings(this.read());
+    let typedBase: string | null = null;
+    if (typeof body.base_url === "string" && body.base_url.trim()) {
+      // the server the key is already bound to needs no new check, unless that very URL is refused
+      const same = normalizedBase(body.base_url);
+      typedBase = same !== null && same === saved.base && saved.error === null ? same : baseUrlOf(body.base_url);
+    }
     let key: string;
     let base: string;
     if (typedKey) {
@@ -369,7 +411,7 @@ export class VoiceService {
     let response: Response;
     try {
       response = await this.fetch(`${base}/models`, {
-        method: "GET", headers: { authorization: `Bearer ${key}` }, redirect: "error", signal: AbortSignal.timeout(this.modelsTimeoutMs),
+        method: "GET", headers: { authorization: `Bearer ${key}` }, redirect: "error", signal: AbortSignal.any([AbortSignal.timeout(this.modelsTimeoutMs), ...(signal ? [signal] : [])]),
       });
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
@@ -379,7 +421,7 @@ export class VoiceService {
     if (response.status === 404) throw new VoiceError("models_unsupported", 502, "The server has no model list (GET /models answered 404)");
     if (!response.ok) throw new VoiceError("models_unreachable", 502, scrub(`The server answered ${response.status}`, key));
     let data: unknown;
-    try { data = record(await response.json())["data"]; } catch { throw new VoiceError("models_unsupported", 502, "The server's model list is not JSON"); }
+    try { data = record(JSON.parse(await readCapped(response, MODELS_MAX_BYTES)))["data"]; } catch { throw new VoiceError("models_unsupported", 502, "The server's model list is not JSON"); }
     if (!Array.isArray(data)) throw new VoiceError("models_unsupported", 502, "The server's model list has no data array");
     const ids = data.map((item) => text(record(item)["id"])).filter((id): id is string => id !== null);
     return { models: [...new Set(ids)].sort((a, b) => a.localeCompare(b)) };
@@ -485,7 +527,7 @@ export async function handleVoiceRequest(request: Request, pathname: string, ser
     if (request.method !== "POST") return jsonResponse({ error: { code: "method_not_allowed", message: "Use POST /api/voice/models" } }, 405, { allow: "POST" });
     let body: unknown;
     try { body = await request.json(); } catch { return voiceError(invalid("Send a JSON object")); }
-    try { return jsonResponse(await service.models(body), 200, noStore); } catch (error) { return voiceError(error); }
+    try { return jsonResponse(await service.models(body, request.signal), 200, noStore); } catch (error) { return voiceError(error); }
   }
   if (pathname === "/api/voice/transcribe") {
     if (request.method !== "POST") return jsonResponse({ error: { code: "method_not_allowed", message: "Use POST /api/voice/transcribe" } }, 405, { allow: "POST" });

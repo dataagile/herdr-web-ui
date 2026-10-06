@@ -187,10 +187,9 @@ try {
   assert.equal(await page.locator(".tab-strip").count(), 0, "no strip over a lone pane's workspace");
   for (const fixture of [alpha, beta]) {
     // A single pane is its workspace: one row with the reorder handle, no heading or toggle above
-    // it. No header names the workspace, so line two does, with the folder unless the title
-    // already is that folder (a shell titled by its cwd).
-    const title = await page.locator(`${itemSelector(fixture.paneId)} .pane-title`).textContent();
-    assert.equal(await page.locator(`${itemSelector(fixture.paneId)} .pane-subtitle`).textContent(), title === "project" ? fixture.label : `${fixture.label} · project`);
+    // it. The row is named after the workspace; line two is the folder.
+    assert.equal(await page.locator(`${itemSelector(fixture.paneId)} .pane-title`).textContent(), fixture.label);
+    assert.equal(await page.locator(`${itemSelector(fixture.paneId)} .pane-subtitle`).textContent(), "project");
     const workspace = `.workspace:has(${paneSelector(fixture.paneId)})`;
     assert.equal(await page.locator(`${workspace} .workspace-header`).count(), 0);
     assert.equal(await page.locator(`${workspace} .workspace-toggle`).count(), 0);
@@ -318,7 +317,9 @@ try {
   assert.equal(await page.locator(`${shared} .directory-contents .workspace`).count(), 2);
   for (const fixture of [alpha, beta]) {
     assert.equal(await page.locator(`${shared} ${paneSelector(fixture.paneId)}`).count(), 1);
-    assert.equal(await page.locator(`${itemSelector(fixture.paneId)} .pane-subtitle`).textContent(), fixture.label);
+    // under a folder header the row is named after the workspace and the header says the folder
+    assert.equal(await page.locator(`${itemSelector(fixture.paneId)} .pane-title`).textContent(), fixture.label);
+    assert.equal(await page.locator(`${itemSelector(fixture.paneId)} .pane-subtitle`).count(), 0);
   }
   assert.equal(await page.locator(`${shared} > .directory-header .workspace-number`).textContent(), "2");
   assert.equal(await page.locator(distinct).count(), 1, "same basename in another parent stays separate");
@@ -390,27 +391,27 @@ try {
   await fold(false);
   console.log("PASS folding survives reload, ?pane unfolds, and status snapshots preserve deliberate folds");
 
-  // Given the grouped independent panes, When renaming one through its real
-  // row action, Then only that pane changes and the shared directory remains.
+  // Given the grouped independent workspaces, When renaming one through its real
+  // row action, Then only that workspace changes and the shared directory remains.
   const renamed = "directory-regression-renamed-alpha";
   await page.locator(itemSelector(alpha.paneId)).hover();
-  await changeState(page, [{ selector: ".pane-rename-input" }],
+  await changeState(page, [{ selector: ".workspace-rename-input" }],
     async () => {
       await page.locator(`${itemSelector(alpha.paneId)} .row-menu-toggle`).click();
-      await page.getByRole("menuitem", { name: "Rename pane", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Rename workspace", exact: true }).click();
     }, "rename editor opens");
-  await page.locator(".pane-rename-input").fill(renamed);
+  await page.locator(".workspace-rename-input").fill(renamed);
   const renameResponse = page.waitForResponse((response) => response.request().method() === "POST"
-    && new URL(response.url()).pathname.endsWith("/pane/rename")
-    && response.request().postDataJSON().pane_id === alpha.paneId);
+    && new URL(response.url()).pathname.endsWith("/workspace/rename")
+    && response.request().postDataJSON().workspace_id === alpha.workspaceId);
   await armState(page, [{ selector: `${itemSelector(alpha.paneId)} .pane-title`, text: renamed }]);
-  await page.locator(".pane-rename-input").press("Enter");
+  await page.locator(".workspace-rename-input").press("Enter");
   assert.equal((await renameResponse).status(), 200);
-  await stateReceived(page, "renamed pane rendered in its original directory");
+  await stateReceived(page, "renamed workspace rendered in its original directory");
   assert.equal(await page.locator(`${shared} .workspace`).count(), 2);
-  assert.equal(await page.locator(`${itemSelector(beta.paneId)} .pane-subtitle`).textContent(), beta.label);
+  assert.equal(await page.locator(`${itemSelector(beta.paneId)} .pane-title`).textContent(), beta.label);
   const renamedSnapshot = await sessionSnapshot();
-  assert.equal(renamedSnapshot.panes.find((pane) => pane.pane_id === alpha.paneId)?.label, renamed);
+  assert.equal(renamedSnapshot.workspaces.find((workspace) => workspace.workspace_id === alpha.workspaceId)?.label, renamed);
   assert.equal(renamedSnapshot.panes.find((pane) => pane.pane_id === beta.paneId)?.workspace_id, beta.workspaceId);
   console.log("PASS rename stays attached to its independent workspace inside the shared folder");
 

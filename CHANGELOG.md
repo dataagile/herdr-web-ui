@@ -48,6 +48,157 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 - `/api/fs/write` refuses an oversized body by `content-length` before reading it, instead of
   buffering and parsing it first.
 
+## [0.3.52] - 2026-10-06
+
+### Added
+- A PC whose connect or reconnect is refused on the bridge version check now offers
+  **Update bridge and connect** in its dialog, so a PC that was never registered — no sidebar
+  row, no saved key — can be updated and connected in one go, through the same approval list
+  a first install shows. ([#506](https://github.com/devswha/herdr-web-ui/pull/506) by @suho-han)
+- A lilac palette in Settings → Appearance → Colors: one quiet lavender with indigo ink and accent
+  in light, and the same hue at night in dark.
+  ([#443](https://github.com/devswha/herdr-web-ui/pull/443) by @WOULDU-pres)
+- New workspace's **Browse** filters the loaded folders in the current directory as you type.
+  Navigation clears the filter, and a truncated listing says when search covers only the first
+  500 folders. ([#430](https://github.com/devswha/herdr-web-ui/pull/430) by @suho-han)
+- The usage meters read OpenCode Go's limits too: its rolling session, the week and the month,
+  with the key OpenCode keeps in `~/.local/share/opencode/auth.json` (under `XDG_DATA_HOME`
+  when it is set) or the `OPENCODE_API_KEY` variable. An OpenCode key without a Go
+  subscription shows no meter.
+  ([#444](https://github.com/devswha/herdr-web-ui/pull/444) by @diogo7dias)
+
+### Changed
+- The README answers common questions about installation, Windows support, phone access,
+  privacy and deployment, in English, Korean, Japanese and Chinese.
+  ([#495](https://github.com/devswha/herdr-web-ui/pull/495))
+- The website says what it is for in its title and description (Claude Code and Codex from your
+  phone), answers seven common questions in a new FAQ section, and gives search engines a sitemap
+  and structured data for the app and the FAQ.
+  ([#497](https://github.com/devswha/herdr-web-ui/pull/497))
+- The website's headline is "Run herdr from anywhere.", and the page catches up with the app:
+  the Windows install command, pi among the native transcripts, the Alt key and a card for voice
+  input. Its figures now show the contributor count and the plugin's place by stars among herdr
+  plugin repositories, and the comparison with other phone clients was read again in October 2026.
+  ([#494](https://github.com/devswha/herdr-web-ui/pull/494))
+- On macOS a Codex pane's chat costs the server about a sixth of what it did on each poll (a
+  median of 16 ms instead of 103 ms, measured on two live Codex panes). The store a Codex process
+  writes to is remembered for its pid and arguments instead of being read with `ps` every 2 s,
+  and the rollout it has open is found with one `lsof` run for the pane's processes (a wrapper
+  and the binary are two) that skips the stat calls a name does not need.
+  ([#491](https://github.com/devswha/herdr-web-ui/pull/491) by @kilhyeonjun)
+- The app's startup script is a fifth smaller (408 kB to 331 kB gzipped, and 48 kB to 39 kB of
+  CSS): KaTeX, which draws math in the chat, loads with the first reply that has an expression.
+  Until it arrives, that expression shows in its source form, as it did when KaTeX could not read it.
+  ([#493](https://github.com/devswha/herdr-web-ui/pull/493) by @kilhyeonjun)
+
+### Fixed
+- A Claude Code pane started with its own `CLAUDE_CONFIG_DIR` (a launcher such as cac keeps one
+  store per environment) shows its chat. Before, only `~/.claude` was searched, so the chat was
+  unavailable and only the terminal worked. The store is read from the pane's Claude process, as
+  for Codex's `CODEX_HOME`, else from the server's own `CLAUDE_CONFIG_DIR`, else `~/.claude`.
+  On macOS the pane's session is also found from Claude's own process record when herdr's hook
+  has not reported one, as it already was on Linux. Node-based Claude processes reported by
+  their `argv0` title are recognized too.
+  ([#504](https://github.com/devswha/herdr-web-ui/pull/504) by @leo1oel)
+- With Language set to **System**, English stays selected when it is the browser's first
+  supported language, even if Japanese, Korean or Chinese appears later in its preferences.
+  Before, English was skipped in favor of a later supported language.
+  ([#496](https://github.com/devswha/herdr-web-ui/pull/496) by @snowykr)
+- An OmO pane's chat keeps a background task's title after the newest page moves past the prompt
+  that started the task, as 0.3.51 meant to. Before, the title was kept only when a transcript
+  deleted earlier had used the same inode (as Linux reuses them) and left its titles behind, and
+  such a transcript's titles could name another session's tasks with the same id.
+  ([#498](https://github.com/devswha/herdr-web-ui/pull/498) by @kilhyeonjun)
+- An OmO pane that asks you a question reads INPUT until you answer. Before, a question OmO
+  waits on read RUN, and one it asks without waiting (it keeps working, or ends its turn, with
+  the question folded over its input box) read RUN or DONE.
+  ([#488](https://github.com/devswha/herdr-web-ui/pull/488))
+- A question OmO asks without waiting gets its card in the chat: tap an option, or type a reply
+  to answer it. Before, the chat showed no card for it, so an option could only be picked in the
+  terminal. ([#488](https://github.com/devswha/herdr-web-ui/pull/488))
+- A Claude, omp or pi pane that has just started opens its chat on the greeting ("What should
+  Claude do in …?"), as an OmO pane already did. Before, until the first message the chat
+  showed the terminal's text or an empty line instead, so a new workspace or worktree never
+  greeted you. ([#500](https://github.com/devswha/herdr-web-ui/pull/500))
+- `/model` sent from a Claude Code pane's chat shows Claude's model list as a card: tap a model,
+  or type its number, and that pane's session switches to it. Before, the chat showed nothing
+  while the terminal waited on the list, so a model could only be picked there. The card picks
+  for this session only (Claude's `s` key). Saving a model as the default for new sessions stays
+  in the terminal, where Enter on the list does it. The card offers the rows Claude draws (ten of
+  a longer list, fewer in a short pane) and says how many more the terminal lists.
+  ([#501](https://github.com/devswha/herdr-web-ui/pull/501))
+- `/model` sent from a Codex pane's chat shows Codex's lists as cards, one after the other: the
+  models, then the reasoning levels of the model you pick. The level you pick applies to that
+  pane's session only (Codex's `s` key). Saving a default stays in the terminal, where Enter
+  does it. Open "More reasoning…" in the terminal; once open, its Max and Ultra options can also
+  be picked for this session from the chat. Before, the chat showed nothing while the terminal
+  waited on the list.
+  ([#503](https://github.com/devswha/herdr-web-ui/pull/503))
+
+### Maintenance
+- Browser regressions run on macOS as well as Linux, with portable fixtures and bounded
+  readiness checks. ([#499](https://github.com/devswha/herdr-web-ui/pull/499) by @kilhyeonjun)
+- Isolated test panes start at a shell prompt even where zsh includes its new-user wizard.
+  ([#502](https://github.com/devswha/herdr-web-ui/pull/502))
+- The website serves the Google Search Console ownership verification file.
+  ([#505](https://github.com/devswha/herdr-web-ui/pull/505))
+
+## [0.3.51] - 2026-10-06
+
+### Added
+- **Open here** on a held pane explicitly takes it from another web bridge or standalone
+  `herdr terminal attach`. A displaced bridge waits with the same button; it never takes the pane
+  back automatically. Available on supporting bridges, for interact connections only.
+  ([#368](https://github.com/devswha/herdr-web-ui/pull/368) by @WOULDU-pres)
+
+- The terminal's key bar on a touch screen has an **Alt** key beside Ctrl. Like Ctrl it holds for
+  one key: Alt then a letter, Backspace or Enter sends ESC before it, and Alt then an arrow sends
+  Alt+arrow. **Settings → Appearance → Key bar** turns Alt off or adds Shift+Tab, Home/End,
+  PgUp/PgDn, Ctrl+D, Ctrl+Z, `|`, `~` and `/`, each in a fixed place in the row. Esc, Tab, Ctrl,
+  the arrows and Ctrl+C stay as they were. ([#487](https://github.com/devswha/herdr-web-ui/pull/487))
+
+### Fixed
+- A tab strip you scrolled yourself to look at other tabs stays where you left it when a
+  typeface arrives late and redraws the tabs' names at another width. Before, the strip
+  brought the open tab back into view then; it still does so until you have scrolled it.
+  ([#479](https://github.com/devswha/herdr-web-ui/pull/479))
+- On macOS, a gjc pane's chat finds its session from the terminal breadcrumb gjc leaves. Before,
+  the process start time it is matched by was read as UTC, so on any other time zone every fresh
+  breadcrumb looked hours old and was passed over. Process start times, which Codex, OmO and gjc
+  panes are matched by, are now read on macOS too (they were only read from Linux `/proc`).
+  ([#484](https://github.com/devswha/herdr-web-ui/pull/484) by @kilhyeonjun)
+- The chat of a Codex pane started with its own `CODEX_HOME` (a launcher that keeps one store
+  per profile) shows its conversation. Before, the server looked for every rollout under its own
+  `CODEX_HOME` or `~/.codex`, found none for that pane and fell back to the terminal scrollback.
+  The store is now read from the pane's Codex process (its environment), for the conversation,
+  images, tool output and queued questions; a configured Codex home still wins.
+  ([#486](https://github.com/devswha/herdr-web-ui/pull/486) by @kilhyeonjun)
+- The chat shows the card for a question Claude Code asks with `AskUserQuestion` in three
+  layouts it missed: options that carry a preview (drawn in a box to the right of the options,
+  with a notes line and an unnumbered "Chat about this"), a question asked while Claude keeps a
+  task list under its panel (`3 tasks (0 done, 3 open)` and a row per task), and a named
+  session's rule drawn under the question with no task list. Before, the first showed the
+  fallback card and the other two were taken for answered questions, so the chat showed none.
+  ([#485](https://github.com/devswha/herdr-web-ui/pull/485) by @kilhyeonjun)
+- A table in the chat that is wider than the reply scrolls sideways in its own box. Before, it
+  squeezed every column to fit, down to a letter or two, so words and file paths broke after
+  any letter. A column is now never narrower than its longest word.
+  ([#481](https://github.com/devswha/herdr-web-ui/pull/481) by @aNNdii)
+- In the chat of an OmO pane, a background task that ends shows where OmO reported it: a
+  card that says how many tasks ended, and for each its summary, whether it finished, failed
+  or was cancelled, the agent and model it ran as, how long it took, its turns, tool calls and
+  tokens, and its answer on request. Before, the chat showed nothing when a task ended, and
+  what the agent did after it ran on in the same block as if nothing had come in. The `task`
+  row reads the summary the call gave its task instead of its short description, and opened
+  it lists each task it started with its agent and prompt, instead of its raw input or a
+  checklist of "task 1", "task 2" nobody ticks.
+  ([#477](https://github.com/devswha/herdr-web-ui/pull/477) by @nahwan-kim)
+- In the chat of an OmO, omp, gjc or pi pane, an answer stays an answer when the agent wakes
+  again after it on its own, for a monitor's event or a background command that ended. Before,
+  what it did after the wake-up ran into the same turn, and the answer, a whole review for
+  example, was folded away under "Worked for" while the terminal showed it.
+  ([#483](https://github.com/devswha/herdr-web-ui/pull/483))
+
 ## [0.3.50] - 2026-10-06
 
 ### Changed
@@ -1981,7 +2132,9 @@ First public version.
 - Installable PWA, a mobile key bar, web push alerts and optional token auth.
 - Distribution as a herdr plugin.
 
-[Unreleased]: https://github.com/devswha/herdr-web-ui/compare/v0.3.50...HEAD
+[Unreleased]: https://github.com/devswha/herdr-web-ui/compare/v0.3.52...HEAD
+[0.3.52]: https://github.com/devswha/herdr-web-ui/compare/v0.3.51...v0.3.52
+[0.3.51]: https://github.com/devswha/herdr-web-ui/compare/v0.3.50...v0.3.51
 [0.3.50]: https://github.com/devswha/herdr-web-ui/compare/v0.3.49...v0.3.50
 [0.3.49]: https://github.com/devswha/herdr-web-ui/compare/v0.3.48...v0.3.49
 [0.3.48]: https://github.com/devswha/herdr-web-ui/compare/v0.3.47...v0.3.48

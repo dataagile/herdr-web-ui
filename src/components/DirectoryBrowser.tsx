@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ArrowUp, FileText, Folder, FolderPlus, House } from "lucide-react";
 
 import "./DirectoryBrowser.css";
@@ -26,6 +26,27 @@ export function homeRelative(path: string, home: string): string {
 
 function childPath(parent: string, name: string): string {
   return parent.endsWith("/") ? `${parent}${name}` : `${parent}/${name}`;
+}
+
+/**
+ * Keys of a text field inside a dialog. Enter confirms an IME candidate and Escape dismisses it:
+ * neither is the field's, and neither may reach the dialog's own Escape, which closes it. Enter
+ * never submits a form; Escape is the field's only when `escape` handles it (returns true), and
+ * then it stops here. Otherwise it goes on to close the dialog.
+ */
+function fieldKeys(event: KeyboardEvent<HTMLInputElement>, on: { enter?: () => void; escape: () => boolean }): void {
+  if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+    event.stopPropagation();
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    on.enter?.();
+  }
+  if (event.key === "Escape" && on.escape()) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 }
 
 /**
@@ -123,12 +144,10 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
               value={newName}
               disabled={busy}
               onChange={(event) => setNewName(event.target.value)}
-              onKeyDown={(event) => {
-                // an IME's Enter and Escape are the composition's, not the field's
-                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
-                if (event.key === "Enter") { event.preventDefault(); void create(); }
-                if (event.key === "Escape") { event.preventDefault(); setCreating(false); setNewName(""); setCreateError(null); }
-              }}
+              onKeyDown={(event) => fieldKeys(event, {
+                enter: () => void create(),
+                escape: () => { setCreating(false); setNewName(""); setCreateError(null); return true; },
+              })}
             />
             <button type="button" className="btn btn-primary" disabled={busy || newName.trim() === ""} onClick={() => void create()}>{t("Create")}</button>
           </div>
@@ -143,19 +162,13 @@ export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowser
           <input type="search" className="input" value={query} autoFocus={window.matchMedia?.("(pointer: coarse)").matches !== true}
             autoComplete="off" spellCheck={false}
             onChange={(event) => { setQuery(event.target.value); listRef.current?.scrollTo({ top: 0 }); }}
-            onKeyDown={(event) => {
-              // Enter confirms an IME candidate; Escape dismisses it, not this dialog.
-              if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
-                event.stopPropagation();
-                return;
-              }
-              if (event.key === "Enter") event.preventDefault();
-              if (event.key === "Escape" && query !== "") {
-                event.preventDefault();
-                event.stopPropagation();
+            onKeyDown={(event) => fieldKeys(event, {
+              escape: () => {
+                if (query === "") return false;
                 setQuery("");
-              }
-            }} />
+                return true;
+              },
+            })} />
         </label>
       )}
       {error !== null ? <p className="dir-browser-note dir-browser-error" role="alert">{error}</p> : (

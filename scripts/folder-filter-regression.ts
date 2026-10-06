@@ -30,11 +30,29 @@ export async function checkFolderFilter(page: Page, dialog: Locator, createReque
   await filter.press("Escape");
   assert.equal(await filter.inputValue(), "");
   assert.equal(await dialog.isVisible(), true, "Escape clears before closing");
+  // the New folder field keeps the same keys: IME candidates are its own, Escape cancels the field
+  // before it can close the dialog, and nothing is created
+  await dialog.getByRole("button", { name: "New folder", exact: true }).click();
+  const folderName = dialog.getByRole("textbox", { name: "Folder name" });
+  await folderName.waitFor();
+  await folderName.fill("zz-never-created");
+  const nameComposition = await folderName.evaluate((input) => [
+    { key: "Enter", isComposing: true },
+    { key: "Enter", keyCode: 229 },
+    { key: "Escape", isComposing: true },
+  ].map((init) => input.dispatchEvent(new KeyboardEvent("keydown", { ...init, bubbles: true, cancelable: true }))));
+  assert.deepEqual(nameComposition, [true, true, true], "IME candidate keys keep their default action in the folder name");
+  assert.equal(await folderName.inputValue(), "zz-never-created", "IME Escape does not clear the folder name");
+  assert.equal(await dialog.isVisible(), true, "IME Escape in the folder name does not close the dialog");
+  await folderName.press("Escape");
+  await folderName.waitFor({ state: "detached" });
+  assert.equal(await dialog.isVisible(), true, "Escape cancels the folder name before closing the dialog");
+  assert.equal(await dialog.locator(".dir-browser-item").filter({ hasText: "zz-never-created" }).count(), 0, "cancelling creates no folder");
   await filter.fill("a");
   await dialog.locator(".dir-browser-item").click();
   await until(async () => (await filter.inputValue()) === "", "navigation clears the filter");
   await dialog.getByRole("button", { name: "Parent folder", exact: true }).click();
   await dialog.getByRole("button", { name: "Use this folder", exact: true }).click();
   await filter.waitFor({ state: "detached" });
-  console.log("PASS folder filtering preserves IME keys, blocks form submission and clears on navigation");
+  console.log("PASS folder filtering and the New folder field preserve IME keys, keep Escape inside the field, and the filter clears on navigation");
 }

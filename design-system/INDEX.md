@@ -12,7 +12,7 @@ Design system for the **Portal Dev Data Agile** (`dataagile/portal_desenvolvimen
 |---|---|
 | `README.md` | Brand book — herdr web ui rules, and how the two products relate (read first) |
 | `portal.md` | Portal section: colours, type, shape, marks, flow into herdr |
-| `tokens.json` | All tokens (8 herdr themes + `portal-*`), with usage notes |
+| `tokens.json` | All tokens (10 herdr themes + `portal-*`), with usage notes |
 | `tokens.css` | The same tokens as CSS custom properties, ready to `<link>` |
 | `components/bundle.css` | Component styles: herdr's real CSS + the portal CSS scoped under `.da-portal` |
 | `components/<Name>/README.md`, `preview.html` | Guidelines and a static preview per component (open a preview with `tokens.css` and `bundle.css` loaded) |

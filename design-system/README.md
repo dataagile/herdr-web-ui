@@ -17,7 +17,7 @@ Build every screen from `tokens.css` + `components/bundle.css` and the class nam
 
 ## Themes
 
-Eight themes, one hierarchy. `dark` (Amber) is the default and the look before settings load; `light` is its ledger-paper twin. Three opt-in palettes keep the same token names:
+Ten themes, one hierarchy. `dark` (Amber) is the default and the look before settings load; `light` is its ledger-paper twin. Four opt-in palettes keep the same token names:
 
 | Theme id | Character |
 |---|---|
@@ -25,6 +25,7 @@ Eight themes, one hierarchy. `dark` (Amber) is the default and the look before s
 | `report-dark`, `report-light` | Near-black blue-grey canvas with hairlines; primary is white (ink on paper), accent is electric blue for small marks only; states never blue. Near-square corners (radius 2/3/3/4/6px, applied by `bundle.css`) and no resting card shadow in dark. |
 | `charcoal-dark`, `charcoal-light` | Neutral Ghostty-style charcoal; accent and primary near-white (ink on paper); muted states. |
 | `catppuccin-dark`, `catppuccin-light` | Catppuccin Mocha / Latte: content on Base, chrome on Mantle; Latte accents darkened until they pass AA. |
+| `lilac-dark`, `lilac-light` | One quiet lavender, flat on every surface. Light: lavender canvas under paler chrome, indigo ink, indigo accent and primary (white text). Dark: the same hue at night, indigo-black canvas, pale lilac accent and primary (dark ink). Keeps amber's corners; shadows tinted indigo in light. In the app this is `data-palette="lilac"` over `data-theme`. |
 
 Density is a second axis: `[data-density="compact"]` on the root steps the type scale and sizes down (see the usage notes on `fs-*`, `control-h`, `row-h`…).
 

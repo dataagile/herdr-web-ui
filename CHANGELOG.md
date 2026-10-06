@@ -61,9 +61,14 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ### Fixed
 - The folder browser's POST no longer resolves a relative parent against the server's own
   folder when the pane it belonged to is gone: that path is refused like the listing already
-  refuses it.
+  refuses it. ([#4](https://github.com/dataagile/herdr-web-ui/pull/4) by @tbc-joaovitor)
 - `/api/fs/write` refuses an oversized body by `content-length` before reading it, instead of
   buffering and parsing it first.
+  ([#4](https://github.com/dataagile/herdr-web-ui/pull/4) by @tbc-joaovitor)
+
+### Known limitations
+- File editing and folder creation work only on the local machine: a remote PC's bridge is an
+  upstream build (`REMOTE_BUNDLE_VERSION` is upstream's), which has neither.
 
 ## [0.3.52] - 2026-10-06
 

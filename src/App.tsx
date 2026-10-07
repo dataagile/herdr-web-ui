@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Bell, Columns2, Ellipsis, FolderOpen, History, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
+import { Bell, Columns2, Ellipsis, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
 import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
-import { HistoryView } from "./components/HistoryView.tsx";
-import { historyFolders, projectFolder } from "./lib/history.ts";
 import { PaneTerminal } from "./components/PaneTerminal.tsx";
 import { SplitView } from "./components/SplitView.tsx";
 import { SplitMenu, type SplitTarget } from "./components/SplitMenu.tsx";
@@ -204,8 +202,6 @@ export function App() {
   useEffect(() => watchDrawerSwipe(() => drawerOpenRef.current, setDrawerOpen), []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [lens, setLens] = useState<{ key: string; view: PaneView }>({ key: "", view: "terminal" });
-  // a project's History, shown over its pane area until another view or pane is chosen
-  const [history, setHistory] = useState<{ machineId: string; workspaceId: string } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // the header's More menu: its button, and whether it opened on a phone-width screen
   const [more, setMore] = useState<{ anchor: HTMLElement; phone: boolean } | null>(null);
@@ -536,7 +532,6 @@ export function App() {
     if (machineId !== selectedMachineRef.current) setConnected(false);
     setSelectedMachineId(machineId); setSelectedPaneId(paneId); setAutoSelected(false); setDrawerOpen(false);
     setOutputStopped(false);
-    setHistory(null);
     storeSelection(machineId, paneId);
   }, []);
   const selectTargetRef = useRef(selectTarget); selectTargetRef.current = selectTarget;
@@ -565,7 +560,6 @@ export function App() {
     setSelectedPaneId(paneId);
     setAutoSelected(false);
     setDrawerOpen(false);
-    setHistory(null);
   }, []);
 
   // a tapped notification focuses this window and names the pane (public/sw.js)
@@ -609,8 +603,7 @@ export function App() {
     (next: PaneView) => {
       setLens((current) => ({ ...current, view: next }));
       setAutoSelected(false);
-      setHistory(null);
-      if (selectedPaneId === null) return;
+        if (selectedPaneId === null) return;
       try {
         window.localStorage.setItem(`herdr-web-ui:view:${paneStorageId(selectedMachineId, selectedPaneId)}`, next);
       } catch {
@@ -797,20 +790,6 @@ export function App() {
         setNewTab({ workspaceId: workspace.workspace_id, workspaceLabel: workspace.label, cwd: workspace.worktree?.checkout_path ?? inFront?.cwd ?? null, number: workspace.tab_count + 1 });
         setNewSessionOpen(true);
       },
-      openHistory: (target) => {
-        const machineId = target?.machineId ?? selectionRef.current.machineId;
-        const roster = machinesRef.current.find((m) => m.id === machineId)?.snapshot;
-        const current = selectionRef.current.machineId === machineId ? selectionRef.current.paneId : null;
-        const workspaceId = target?.workspaceId ?? roster?.panes.find((pane) => pane.pane_id === current)?.workspace_id;
-        if (!roster || !workspaceId) return;
-        // History sits over a pane: another project's is reached through the one in front there
-        const panes = roster.panes.filter((pane) => pane.workspace_id === workspaceId);
-        const inFront = panes.find((pane) => pane.pane_id === current) ?? panes.find((pane) => pane.pane_id === roster.focused_pane_id) ?? panes[0];
-        if (!inFront) return;
-        if (inFront.pane_id !== current) selectTargetRef.current(machineId, inFront.pane_id);
-        setDrawerOpen(false);
-        setHistory({ machineId, workspaceId });
-      },
       openPalette: () => setPaletteOpen(true),
       openSettings: () => {
         setDrawerOpen(false);
@@ -855,7 +834,6 @@ export function App() {
   // take it (from 769px). A pane herdr could not restore draws a placeholder, not the chat.
   // the Chat is for one pane at a time: with several side by side, each shows its terminal
   const shownView: PaneView = splitting ? "terminal" : view;
-  const historyShown = history !== null && selectedWorkspace !== null && history.machineId === selectedMachineId && history.workspaceId === selectedWorkspace.workspace_id;
   const chatShown = showsChat(selectedPane, shownView);
 
   const menuPane = paneMenu === null ? null : snapshot?.panes.find((pane) => pane.pane_id === paneMenu.paneId) ?? null;
@@ -968,21 +946,15 @@ export function App() {
         )}
         {selectedPane && (
           <div className="segmented view-switch" role="group" aria-label="Pane view">
-            <button type="button" aria-pressed={!historyShown && shownView === "chat"} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
+            <button type="button" aria-pressed={shownView === "chat"} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
               <MessageSquare />
               <span className="header-desktop-only">{t("Chat")}</span>
             </button>
-            <button type="button" aria-pressed={!historyShown && shownView === "terminal"} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
+            <button type="button" aria-pressed={shownView === "terminal"} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
               <SquareTerminal />
               <span className="header-desktop-only">{t("Terminal")}</span>
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
             </button>
-            {selectedWorkspace && selectedMachine?.kind === "local" && (
-              <button type="button" aria-pressed={historyShown} aria-label={t("History")} onClick={() => actions.openHistory()} title={t("Claude Code sessions of this project")}>
-                <History />
-                <span className="header-desktop-only header-history-label">{t("History")}</span>
-              </button>
-            )}
           </div>
         )}
         <div className="header-meta">
@@ -1126,19 +1098,6 @@ export function App() {
             onConnectionChange={(next) => { setConnected(next); if (next) setOutputStopped(false); }}
             onServerMessage={handleServerMessage}
           />
-          )}
-          {historyShown && snapshot && selectedWorkspace && selectedMachine && (
-            <MachineContext.Provider value={selectedMachineId}>
-              <HistoryView
-                key={`${selectedMachineId}:${selectedWorkspace.workspace_id}`}
-                local={selectedMachine.kind === "local"}
-                workspace={selectedWorkspace}
-                folders={historyFolders(selectedWorkspace, snapshot.workspaces, projectFolder(selectedWorkspace, snapshot.panes))}
-                panes={snapshot.panes}
-                onGoTo={selectPane}
-                onOpened={(paneId) => { selectTarget(selectedMachineId, paneId); void load(); }}
-              />
-            </MachineContext.Provider>
           )}
         </main>
         </div>

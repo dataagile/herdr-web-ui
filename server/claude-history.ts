@@ -165,7 +165,7 @@ interface Candidate { path: string; id: string; size: number; mtime: number }
 /** Every transcript in the store touched since `since`, newest first. Symlinks are not followed. */
 async function candidates(configDir: string, folders: readonly string[], since: number): Promise<Candidate[]> {
   // a project directory is named for the folder Claude started in, so a folder's own and the ones
-  // below it share its name as a prefix; a name Claude had to hash cannot be told that way
+  // below it are its name or start with it and a "-" (a superset: "-" is also any other character); a name Claude had to hash cannot be told that way
   const names = folders.map(claudeProjectDir);
   const prefixes = names.every((name) => name.length < MAX_NAME) ? names : null;
   const key = `${configDir}\0${prefixes?.join("\0") ?? ""}`;
@@ -182,7 +182,7 @@ async function listStore(configDir: string, prefixes: readonly string[] | null):
   let dirs;
   try { dirs = await readdir(projects, { withFileTypes: true }); } catch { return []; }
   dirs = dirs.filter((dir) => dir.isDirectory());
-  const near = prefixes === null ? dirs : dirs.filter((dir) => prefixes.some((prefix) => dir.name.startsWith(prefix)));
+  const near = prefixes === null ? dirs : dirs.filter((dir) => prefixes.some((prefix) => dir.name === prefix || dir.name.startsWith(`${prefix}-`)));
   if (near.length > 0) dirs = near;
   const found: Candidate[] = [];
   await Promise.all(dirs.map(async (dir) => {

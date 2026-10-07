@@ -71,11 +71,13 @@ describe("claudeHistory", () => {
   it("looks in the project directories named for the folders, and in all of them when none is", async () => {
     write("-work-app", A, [user("in its own project")]);
     write("-work-app-wt", B, [user("in a worktree project", { cwd: "/work/app/wt" })], 1000);
+    write("-work-app-src", D, [user("started in a subfolder", { cwd: "/work/app/src" })], 1500);
+    write("-work-app2", "55555555-5555-4555-8555-555555555555", [user("a sibling folder's project")], 1800);
     write("elsewhere", C, [user("same cwd, other directory")], 2000);
-    expect((await claudeHistory(query())).sessions.map((s) => s.session_id)).toEqual([A, B]);
+    expect((await claudeHistory(query())).sessions.map((s) => s.session_id)).toEqual([A, B, D]);
     forgetClaudeHistory();
     expect((await claudeHistory({ ...query(), folders: ["/nowhere"] })).sessions).toEqual([]);
-    expect((await claudeHistory({ ...query(), folders: ["/work/app", "/unnamed"] })).sessions.map((s) => s.session_id)).toEqual([A, B]);
+    expect((await claudeHistory({ ...query(), folders: ["/work/app", "/unnamed"] })).sessions.map((s) => s.session_id)).toEqual([A, B, D]);
   });
 
   it("hides claude -p sessions unless asked", async () => {

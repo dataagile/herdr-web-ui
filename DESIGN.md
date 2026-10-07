@@ -577,14 +577,12 @@ One set for both themes: the card is island black wherever it shows.
   `aria-checked` in the popover and a button with `aria-pressed` in the sheet. While alerts are off on this device the
   More button carries a `--dot-size` `--accent` dot and its name says "alerts are off": the dot
   marks the state that needs a look, never "on".
-- The segmented Chat/Terminal view switch lives in the header, with a third **History** button for the
-  selected project. There is no floating view-toggle pill.
-- **History** (`HistoryView.css`, tokens only) covers the pane area (`position: absolute`, the terminal
-  under it stays attached): a bar of range chips (Today / 7 days / 30 days, the pressed one `--primary`),
-  a search input and the "Show automated" box, then one section per day (caps `--fs-2xs` title) of
-  `--bg-panel` rows: title, `OPEN NOW` in `--status-working`, first prompt, time, count, branch in mono,
-  and Copy command / Resume (`btn-primary`) or Go to tab. At 600px and below the actions drop under the
-  text and share the row. Resume asks in a `.modal` with the folder and command in `--bg-input` code boxes.
+- The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
+- **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
+  "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows
+  (title with an `OPEN NOW` mark in `--status-working`, then time and prompts in `--text-dim`) that act on
+  click; a copy button appears on hover and focus. Five rows show, then "See all ({n}) →" opens the list
+  in place. It folds like Projects and Agents, and sits in the phone's drawer the same way.
 - Connection is one quiet chip, drawn only while the bridge is not live: a pulsing dot plus the
   written reconnecting/disconnected state. Below `900px` it keeps only its dot; the word stays as
   its accessible text and in its tooltip. While live the chip takes no room and stays in the

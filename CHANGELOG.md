@@ -8,16 +8,16 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
-- A project's **History**: a third view beside Chat and Terminal (and an item in the project row's
-  `⋯` menu) lists the Claude Code sessions that ran in the project's folder or a worktree of it,
-  read from this PC's transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written).
-  Today (since local midnight), 7 days and 30 days, a search over title and first prompt, and
-  sessions grouped by day. A session is titled by its `/rename`, else its first prompt; `claude -p`
-  runs show only with **Show automated**. **Resume** confirms the folder and command, then opens a
-  new tab there with `claude --resume <id>` and the arguments saved for the claude agent; **Copy
-  command** copies it with a `cd`. A session already open in a pane (as herdr reports its id) reads
-  **OPEN NOW** and offers **Go to tab**. The list is `GET /api/workspace/history`; PCs added over
-  SSH answer "History is not available for this PC", as their bridges do not have it.
+- A **History** section in the sidebar, under Agents, for the selected project (this PC only):
+  the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
+  transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since
+  local midnight), 7 days and 30 days, a search over title and first prompt, five rows and **See
+  all** for the rest, with **Show automated** (`claude -p`) there. A session is titled by its
+  `/rename`, else its first prompt. Clicking a row acts at once: a session open in a pane (as herdr
+  reports its id, marked **OPEN NOW**) selects that pane; any other opens a new tab in its folder
+  with `claude --resume <id>` and the arguments saved for the claude agent. The copy button on a
+  row copies the command with a `cd`. The list is `GET /api/workspace/history`; PCs added over SSH
+  have no History, as their bridges do not have it.
 - Behind the Data Agile portal (`/api/portal/me` answers `{ authenticated: true }` on the app's own
   origin) the sidebar footer and the command palette offer **Sign out**, which ends the portal's
   session through `/logout` (also on a phone). It replaces the app's own Sign out there; without

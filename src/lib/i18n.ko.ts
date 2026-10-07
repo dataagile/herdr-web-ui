@@ -856,7 +856,6 @@ export const KO: Record<string, string> = {
   "Untitled session": "제목 없는 세션",
   "OPEN NOW": "열려 있음",
   "Go to tab": "탭으로 이동",
-  "Resume": "이어서 하기",
   "Copy command": "명령 복사",
   "Show more": "더 보기",
   "No match in the loaded sessions. Show more to search further.": "불러온 세션에는 일치하는 항목이 없습니다. 더 보기로 계속 검색하세요.",
@@ -865,4 +864,6 @@ export const KO: Record<string, string> = {
   "See all ({n}) →": "모두 보기 ({n}) →",
   "Show fewer": "접기",
   "Starting claude…": "claude 시작 중…",
+  "Open a copy in a new tab": "새 탭에서 사본 열기",
+  "Resume in a new tab": "새 탭에서 이어서 하기",
 };

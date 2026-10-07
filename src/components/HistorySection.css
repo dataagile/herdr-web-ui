@@ -139,19 +139,23 @@
   font-size: var(--fs-2xs);
 }
 
-/* the copy button shows on hover and focus, and always where there is no hover */
-.history-copy {
+/* the copy and go-to buttons show on hover and focus, and always where there is no hover */
+.history-copy,
+.history-goto {
   flex: none;
   opacity: 0;
 }
 
 .history-row:hover .history-copy,
-.history-row:focus-within .history-copy {
+.history-row:focus-within .history-copy,
+.history-row:hover .history-goto,
+.history-row:focus-within .history-goto {
   opacity: 1;
 }
 
 @media (hover: none) {
-  .history-copy {
+  .history-copy,
+  .history-goto {
     opacity: 1;
   }
 }

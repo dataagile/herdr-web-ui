@@ -860,7 +860,6 @@ export const ZH: Record<string, string> = {
   "Untitled session": "未命名会话",
   "OPEN NOW": "已打开",
   "Go to tab": "转到标签页",
-  "Resume": "恢复",
   "Copy command": "复制命令",
   "Show more": "显示更多",
   "No match in the loaded sessions. Show more to search further.": "已加载的会话中没有匹配项。点击“显示更多”继续搜索。",
@@ -869,4 +868,6 @@ export const ZH: Record<string, string> = {
   "See all ({n}) →": "查看全部 ({n}) →",
   "Show fewer": "收起",
   "Starting claude…": "正在启动 claude…",
+  "Open a copy in a new tab": "在新标签页中打开副本",
+  "Resume in a new tab": "在新标签页中恢复",
 };

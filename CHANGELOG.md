@@ -79,6 +79,10 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Changed
+- A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
+  copy, `claude --resume <id> --fork-session`, so the running session is never driven by two
+  processes; its **Go to tab** icon, beside the copy icon, selects the pane that has it. Copy command
+  copies the command the click would run.
 - The interface calls herdr's workspaces **projects** (Projects, New project, Rename project, Close
   project, …), in English and in the Korean, Japanese and Chinese translations. Only the text
   changes: the API, the protocol, storage keys and herdr itself still say workspace.

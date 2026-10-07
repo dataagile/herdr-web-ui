@@ -35,6 +35,13 @@ describe("resume", () => {
     expect(resumeCommand("abc", "--model 'a b'")).toBe("claude --resume abc --model 'a b'");
   });
 
+  it("forks a session that is open elsewhere", () => {
+    expect(resumeArgs("abc", "--model x", true)).toEqual(["--resume", "abc", "--fork-session", "--model", "x"]);
+    expect(resumeArgs("abc", "--model x")).not.toContain("--fork-session");
+    expect(resumeCommandIn("/w", "abc", "", true)).toBe("cd /w && claude --resume abc --fork-session");
+    expect(resumeCommandIn("/w", "abc", "")).toBe("cd /w && claude --resume abc");
+  });
+
   it("copies with the folder, quoted", () => {
     expect(resumeCommandIn("/w/my app", "abc", "")).toBe("cd '/w/my app' && claude --resume abc");
     expect(resumeCommandIn("/w/it's", "abc", "")).toBe("cd '/w/it'\\''s' && claude --resume abc");

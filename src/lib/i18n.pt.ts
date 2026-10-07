@@ -837,7 +837,6 @@ export const PT: Record<string, string> = {
   "Untitled session": "Sessão sem título",
   "OPEN NOW": "ABERTA",
   "Go to tab": "Ir para a aba",
-  "Resume": "Retomar",
   "Copy command": "Copiar comando",
   "Show more": "Mostrar mais",
   "No match in the loaded sessions. Show more to search further.": "Nada encontrado nas sessões carregadas. Use Mostrar mais para buscar além.",
@@ -846,4 +845,6 @@ export const PT: Record<string, string> = {
   "See all ({n}) →": "Ver todas ({n}) →",
   "Show fewer": "Mostrar menos",
   "Starting claude…": "Iniciando o claude…",
+  "Open a copy in a new tab": "Abrir uma cópia em nova aba",
+  "Resume in a new tab": "Retomar em nova aba",
 };

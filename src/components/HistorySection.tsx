@@ -5,7 +5,7 @@
  * The range is remembered per browser; five rows show until "See all" opens the whole list.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy } from "lucide-react";
+import { ArrowRight, Copy } from "lucide-react";
 
 import "./HistorySection.css";
 
@@ -95,14 +95,14 @@ export function HistorySection({ workspaceId, folders: openedFolders, panes, onS
   const timeOf = (session: HistorySession): string => new Date(session.last_activity).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 
   const act = async (session: HistorySession): Promise<void> => {
-    const open = openPaneOf(session.session_id, panes);
-    if (open !== null) { onSelectPane(open); return; }
+    // an open session is forked, never resumed: two processes must not drive one session
+    const fork = openPaneOf(session.session_id, panes) !== null;
     if (starting !== null) return;
     setStarting(session.session_id);
     setRowError(null);
     try {
       // the New tab dialog's launch: the arguments saved for claude go after --resume
-      const result = await createTab({ workspace_id: workspaceId, cwd: session.cwd, label: null, agent: { kind: "claude", args: resumeArgs(session.session_id, rememberedAgentArgs("claude")) } });
+      const result = await createTab({ workspace_id: workspaceId, cwd: session.cwd, label: null, agent: { kind: "claude", args: resumeArgs(session.session_id, rememberedAgentArgs("claude"), fork) } });
       if (!result.agent_started && result.error?.message) setRowError({ id: session.session_id, message: result.error.message });
       else onOpened(result.pane_id);
     } catch (reason: unknown) {
@@ -111,7 +111,7 @@ export function HistorySection({ workspaceId, folders: openedFolders, panes, onS
   };
 
   const copyCommand = async (session: HistorySession): Promise<void> => {
-    if (await copyText(resumeCommandIn(session.cwd, session.session_id, rememberedAgentArgs("claude")))) {
+    if (await copyText(resumeCommandIn(session.cwd, session.session_id, rememberedAgentArgs("claude"), openPaneOf(session.session_id, panes) !== null))) {
       setCopied(session.session_id);
       window.setTimeout(() => setCopied((current) => current === session.session_id ? null : current), 1500);
     }
@@ -151,7 +151,7 @@ export function HistorySection({ workspaceId, folders: openedFolders, panes, onS
               const pending = starting === session.session_id;
               return (
                 <li key={session.session_id} className="history-row">
-                  <button type="button" className="history-open" disabled={starting !== null && !pending && !open} title={t(open ? "Go to tab" : "Resume")} onClick={() => void act(session)}>
+                  <button type="button" className="history-open" disabled={starting !== null && !pending} title={t(open ? "Open a copy in a new tab" : "Resume in a new tab")} onClick={() => void act(session)}>
                     <span className="history-title">
                       <span className="history-title-text">{session.title || t("Untitled session")}</span>
                       {open && <span className="history-live">{t("OPEN NOW")}</span>}
@@ -164,6 +164,7 @@ export function HistorySection({ workspaceId, folders: openedFolders, panes, onS
                       </>}
                     </span>
                   </button>
+                  {open && <button type="button" className="icon-button history-goto" aria-label={t("Go to tab")} title={t("Go to tab")} onClick={() => onSelectPane(openPaneOf(session.session_id, panes)!)}><ArrowRight aria-hidden="true" /></button>}
                   <button type="button" className="icon-button history-copy" aria-label={t("Copy command")} title={t(copied === session.session_id ? "Copied" : "Copy command")} onClick={() => void copyCommand(session)}><Copy aria-hidden="true" /></button>
                   {rowError?.id === session.session_id && <p className="history-row-error" role="status">{rowError.message}</p>}
                 </li>

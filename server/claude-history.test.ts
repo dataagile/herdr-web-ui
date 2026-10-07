@@ -51,8 +51,8 @@ describe("claudeHistory", () => {
   });
 
   it("finds the folder past the first chunk, and a line that straddles a chunk edge", async () => {
-    // the first line with a folder starts after 200 KB of attachments that name none
-    write("p", A, [line({ type: "attachment", text: "x".repeat(200 * 1024) }), user("late folder")]);
+    // the first line with a folder starts after 300 KB of attachments that name none (past the whole-file read)
+    write("p", A, [line({ type: "attachment", text: "x".repeat(300 * 1024) }), user("late folder")]);
     // 180 KB: head and tail meet in one read, a prompt line crossing the 128 KiB mark stays whole
     write("p", B, [user("first"), line({ type: "attachment", cwd: "/work/app", text: "y".repeat(128 * 1024 - 400) }), user("straddling prompt"), line({ type: "custom-title", customTitle: "kept" }), line({ type: "attachment", text: "z".repeat(50 * 1024) })], 1000);
     const { sessions } = await claudeHistory(query());

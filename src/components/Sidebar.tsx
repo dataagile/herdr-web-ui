@@ -230,6 +230,17 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     const workspaceId = snapshot.panes.find((pane) => pane.pane_id === selectedPaneId)?.workspace_id;
     return snapshot.workspaces.find((workspace) => workspace.workspace_id === workspaceId) ?? null;
   }, [machineId, snapshot, selectedPaneId]);
+  // the project's folder is where its pane first was, so a `cd` in a pane does not move it (a worktree's is its checkout)
+  const rootFolders = useRef(new Map<string, string>());
+  const historyFolderList = (() => {
+    if (!historyWorkspace || !snapshot) return null;
+    let root = historyWorkspace.worktree?.checkout_path ?? rootFolders.current.get(historyWorkspace.workspace_id) ?? null;
+    if (root === null) {
+      root = projectFolder(historyWorkspace, snapshot.panes);
+      if (root !== null) rootFolders.current.set(historyWorkspace.workspace_id, root);
+    }
+    return historyFolders(historyWorkspace, snapshot.workspaces, root);
+  })();
   const directories = useMemo(() => groupDirectories(orderedWorkspaces, roster), [orderedWorkspaces, roster]);
   // herdr packs a repository's worktree workspaces under the one on its main checkout; a worktree
   // whose repository workspace is not open stays at the top level, in its own place
@@ -622,12 +633,12 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
             );
           })}</ul>}
         </>}
-        {historyWorkspace && snapshot && <>
+        {historyWorkspace && historyFolderList && snapshot && <>
           <SectionHeader section="history" label={t("History · {project}", { project: historyWorkspace.label })} folded={folded.history} onToggle={toggleSection} />
           {!folded.history && <HistorySection
-            key={historyWorkspace.workspace_id}
+            key={`${historyWorkspace.workspace_id}\0${historyFolderList.join("\0")}`}
             workspaceId={historyWorkspace.workspace_id}
-            folders={historyFolders(historyWorkspace, snapshot.workspaces, projectFolder(historyWorkspace, snapshot.panes))}
+            folders={historyFolderList}
             panes={snapshot.panes}
             onSelectPane={actions.selectPane}
             onOpened={(paneId) => { actions.refresh(); actions.selectPane(paneId); }}

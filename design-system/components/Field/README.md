@@ -1,7 +1,7 @@
 A stacked form field: a dim uppercase label, an `--bg-input` input or select, an optional hint and an inline error.
 
 ## When to use
-- Every text, path or choice entry inside a dialog (New workspace, New tab, Add PC, Worktree, Settings).
+- Every text, path or choice entry inside a dialog (New project, New tab, Add PC, Worktree, Settings).
 - Not for the composer or the terminal input; those have their own surfaces.
 
 ## Anatomy

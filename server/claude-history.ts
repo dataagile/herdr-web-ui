@@ -24,6 +24,8 @@ const CHUNK_BYTES = 128 * 1024;
 /** Above this a transcript is not read whole: its prompt count is unknown (null). */
 const COUNT_MAX_BYTES = 4 * 1024 * 1024;
 const PREVIEW_CHARS = 140;
+/** How far into a transcript the first line with a folder is looked for. */
+const CWD_SCAN_BYTES = 4 * 1024 * 1024;
 /** How long a listing of the store is reused: Show more and a changed filter do not stat every transcript again. */
 const LISTING_TTL_MS = 3000;
 /** Claude hashes a project directory name of this length or more (claude-store.ts). */
@@ -97,11 +99,13 @@ function readLines(text: string, meta: Meta, tail: boolean): void {
 async function chunk(path: string, start: number, length: number, size: number): Promise<string> {
   const file = await open(path, "r");
   try {
-    const bytes = Buffer.alloc(length);
-    const { bytesRead } = await file.read(bytes, 0, length, start);
+    // one byte before `start` tells whether the chunk begins on a line or inside one
+    const before = start > 0 ? 1 : 0;
+    const bytes = Buffer.alloc(length + before);
+    const { bytesRead } = await file.read(bytes, 0, length + before, start - before);
     let text = bytes.subarray(0, bytesRead).toString("utf8");
-    if (start > 0) text = text.slice(text.indexOf("\n") + 1);
-    if (start + bytesRead < size) text = text.slice(0, text.lastIndexOf("\n"));
+    if (before === 1) text = bytes[0] === 0x0a ? text.slice(1) : text.slice(text.indexOf("\n") + 1);
+    if (start + bytesRead - before < size) text = text.slice(0, text.lastIndexOf("\n"));
     return text;
   } finally { await file.close(); }
 }
@@ -113,6 +117,7 @@ const META_CACHE_MAX = 1000;
 interface Detail { prompts: number; title: string | null; model: string | null }
 const detailCache = new Map<string, Detail>();
 const listings = new Map<string, { at: number; files: Candidate[] }>();
+const LISTINGS_MAX = 32;
 
 export function forgetClaudeHistory(): void { metaCache.clear(); detailCache.clear(); listings.clear(); }
 
@@ -122,8 +127,13 @@ async function metaOf(path: string, size: number, mtime: number): Promise<Meta> 
   if (known) return known;
   const meta: Meta = { cwd: null, branch: null, automated: false, title: null, prompt: null, model: null };
   // ponytail: a prompt or /rename that sits in the middle of a file bigger than 2 chunks is not found: it shows the first prompt, or none
-  readLines(await chunk(path, 0, Math.min(size, CHUNK_BYTES), size), meta, false);
-  if (size > CHUNK_BYTES) readLines(await chunk(path, Math.max(CHUNK_BYTES, size - CHUNK_BYTES), Math.min(CHUNK_BYTES, size - CHUNK_BYTES), size), meta, true);
+  if (size <= 2 * CHUNK_BYTES) readLines(await chunk(path, 0, size, size), meta, false);
+  else {
+    readLines(await chunk(path, 0, CHUNK_BYTES, size), meta, false);
+    // the folder is on the first line that has one, which a long attachment line can push past the head
+    if (meta.cwd === null) readLines(await chunk(path, 0, Math.min(size, CWD_SCAN_BYTES), size), meta, false);
+    readLines(await chunk(path, size - CHUNK_BYTES, CHUNK_BYTES, size), meta, true);
+  }
   if (metaCache.size >= META_CACHE_MAX) metaCache.delete(metaCache.keys().next().value!);
   metaCache.set(key, meta);
   return meta;
@@ -145,6 +155,8 @@ async function detailOf(path: string, size: number, mtime: number): Promise<Deta
   for (const line of lines) {
     if (!line.startsWith("{")) continue;
     const isUser = line.includes('"type":"user"');
+    // a tool result is never a prompt: no need to parse the (often huge) line
+    if (isUser && (line.includes('"tool_use_id"') || line.includes('"tool_result"'))) continue;
     if (!isUser && !line.includes('"type":"custom-title"')) continue;
     const entry = parse(line);
     if (!entry) continue;
@@ -172,6 +184,7 @@ async function candidates(configDir: string, folders: readonly string[], since: 
   const known = listings.get(key);
   if (known && Date.now() - known.at < LISTING_TTL_MS) return known.files.filter((file) => file.mtime >= since);
   const files = await listStore(configDir, prefixes);
+  if (listings.size >= LISTINGS_MAX) listings.delete(listings.keys().next().value!);
   listings.set(key, { at: Date.now(), files });
   return files.filter((file) => file.mtime >= since);
 }

@@ -50,6 +50,16 @@ describe("claudeHistory", () => {
     expect(sessions[0]).toMatchObject({ title: "late name", first_prompt: "hello", model: "claude-opus-5-5", prompt_count: 1 });
   });
 
+  it("finds the folder past the first chunk, and a line that straddles a chunk edge", async () => {
+    // the first line with a folder starts after 200 KB of attachments that name none
+    write("p", A, [line({ type: "attachment", text: "x".repeat(200 * 1024) }), user("late folder")]);
+    // 180 KB: head and tail meet in one read, a prompt line crossing the 128 KiB mark stays whole
+    write("p", B, [user("first"), line({ type: "attachment", cwd: "/work/app", text: "y".repeat(128 * 1024 - 400) }), user("straddling prompt"), line({ type: "custom-title", customTitle: "kept" }), line({ type: "attachment", text: "z".repeat(50 * 1024) })], 1000);
+    const { sessions } = await claudeHistory(query());
+    expect(sessions.map((s) => [s.session_id, s.first_prompt])).toEqual([[A, "late folder"], [B, "first"]]);
+    expect(sessions[1]!.title).toBe("kept");
+  });
+
   it("drops the count of a transcript too big to read whole", async () => {
     write("p", A, [user("small")]);
     write("p", C, [user("huge"), line({ type: "attachment", text: "z".repeat(5 * 1024 * 1024) })], 1000);

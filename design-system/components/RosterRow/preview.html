@@ -1,7 +1,7 @@
 <!-- @dsCard group="Navigation" height=350 subtitle="PC header and two-line workspace rows: selected, RUN, INPUT, DONE, READY" -->
 <div class="ds-stage">
   <div class="sidebar-shell">
-    <div class="machine-list" aria-label="PCs and workspaces">
+    <div class="machine-list" aria-label="PCs and projects">
       <section class="machine-group is-current" aria-label="PC studio">
         <header class="machine-header">
           <button class="machine-toggle" aria-expanded="true">
@@ -11,17 +11,17 @@
             <span class="machine-kind" title="The computer this app runs on">Host</span>
             <span class="machine-dot is-connected" title="Connected" aria-hidden="true"></span>
           </button>
-          <button class="sidebar-row-action" aria-label="New workspace on studio" title="New workspace"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+          <button class="sidebar-row-action" aria-label="New project on studio" title="New project"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
         </header>
         <p class="machine-state is-connected visually-hidden" role="status"><span class="machine-state-word">Connected</span></p>
         <div>
           <div class="machine-workspaces">
-            <nav class="sidebar-list" aria-label="Herdr workspaces">
+            <nav class="sidebar-list" aria-label="Herdr projects">
               <ul class="workspace-list">
 
                 <li class="workspace pane-item is-selected">
                   <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder workspace api" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
+                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project api" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
                     <div class="pane-select" role="button" tabindex="0" aria-current="true" title="w1-p1 — Fix token refresh race — ~/dev/api">
                       <span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
                       <span class="pane-copy">
@@ -40,7 +40,7 @@
 
                 <li class="workspace pane-item">
                   <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder workspace web" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
+                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project web" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
                     <div class="pane-select" role="button" tabindex="0" title="w2-p1 — Move settings into tabs — ~/dev/web">
                       <span class="agent-mark-holder" title="goose"><span class="agent-mark goose"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="goose"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">G</text></svg></span></span>
                       <span class="pane-copy">
@@ -60,7 +60,7 @@
 
                 <li class="workspace pane-item">
                   <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder workspace docs" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
+                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project docs" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
                     <div class="pane-select" role="button" tabindex="0" title="w3-p2 — Draft release notes for 0.9 — ~/dev/docs/notes">
                       <span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
                       <span class="pane-copy">
@@ -79,7 +79,7 @@
 
                 <li class="workspace pane-item">
                   <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder workspace infra" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
+                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project infra" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
                     <div class="pane-select" role="button" tabindex="0" title="w4-p1 — dev@studio:~/dev/infra — ~/dev/infra">
                       <span class="agent-mark-holder is-shell" title="Shell"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></svg></span>
                       <span class="pane-copy">

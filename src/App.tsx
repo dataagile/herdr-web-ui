@@ -519,7 +519,8 @@ export function App() {
   const portalSignOut = useCallback(async () => {
     setDrawerOpen(false);
     // the unsubscribe call needs the cookie the portal is about to clear
-    await removePushSubscription().catch(() => undefined);
+    // bounded: a hung unsubscribe must not keep the user signed in
+    await Promise.race([removePushSubscription().catch(() => undefined), new Promise((resolve) => window.setTimeout(resolve, 1500))]);
     window.location.assign("/logout");
   }, []);
 
@@ -603,7 +604,7 @@ export function App() {
     (next: PaneView) => {
       setLens((current) => ({ ...current, view: next }));
       setAutoSelected(false);
-        if (selectedPaneId === null) return;
+      if (selectedPaneId === null) return;
       try {
         window.localStorage.setItem(`herdr-web-ui:view:${paneStorageId(selectedMachineId, selectedPaneId)}`, next);
       } catch {

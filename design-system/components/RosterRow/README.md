@@ -20,7 +20,7 @@ The sidebar roster: a PC group header followed by one two-line row per herdr wor
 ## What the consumer provides
 - Per PC: name, kind (local/ssh), connection state, error text.
 - Per row: the workspace label, its current pane (agent or shell, title with prompt chrome stripped and paths shortened to their last folder, cwd), every pane's status for the roll-up, background task count.
-- aria: `aria-current="true"` on the selected `.pane-select`; `aria-label` "Reorder workspace {name}", "More for {title}", "New workspace on {pc}"; `aria-expanded` on the toggle and `⋯`; full pane id/title/cwd in the row's `title`.
+- aria: `aria-current="true"` on the selected `.pane-select`; `aria-label` "Reorder project {name}", "More for {title}", "New project on {pc}"; `aria-expanded` on the toggle and `⋯`; full pane id/title/cwd in the row's `title`.
 
 ## Tokens used
 `--bg-panel`, `--bg-hover`, `--bg-elevated`, `--border`, `--text`, `--text-strong`, `--text-dim`, `--accent`, `--accent-tint`, `--status-done`, `--status-working`, `--status-blocked`, `--status-idle` (+ their `-tint`s via badges), `--row-h`, `--avatar-size`, `--mark-size`, `--rail-w`, `--dot-size`, `--chip-h`, `--control-h`, `--icon-size`, `--radius-md`, `--radius-sm`, `--radius-pill`, `--space-1`…`--space-4`, `--fs-sm`, `--fs-xs`, `--fw-semibold`, `--lh-tight`.
@@ -29,7 +29,7 @@ The sidebar roster: a PC group header followed by one two-line row per herdr wor
 - Do keep every row two lines: title alone on line one, state word first on line two.
 - Do spend amber only on the selected row (rail + mark box edge); mark boxes stay neutral otherwise.
 - Do name on line two only what the title does not already say (workspace, then folder).
-- Don't add workspace headers, numbers or folds in the By workspace view.
+- Don't add workspace headers, numbers or folds in the By project view.
 - Don't colour a row by state: the badge carries the colour and the word.
 - Don't put more than the one `⋯` at the row's end; actions live in the row menu.
 

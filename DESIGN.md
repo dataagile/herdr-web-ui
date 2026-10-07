@@ -362,8 +362,8 @@ One set for both themes: the card is island black wherever it shows.
 - Hover or `aria-selected` uses `--bg-hover`. Headings are dim uppercase micro labels.
 - The sidebar's row menu (`.row-menu`) is a `.menu` drawn through a portal at fixed coordinates,
   under its `⋯` with right edges aligned, above it when the screen ends first, and over the drawer.
-  A workspace row offers Rename workspace, New tab, New worktree,
-  Open worktree…, then Close under a hairline (Close workspace when the workspace has several panes). A worktree workspace's row has no worktree items and ends in
+  A workspace row offers Rename project, New tab, New worktree,
+  Open worktree…, then Close under a hairline (Close project when the workspace has several panes). A worktree workspace's row has no worktree items and ends in
   **Delete worktree checkout…** after Close. The
   danger item takes `--status-blocked`. At `<=640px` it is a `.modal` bottom sheet (`.row-sheet`):
   a grip, the row's name and place, 48px rows and a Cancel button; Tab stays among them. Escape, a press outside and
@@ -404,7 +404,7 @@ One set for both themes: the card is island black wherever it shows.
   row is shorter (three quarters of `--row-h`): mark, the pane's title, then its state word and
   "workspace · agent". It selects exactly that pane and ends in a `⋯` whose one item is
   **Rename pane**, edited in place of the title. It has no handle and no `+`.
-- Appearance's **Sidebar grouping** is **By workspace** by default. **By folder** opts into the
+- Appearance's **Sidebar grouping** is **By project** by default. **By folder** opts into the
   grouping below. The choice applies immediately and persists in the browser's existing Settings
   record; folder folds are remembered per PC and path.
 - In folder mode, within each PC, panes with the same full cwd share a folder group, including panes from
@@ -415,14 +415,14 @@ One set for both themes: the card is island black wherever it shows.
   one pane. Its indented contents use the existing spacing and border tokens. Folder folds are
   remembered per PC and path; opening a pane unfolds its folder, but status updates do not.
 - Folder order follows the first workspace in server order; workspace handles still reorder
-  workspaces, not filesystem directories. Workspace names and rename actions remain inside the group.
+  workspaces, not filesystem directories. Project names and rename actions remain inside the group.
 - Every Projects row is two lines: agent/shell mark, then the editable title alone on line one (full
   width), and the state word followed by the row's place on line two. Mark boxes are neutral;
   the selected row gets the amber rail and an amber-edged mark box. The row carries the
   workspace's reorder handle in its left gutter (drag, or `Alt+↑/↓` on the handle) and ends in
   a `+` (New tab in that workspace) and a `⋯` (`.row-menu-toggle`), both shown on hover, focus,
   selection and while the menu is open, always on touch; the `⋯` opens the row menu. Inline server failures stay beside their row. In the
-  By workspace view a repository's workspace moves past the next or previous group as one, with its
+  By project view a repository's workspace moves past the next or previous group as one, with its
   worktrees, and a worktree moves among its siblings only.
 - A title that is a working directory written out (`/home/me/dev/api`, `~/dev/api`, `C:\work\api`)
   shows as its last folder, here, in the header, the palette and every alert; the full path stays
@@ -435,7 +435,7 @@ One set for both themes: the card is island black wherever it shows.
   button. Connected says
   nothing more; every other state is written under the name, with the server's error clamped to
   two lines and complete in the tooltip.
-- In the By workspace view, a repository's worktree workspaces (`workspace.worktree.is_linked_worktree`)
+- In the By project view, a repository's worktree workspaces (`workspace.worktree.is_linked_worktree`)
   sit under the row of the workspace on its main checkout, packed behind a hairline
   (`.worktree-children`), as herdr's Spaces sidebar keeps them; a worktree whose repository
   workspace is not open stays at the top level.
@@ -460,7 +460,7 @@ One set for both themes: the card is island black wherever it shows.
   the email or login right-aligned and ellipsized, then one row per limit (label, reset time, right-aligned percent) over a 4px bar. A problem
   note is dim, red for an expired sign-in or a failed request.
 
-### New workspace dialog
+### New project dialog
 - Agent select comes from `GET /api/agents`; shell-only is always available. Directory defaults to
   the selected pane cwd and name is an optional workspace label.
 - Submit calls `POST /api/workspace/create`; the server performs `workspace.create` and, when an
@@ -557,7 +557,7 @@ One set for both themes: the card is island black wherever it shows.
 - The branch arrives filled in as herdr's own form fills it (`worktree/brave-valley-07f8`:
   adjective, noun, four hex digits) and selected, so typing replaces it. The name is the branch
   with its slashes as dashes and follows the branch until it is typed over.
-- **Agent** is the New workspace dialog's picker, under the name: the agent last started, Shell
+- **Agent** is the New project dialog's picker, under the name: the agent last started, Shell
   for none. It starts in the checkout's pane once the checkout is made. One that fails to start
   leaves the worktree there: the dialog says why, locks its fields, and its button reads **Open**.
 
@@ -907,7 +907,7 @@ One set for both themes: the card is island black wherever it shows.
 ### Command palette
 - `Mod+Shift+K` opens a top-offset `--palette-w` dialog searching panes and actions. Recent panes
   lead an empty query; arrows cycle, Enter activates and Escape closes.
-- Actions cover new workspace, lens/sidebar/theme, settings, notifications, lock and refresh, with
+- Actions cover new project, lens/sidebar/theme, settings, notifications, lock and refresh, with
   `.kbd` hints where a global shortcut exists.
 
 ### Settings dialog

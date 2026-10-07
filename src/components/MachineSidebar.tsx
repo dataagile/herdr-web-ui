@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Download, Monitor, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, LogOut, Monitor, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 import type { Machine, MachineState, MachineUpdate } from "../../shared/machines.ts";
 import { MachineContext } from "../lib/machineContext.tsx";
 import { answerMachineSetup, machineRequest } from "../lib/api.ts";
@@ -45,6 +45,7 @@ export function MachineSidebar(props: Props) {
         <button className="btn btn-ghost sidebar-footer-action" title={t("Settings (⌘⇧,)")} onClick={props.actions.openSettings}><Settings aria-hidden="true" />{t("Settings")}</button>
         <UsageMeters />
       </div>
+      {props.actions.portalSignOut && <button className="btn btn-ghost sidebar-footer-action" onClick={props.actions.portalSignOut}><LogOut aria-hidden="true" />{t("Sign out")}</button>}
       <p className="sidebar-version" title={t("herdr {version} · build {date}", { version: props.herdrVersion ?? "—", date: builtLabel(build.built) ?? "—" })}>{versionLine(build)}</p>
     </footer>
   </div>;

@@ -18,6 +18,10 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   command** copies it with a `cd`. A session already open in a pane (as herdr reports its id) reads
   **OPEN NOW** and offers **Go to tab**. The list is `GET /api/workspace/history`; PCs added over
   SSH answer "History is not available for this PC", as their bridges do not have it.
+- Behind the Data Agile portal (`/api/portal/me` answers `{ authenticated: true }` on the app's own
+  origin) the sidebar footer and the command palette offer **Sign out**, which ends the portal's
+  session through `/logout` (also on a phone). It replaces the app's own Sign out there; without
+  the portal nothing changes.
 - **Add PC** is back in the sidebar footer, above Install app and Settings, opening the same dialog
   as Settings → Remote PCs.
 - Brazilian Portuguese (Português, Brasil) UI language in Settings > Language; a browser set to

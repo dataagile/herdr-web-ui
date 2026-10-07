@@ -309,8 +309,14 @@ try {
   await page.getByRole("button", { name: "Close settings", exact: true }).click();
   console.log("PASS settings shortcut and theme");
 
-  // Add PC lives in Settings → Remote PCs, not in the sidebar; opening it closes Settings behind it
-  assert.equal(await page.locator(".sidebar").getByRole("button", { name: "Add PC", exact: true }).count(), 0, "the sidebar has no Add PC button");
+  // Add PC is in the sidebar footer and in Settings → Remote PCs; either opens the PC dialog
+  const footerAddPc = page.locator(".sidebar-footer").getByRole("button", { name: "Add PC", exact: true });
+  assert.equal(await footerAddPc.count(), 1, "the sidebar footer has an Add PC button");
+  await footerAddPc.click();
+  await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Close PC setup", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor({ state: "hidden" });
+  // from Settings it closes Settings behind it
   await page.keyboard.press("ControlOrMeta+Shift+Comma");
   await page.getByRole("dialog", { name: "Settings" }).getByRole("button", { name: "Add PC", exact: true }).click();
   await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor();
@@ -319,7 +325,7 @@ try {
   await page.getByRole("dialog", { name: "Add PC", exact: true }).waitFor({ state: "hidden" });
   // its trigger went with Settings: focus lands on the header's workspace-list toggle instead of nowhere
   await until(async () => await page.evaluate(() => document.activeElement?.matches(".sidebar-toggle, .drawer-toggle") ?? false), "focus returns to the workspace-list toggle after Add PC closes");
-  console.log("PASS Add PC opens from Settings, and the sidebar has no top bar");
+  console.log("PASS Add PC opens from the sidebar footer and from Settings, and the sidebar has no top bar");
 
   // An update request answered while the page is hidden (a phone app sent to the background) must
   // still release the buttons: the status poll stops with the page, the request does not.
@@ -686,8 +692,8 @@ try {
     await createGate;
     await route.continue();
   });
-  await page.getByRole("button", { name: /^New workspace on / }).click();
-  const dialog = page.getByRole("dialog", { name: /^New workspace/ });
+  await page.getByRole("button", { name: /^New project on / }).click();
+  const dialog = page.getByRole("dialog", { name: /^New project/ });
   await dialog.getByLabel(/^Directory/).fill(root);
   await checkFolderFilter(page, dialog, () => createRequests);
   await dialog.getByLabel(/^Name/).fill("herdr-web-ui-test-browser-created");
@@ -756,7 +762,7 @@ try {
   // In the By workspace view the worktree's row sits under its repository's, as herdr packs them.
   // Its menu deletes the checkout: a dirty one is refused in git's words first, then deleted anyway.
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.locator('.segmented[aria-label="Sidebar grouping"]').getByRole("button", { name: "By workspace", exact: true }).click();
+  await page.locator('.segmented[aria-label="Sidebar grouping"]').getByRole("button", { name: "By project", exact: true }).click();
   await page.getByRole("button", { name: "Close settings", exact: true }).click();
   const childRow = page.locator(`.worktree-children .pane-item:has(.pane-select[title^="${worktree.pane_id} —"])`);
   await childRow.waitFor();
@@ -780,7 +786,7 @@ try {
   await childRow.locator(".row-menu-toggle").click();
   const childMenu = page.getByRole("menu");
   await childMenu.waitFor();
-  assert.deepEqual(await childMenu.getByRole("menuitem").allTextContents(), ["Rename workspace", "New tab", "Close", "Delete worktree checkout…"], "a worktree row's menu");
+  assert.deepEqual(await childMenu.getByRole("menuitem").allTextContents(), ["Rename project", "New tab", "Close", "Delete worktree checkout…"], "a worktree row's menu");
   await childMenu.getByRole("menuitem", { name: "Delete worktree checkout…", exact: true }).click();
   const deleteConfirm = page.getByRole("alertdialog");
   await deleteConfirm.waitFor();
@@ -831,11 +837,11 @@ try {
   assert.equal(await tabDialog.getByRole("button", { name: "Start", exact: true }).isDisabled(), false, "a reopened dialog is not left pending");
   await page.keyboard.press("Escape");
   await tabDialog.waitFor({ state: "hidden" });
-  // the PC's + is New workspace again, not a tab in the workspace the last dialog was for
-  await page.getByRole("button", { name: /^New workspace on / }).click();
-  await page.getByRole("dialog", { name: /^New workspace/ }).waitFor();
+  // the PC's + is New project again, not a tab in the workspace the last dialog was for
+  await page.getByRole("button", { name: /^New project on / }).click();
+  await page.getByRole("dialog", { name: /^New project/ }).waitFor();
   await page.keyboard.press("Escape");
-  await page.getByRole("dialog", { name: /^New workspace/ }).waitFor({ state: "hidden" });
+  await page.getByRole("dialog", { name: /^New project/ }).waitFor({ state: "hidden" });
   console.log("PASS a second tab is made from the row's menu, listed in a strip over the pane, and opened from it");
 
   // A tab is renamed and closed from the strip, as herdr's prefix+shift+t and prefix+shift+x.

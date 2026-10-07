@@ -1,0 +1,181 @@
+/* the sidebar's History section: compact rows under the Projects and Agents lists */
+.history-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.history-ranges {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.history-chip {
+  height: calc(var(--control-h) - 8px);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-chip[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
+  font-weight: var(--fw-semibold);
+}
+
+.history-search {
+  width: 100%;
+  min-width: 0;
+}
+
+.history-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.history-state {
+  margin: var(--space-1) 0;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.history-error {
+  color: var(--status-blocked);
+  overflow-wrap: anywhere;
+}
+
+.history-day-title {
+  margin: var(--space-2) 0 var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+
+.history-row:hover,
+.history-row:focus-within {
+  background: var(--bg-elevated);
+}
+
+.history-open {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-open:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.history-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-strong);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.history-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-live {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: var(--hairline) solid var(--status-working);
+  border-radius: var(--radius-sm);
+  color: var(--status-working);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+}
+
+.history-meta {
+  display: flex;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+}
+
+/* the copy button shows on hover and focus, and always where there is no hover */
+.history-copy {
+  flex: none;
+  opacity: 0;
+}
+
+.history-row:hover .history-copy,
+.history-row:focus-within .history-copy {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .history-copy {
+    opacity: 1;
+  }
+}
+
+.history-row-error {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+  color: var(--status-blocked);
+  font-size: var(--fs-2xs);
+  overflow-wrap: anywhere;
+}
+
+.history-more {
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.history-more:disabled {
+  opacity: 0.55;
+}

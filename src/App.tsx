@@ -38,6 +38,7 @@ import {
   showPaneStatusNotification,
   type NotificationState,
 } from "./lib/notifications.ts";
+import { detectPortal } from "./lib/portal.ts";
 import { ensurePushSubscription, pushSupported, removePushSubscription } from "./lib/push.ts";
 import { onNotificationTarget } from "./lib/notificationTarget.ts";
 import { useUpdates } from "./lib/updates.ts";
@@ -155,8 +156,8 @@ export function App() {
   const machinesRef = useRef(machines); machinesRef.current = machines;
   const [updateRemote, setUpdateRemote] = useState(false);
   const [machineDialog, setMachineDialog] = useState<Machine | "new" | null>(null);
-  // Add PC from Settings or the palette leaves no trigger to return focus to once its dialog
-  // closes (Settings closed when it opened): the header's workspace-list toggle stands in
+  // Add PC from the sidebar, Settings or the palette leaves no trigger to return focus to once its dialog
+  // closes (Settings, if it opened from there, closed): the header's workspace-list toggle stands in
   const addPcFocusReturn = useRef(false);
   const closeMachineDialog = useCallback(() => {
     setMachineDialog(null);
@@ -174,7 +175,10 @@ export function App() {
   /** the code a scanned QR brought along (`?pair=CODE`), taken off the address at once */
   const [pairCode] = useState(() => takePairCode());
   const [auth, setAuth] = useState<HealthAuth | null>(null);
-  const canSignOut = auth?.authenticated === true && (auth.via === "token" || auth.via === "device");
+  // behind the portal its Sign out is the one offered: this app's own would only end the app's cookie
+  const [portal, setPortal] = useState(false);
+  useEffect(() => { void detectPortal().then(setPortal); }, []);
+  const canSignOut = !portal && auth?.authenticated === true && (auth.via === "token" || auth.via === "device");
   // a device that is in only because nothing is paired yet still pairs from the QR code's address
   const pairedFromAddress = useRef(false);
   useEffect(() => {
@@ -512,6 +516,14 @@ export function App() {
     await loadHealth();
   }, [loadHealth]);
 
+  const portalSignOut = useCallback(async () => {
+    setDrawerOpen(false);
+    // the unsubscribe call needs the cookie the portal is about to clear
+    // bounded: a hung unsubscribe must not keep the user signed in
+    await Promise.race([removePushSubscription().catch(() => undefined), new Promise((resolve) => window.setTimeout(resolve, 1500))]);
+    window.location.assign("/logout");
+  }, []);
+
   const selectedMachineRef = useRef(selectedMachineId);
   selectedMachineRef.current = selectedMachineId;
   const selectTarget = useCallback((machineId: string, paneId: string | null) => {
@@ -797,11 +809,12 @@ export function App() {
       },
       toggleTheme: () => updateSettings({ theme: resolvedTheme === "dark" ? "light" : "dark" }),
       lock: canSignOut ? () => void lock() : null,
+      portalSignOut: portal ? () => void portalSignOut() : null,
       enableNotifications: bellVisible && bell.run === enableNotifications ? () => void enableNotifications() : null,
       refresh: () => void load(),
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
     }),
-    [selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.run, enableNotifications, load],
+    [selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, portal, portalSignOut, bellVisible, bell.run, enableNotifications, load],
   );
 
   useShortcuts(actions, locked === false);
@@ -864,7 +877,7 @@ export function App() {
           <button
             type="button"
             className="icon-button drawer-toggle"
-            aria-label={t(drawerOpen ? "Close workspace list" : "Open workspace list")}
+            aria-label={t(drawerOpen ? "Close project list" : "Open project list")}
             aria-expanded={drawerOpen}
             aria-controls="workspace-drawer"
             onClick={() => setDrawerOpen((open) => !open)}
@@ -874,7 +887,7 @@ export function App() {
           <button
             type="button"
             className="icon-button header-desktop-only sidebar-toggle"
-            aria-label={t(sidebarCollapsed ? "Show workspace list" : "Hide workspace list")}
+            aria-label={t(sidebarCollapsed ? "Show project list" : "Hide project list")}
             aria-pressed={!sidebarCollapsed}
             title={t("Toggle sidebar (⌘⇧B)")}
             onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}

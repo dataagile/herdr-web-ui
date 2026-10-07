@@ -161,14 +161,14 @@ try {
     await changeState(page, [{ selector: grouping }],
       () => page.getByRole("button", { name: "Settings", exact: true }).click(), "grouping Settings opens");
     assert.equal(await page.locator(grouping).count(), 1);
-    assert.equal(await page.locator(grouping).getByRole("button", { name: "By workspace", exact: true }).count(), 1);
+    assert.equal(await page.locator(grouping).getByRole("button", { name: "By project", exact: true }).count(), 1);
     assert.equal(await page.locator(grouping).getByRole("button", { name: "By folder", exact: true }).count(), 1);
     await changeState(page, states,
       () => page.locator(grouping).getByRole("button", {
-        name: mode === "workspace" ? "By workspace" : "By folder", exact: true,
+        name: mode === "workspace" ? "By project" : "By folder", exact: true,
       }).click(), `${mode} grouping applies without reload`);
     assert.equal(await page.locator(grouping).getByRole("button", {
-      name: mode === "workspace" ? "By workspace" : "By folder", exact: true,
+      name: mode === "workspace" ? "By project" : "By folder", exact: true,
     }).getAttribute("aria-pressed"), "true");
     assert.equal(await page.evaluate(() => performance.timeOrigin), documentIdentity, "grouping must not replace the document");
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("herdr-web-ui:settings") ?? "{}").sidebarGrouping), mode);
@@ -345,7 +345,7 @@ try {
     && response.request().postDataJSON().workspace_id === beta.workspaceId);
   await changeState(page, [{ selector: `${shared} .workspace:first-child ${paneSelector(beta.paneId)}` }],
     () => page.locator(itemSelector(beta.paneId)).getByRole("button", {
-      name: `Reorder workspace ${beta.label}`, exact: true,
+      name: `Reorder project ${beta.label}`, exact: true,
     }).press("Alt+ArrowUp"), "keyboard reorder moves beta ahead of alpha");
   assert.equal((await moveResponse).status(), 200);
   const reordered = await sessionSnapshot();
@@ -398,7 +398,7 @@ try {
   await changeState(page, [{ selector: ".workspace-rename-input" }],
     async () => {
       await page.locator(`${itemSelector(alpha.paneId)} .row-menu-toggle`).click();
-      await page.getByRole("menuitem", { name: "Rename workspace", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Rename project", exact: true }).click();
     }, "rename editor opens");
   await page.locator(".workspace-rename-input").fill(renamed);
   const renameResponse = page.waitForResponse((response) => response.request().method() === "POST"
@@ -457,7 +457,7 @@ try {
   await changeState(page, [{ selector: ".workspace-rename-input:focus", count: 1 }, { selector: ".workspace-rename-input", count: 1 }],
     async () => {
       await page.locator(`${single} ${itemSelector(away)} .row-menu-toggle`).click();
-      await page.getByRole("menuitem", { name: "Rename workspace", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Rename project", exact: true }).click();
     }, "one workspace rename editor opens and keeps the focus");
   await changeState(page, [{ selector: ".workspace-rename-input", count: 0 }],
     () => page.locator(".workspace-rename-input").press("Escape"), "workspace rename editor closes on Escape");

@@ -208,7 +208,7 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
       title: t("Close tab {name}?", { name: nameOf(tab) }),
       body: tabs.length > 1
         ? t("An agent in it is still at work, and stops with the tab.")
-        : t("It is the last tab of {workspace}: the workspace closes with it, and the agents and shells in it stop.", { workspace: workspace.label }),
+        : t("It is the last tab of {workspace}: the project closes with it, and the agents and shells in it stop.", { workspace: workspace.label }),
     });
   };
 

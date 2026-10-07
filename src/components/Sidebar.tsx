@@ -17,13 +17,15 @@ import { folderName, placeLine, shortPathTitle } from "../lib/paneName.ts";
 import { useT } from "../lib/i18n.ts";
 import { groupDirectories } from "../lib/directoryGroups.ts";
 import { rosterPanes } from "../lib/dagPane.ts";
+import { HistorySection } from "./HistorySection.tsx";
+import { historyFolders, projectFolder } from "../lib/history.ts";
 import { agentPanes, isAgentPane } from "../lib/agentPanes.ts";
 import { useSettings, type SidebarGrouping } from "../lib/settings.ts";
 
 const ERROR_NOTE_MS = 5000;
 
-/** The Spaces and Agents sections fold per PC; open unless stored as "1". */
-type Section = "spaces" | "agents";
+/** The Projects, Agents and History sections fold per PC; open unless stored as "1". */
+type Section = "spaces" | "agents" | "history";
 const sectionKey = (machineId: string, section: Section) => `herdr-web-ui:sidebar-section:${machineId}:${section}`;
 function storedSectionFolded(machineId: string, section: Section): boolean {
   try { return localStorage.getItem(sectionKey(machineId, section)) === "1"; } catch { return false; }
@@ -104,11 +106,11 @@ interface InlineError {
 interface MenuState { anchor: HTMLElement; workspace: WorkspaceInfo; pane: PaneInfo; scope: string; title: string; place: string }
 interface ConfirmState { title: string; body: string; action?: string; run: () => Promise<void>; escalation?: { label: string; code: string; run: () => Promise<void> } }
 
-function SectionHeader({ section, label, count, folded, onToggle }: { section: Section; label: string; count: number; folded: boolean; onToggle: (section: Section) => void }) {
+function SectionHeader({ section, label, count, folded, onToggle }: { section: Section; label: string; count?: number; folded: boolean; onToggle: (section: Section) => void }) {
   return (
     <button type="button" className="sidebar-section-header" aria-expanded={!folded} onClick={() => onToggle(section)}>
       {folded ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
-      <span>{label} · {count}</span>
+      <span>{count === undefined ? label : `${label} · ${count}`}</span>
     </button>
   );
 }
@@ -143,7 +145,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<InlineError | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => storedCollapsed(machineId, snapshot ? groupDirectories(snapshot.workspaces, snapshot.panes).map((group) => group.key) : []));
-  const [folded, setFolded] = useState<Record<Section, boolean>>(() => ({ spaces: storedSectionFolded(machineId, "spaces"), agents: storedSectionFolded(machineId, "agents") }));
+  const [folded, setFolded] = useState<Record<Section, boolean>>(() => ({ spaces: storedSectionFolded(machineId, "spaces"), agents: storedSectionFolded(machineId, "agents"), history: storedSectionFolded(machineId, "history") }));
   const toggleSection = (section: Section): void => {
     setFolded((current) => {
       const next = !current[section];
@@ -222,6 +224,23 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     return orderedWorkspaces.filter((workspace) => drawn.has(workspace.workspace_id)).length;
   }, [roster, orderedWorkspaces]);
   const agents = useMemo(() => agentPanes(roster, workspaceOrder), [roster, workspaceOrder]);
+  // the selected project's History: read from this PC's own transcripts, so the local PC only
+  const historyWorkspace = useMemo(() => {
+    if (machineId !== "local" || !snapshot) return null;
+    const workspaceId = snapshot.panes.find((pane) => pane.pane_id === selectedPaneId)?.workspace_id;
+    return snapshot.workspaces.find((workspace) => workspace.workspace_id === workspaceId) ?? null;
+  }, [machineId, snapshot, selectedPaneId]);
+  // the project's folder is where its pane first was, so a `cd` in a pane does not move it (a worktree's is its checkout)
+  const rootFolders = useRef(new Map<string, string>());
+  const historyFolderList = (() => {
+    if (!historyWorkspace || !snapshot) return null;
+    let root = historyWorkspace.worktree?.checkout_path ?? rootFolders.current.get(historyWorkspace.workspace_id) ?? null;
+    if (root === null) {
+      root = projectFolder(historyWorkspace, snapshot.panes);
+      if (root !== null) rootFolders.current.set(historyWorkspace.workspace_id, root);
+    }
+    return historyFolders(historyWorkspace, snapshot.workspaces, root);
+  })();
   const directories = useMemo(() => groupDirectories(orderedWorkspaces, roster), [orderedWorkspaces, roster]);
   // herdr packs a repository's worktree workspaces under the one on its main checkout; a worktree
   // whose repository workspace is not open stays at the top level, in its own place
@@ -279,7 +298,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     const worktrees = linked ? [] : (snapshot?.workspaces.filter((candidate) => candidate.worktree?.is_linked_worktree && candidate.worktree.repo_key === workspace.worktree?.repo_key) ?? []);
     // herdr's own actions on a workspace: rename, a new tab (prefix+c), its worktrees (prefix+shift+g), close
     const items: RowMenuItem[] = [
-      { id: "rename-workspace", label: t("Rename workspace"), icon: Pencil, run: () => beginWorkspaceRename(workspace, state.scope) },
+      { id: "rename-workspace", label: t("Rename project"), icon: Pencil, run: () => beginWorkspaceRename(workspace, state.scope) },
       { id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab({ machineId, workspaceId: workspace.workspace_id }) },
       ...(linked ? [] : [
         { id: "new-worktree", label: t("New worktree"), icon: GitBranch, run: () => setWorktreeDialog({ mode: "create", workspace }) },
@@ -290,7 +309,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
       id: "delete-worktree", label: t("Delete worktree checkout…"), icon: Trash2, danger: true,
       run: () => setConfirm({
         title: t("Delete the checkout of {name}?", { name: workspace.label }),
-        body: t("The folder at {path} is deleted and the workspace closes. The branch stays.", { path: workspace.worktree?.checkout_path ?? "" }),
+        body: t("The folder at {path} is deleted and the project closes. The branch stays.", { path: workspace.worktree?.checkout_path ?? "" }),
         action: t("Delete"),
         run: () => leave(async () => { await removeWorktree({ workspace_id: workspace.workspace_id }); }),
         // git refuses a checkout with unsaved changes: the refusal shows, and the action becomes a forced one
@@ -302,12 +321,12 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     const closeItem: RowMenuItem = paneCount === 1
       ? { id: "close", label: t("Close"), icon: X, danger: true, divider: true, run: () => setConfirm({
           title: t("Close {title}?", { title: state.title }),
-          body: worktrees.length > 0 ? t("Its workspace and its {m} worktree workspaces close with it; the agents in them stop, and the checkouts stay.", { m: worktrees.length }) : t("Its workspace closes with it, and the agent and shell in it stop."),
+          body: worktrees.length > 0 ? t("Its project and its {m} worktree projects close with it; the agents in them stop, and the checkouts stay.", { m: worktrees.length }) : t("Its project closes with it, and the agent and shell in it stop."),
           run: () => leave(() => worktrees.length > 0 ? closeWorkspace(workspace.workspace_id, true) : closePane(pane.pane_id)),
         }) }
-      : { id: "close", label: t("Close workspace"), icon: X, danger: true, divider: true, run: () => setConfirm({
-          title: t("Close workspace {name}?", { name: workspace.label }),
-          body: worktrees.length > 0 ? t("{n} panes and {m} worktree workspaces close with it; the agents in them stop, and the checkouts stay.", { n: paneCount, m: worktrees.length }) : t("{n} panes close with it, and the agents in them stop.", { n: paneCount }),
+      : { id: "close", label: t("Close project"), icon: X, danger: true, divider: true, run: () => setConfirm({
+          title: t("Close project {name}?", { name: workspace.label }),
+          body: worktrees.length > 0 ? t("{n} panes and {m} worktree projects close with it; the agents in them stop, and the checkouts stay.", { n: paneCount, m: worktrees.length }) : t("{n} panes close with it, and the agents in them stop.", { n: paneCount }),
           run: () => leave(() => closeWorkspace(workspace.workspace_id, worktrees.length > 0)),
         }) };
     return [...items, closeItem, ...deleteItems];
@@ -452,7 +471,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
           <button
             type="button"
             className="sidebar-drag-handle"
-            aria-label={t("Reorder workspace {name}", { name: workspace.label })}
+            aria-label={t("Reorder project {name}", { name: workspace.label })}
             title={t("Drag to reorder · Alt+↑/↓")}
             draggable
             onDragStart={(event) => onDragStart(event, workspace.workspace_id)}
@@ -482,7 +501,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
                 {editingWorkspace ? (
                   <input
                     className="input pane-rename-input workspace-rename-input"
-                    aria-label={t("Workspace name")}
+                    aria-label={t("Project name")}
                     autoFocus
                     value={workspaceLabel}
                     onClick={(event) => event.stopPropagation()}
@@ -521,15 +540,15 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
 
   return (
     <div className="machine-workspaces">
-      <nav className="sidebar-list" aria-label={t("Herdr workspaces")}>
-        {!snapshot && <p className="tree-state" role="status">{t("Loading workspaces…")}</p>}
+      <nav className="sidebar-list" aria-label={t("Herdr projects")}>
+        {!snapshot && <p className="tree-state" role="status">{t("Loading projects…")}</p>}
         {snapshot && snapshot.workspaces.length === 0 && (
           <div className="tree-state-empty">
-            <p className="tree-state" role="status">{t("No workspaces yet")}</p>
-            <button type="button" className="btn" onClick={actions.openNewSession}><Plus aria-hidden="true" />{t("New workspace")}</button>
+            <p className="tree-state" role="status">{t("No projects yet")}</p>
+            <button type="button" className="btn" onClick={actions.openNewSession}><Plus aria-hidden="true" />{t("New project")}</button>
           </div>
         )}
-        {snapshot && snapshot.workspaces.length > 0 && <SectionHeader section="spaces" label={t("Spaces")} count={spaceCount} folded={folded.spaces} onToggle={toggleSection} />}
+        {snapshot && snapshot.workspaces.length > 0 && <SectionHeader section="spaces" label={t("Projects")} count={spaceCount} folded={folded.spaces} onToggle={toggleSection} />}
         {!folded.spaces && (byFolder ? directories.map((directory) => {
           const collapsed = collapsedGroups.has(directory.key);
           const name = directory.path ? cwdBasename(directory.path) : directory.workspaces[0]?.workspace.label;
@@ -613,6 +632,17 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
               </li>
             );
           })}</ul>}
+        </>}
+        {historyWorkspace && historyFolderList && snapshot && <>
+          <SectionHeader section="history" label={t("History · {project}", { project: historyWorkspace.label })} folded={folded.history} onToggle={toggleSection} />
+          {!folded.history && <HistorySection
+            key={`${historyWorkspace.workspace_id}\0${historyFolderList.join("\0")}`}
+            workspaceId={historyWorkspace.workspace_id}
+            folders={historyFolderList}
+            panes={snapshot.panes}
+            onSelectPane={actions.selectPane}
+            onOpened={(paneId) => { actions.refresh(); actions.selectPane(paneId); }}
+          />}
         </>}
         {inlineError && inlineError.workspaceId === undefined && (
           <p className="sidebar-inline-error" role="alert">{inlineError.message}</p>

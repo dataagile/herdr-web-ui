@@ -1,7 +1,7 @@
 A centered dialog column with a header, a scrollable body and a footer of actions, over a dimming scrim; a bottom sheet on phones.
 
 ## When to use
-- Focused tasks that need input or a decision: New workspace / New tab, Add PC, Worktree, Settings, Files, confirms.
+- Focused tasks that need input or a decision: New project / New tab, Add PC, Worktree, Settings, Files, confirms.
 - Not for quick action lists (use Menu) or transient notices (in-app alert).
 
 ## Anatomy
@@ -19,7 +19,7 @@ A centered dialog column with a header, a scrollable body and a footer of action
 - `<=640px`: bottom sheet, top `--radius-xl` corners, safe-area padding; with the keyboard up (`[data-keyboard]`) the scrim is `--app-height` tall.
 
 ## What the consumer provides
-- A title naming the task and its target (`New workspace · devbox`), a labelled close button, the first field to focus.
+- A title naming the task and its target (`New project · devbox`), a labelled close button, the first field to focus.
 - Escape, close button and scrim click all close; Cancel never commits.
 - One primary action; a destructive confirm puts the danger button at the right and focuses Cancel.
 

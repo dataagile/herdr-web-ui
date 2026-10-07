@@ -1,7 +1,7 @@
 Medium text buttons (`.btn` with primary, danger and ghost variants) and square unlabeled icon buttons (`.icon-button`) at the shared control height.
 
 ## When to use
-- `.btn` for a labeled command: dialog footers (Cancel / Close workspace), New workspace, Reconnect, the header's Split.
+- `.btn` for a labeled command: dialog footers (Cancel / Close project), New project, Reconnect, the header's Split.
 - `.btn-primary` for the one forward action of a surface; `.btn-danger` for something that cannot be undone (usually inside a confirm); `.btn-ghost` for a quiet header or toolbar command.
 - `.icon-button` for a familiar glyph-only control (sign out, More `⋯`, steppers); add `.is-outlined` when it sits on its own and needs an edge (font-size steppers in Settings).
 

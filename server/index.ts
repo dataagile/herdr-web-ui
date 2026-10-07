@@ -13,6 +13,8 @@ import { DeviceStore, handleDeviceRequest } from "./devices.ts";
 import { remoteAccess, tailscaleIdentity } from "./tailscale.ts";
 import { paneCommands } from "./commands.ts";
 import { paneFiles } from "./files.ts";
+import { claudeHistory } from "./claude-history.ts";
+import { defaultClaudeConfigDir } from "./claude-store.ts";
 import { badRequest, errorResponse, isCount, isJsonObject, jsonResponse } from "./http.ts";
 import { serveStatic } from "./static.ts";
 import { startStatusCollector } from "./collector.ts";
@@ -320,6 +322,8 @@ export function createServer(
     tailscaleOwner?: string | null;
     /** Native Codex store; defaults to CODEX_HOME. Tests use an isolated store. */
     codexHome?: string;
+    /** Claude Code's config dir for the History list; defaults to CLAUDE_CONFIG_DIR, else ~/.claude. Tests use an isolated store. */
+    claudeConfigDir?: string;
     updates?: UpdateService;
     /** updates herdr itself (server/herdr-update.ts); unset, the app offers no herdr update. Tests pass one that runs a stand-in herdr. */
     herdrUpdate?: HerdrUpdater;
@@ -1042,7 +1046,8 @@ export function createServer(
       // drops it before forwarding: `/api/machines/<id>//fs/file` would pass as not a file read.
       if (pathname.startsWith("/api/") && pathname.includes("//")) return jsonResponse({ error: { code: "not_found", message: "not found" } }, 404);
       // Watching a terminal grants no arbitrary filesystem access: those files include credentials.
-      const fileRead = /^\/api\/(?:machines\/[^/]+\/)?fs\//.test(pathname);
+      // the History list quotes prompts, which can hold secrets, so it is a file read too
+      const fileRead = /^\/api\/(?:machines\/[^/]+\/)?(?:fs\/|workspace\/history$)/.test(pathname);
       const ownPreferences = pathname === "/api/auth" || pathname === "/api/push/subscribe" || pathname === "/api/push/test";
       if (readOnly && (fileRead || mutating && !ownPreferences)) {
         return jsonResponse({ error: { code: "read_only", message: "this device can only watch" } }, 403);
@@ -1212,6 +1217,36 @@ export function createServer(
         } catch (error) {
           // a refusal the viewer can read (not a file, not text, too large) is its own envelope
           if (error instanceof FileWriteError) return jsonResponse({ error: { code: error.code, message: error.message } }, error.status);
+          return errorResponse(error);
+        }
+      }
+
+      if (pathname === "/api/workspace/history") {
+        if (request.method !== "GET") return badRequest("method_not_allowed", "use GET");
+        const params = url.searchParams;
+        // the project's folder and its worktrees': only compared with the cwd a transcript records, never opened
+        const folders = params.getAll("cwd");
+        if (folders.length === 0 || folders.length > 20 || !folders.every((folder) => folder.length <= 4096 && (isAbsolute(folder) || /^[A-Za-z]:[\\/]/.test(folder)))) {
+          return badRequest("invalid_cwd", "cwd must be one to 20 absolute paths");
+        }
+        const count = (name: string, fallback: number, max: number): number | null => {
+          const raw = params.get(name);
+          if (raw === null) return fallback;
+          const value = /^\d{1,15}$/.test(raw) ? Number(raw) : NaN;
+          return Number.isSafeInteger(value) && value <= max ? value : null;
+        };
+        const since = count("since", 0, Number.MAX_SAFE_INTEGER);
+        const offset = count("offset", 0, 100_000);
+        const limit = count("limit", 50, 50);
+        if (since === null) return badRequest("invalid_since", "since must be epoch milliseconds");
+        if (offset === null) return badRequest("invalid_offset", "offset must be a non-negative integer");
+        if (limit === null || limit < 1) return badRequest("invalid_limit", "limit must be 1 to 50");
+        try {
+          return jsonResponse(await claudeHistory({
+            configDir: options.claudeConfigDir ?? defaultClaudeConfigDir(process.env["HOME"] ?? homedir()),
+            folders, since, offset, limit, automated: params.get("automated") === "1",
+          }));
+        } catch (error) {
           return errorResponse(error);
         }
       }

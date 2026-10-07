@@ -43,7 +43,7 @@ const geometryOf = (page: Page): Promise<Geometry> => page.evaluate(() => {
   };
 });
 
-/** The demo's own "New workspace": an agent pane whose conversation holds no turn yet. */
+/** The demo's own "New project": an agent pane whose conversation holds no turn yet. */
 const newWorkspace = (page: Page, cwd: string): Promise<string> => page.evaluate(async (dir) => {
   const response = await fetch("/api/workspace/create", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ cwd: dir, agent: { kind: "claude" } }) });
   return ((await response.json()) as { pane_id: string }).pane_id;

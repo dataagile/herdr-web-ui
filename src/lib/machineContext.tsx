@@ -33,6 +33,7 @@ export function useMachineApi() {
     writeFile: (path: string, pane: string | null, content: string) => api.writeFile(path, pane, content, id),
     createWorkspace: (request: api.CreateWorkspaceRequest) => api.createWorkspace(request, id),
     createTab: (request: api.CreateTabRequest) => api.createTab(request, id),
+    fetchWorkspaceHistory: (query: Parameters<typeof api.fetchWorkspaceHistory>[0]) => api.fetchWorkspaceHistory(query, id),
     renameTab: (tab: string, label: string) => api.renameTab(tab, label, id),
     closeTab: (tab: string) => api.closeTab(tab, id),
   }), [id]);

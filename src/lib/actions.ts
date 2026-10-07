@@ -20,13 +20,15 @@ export interface AppActions {
   openNewTab: (target?: { machineId: string; workspaceId: string }) => void;
   openPalette: () => void;
   openSettings: () => void;
-  /** the Add PC dialog, from Settings → Remote PCs and the palette; Settings closes first */
+  /** the Add PC dialog, from the sidebar footer, Settings → Remote PCs and the palette; Settings closes first */
   openAddPc: () => void;
   toggleSidebar: () => void;
   /** flips dark/light (a `system` setting becomes the opposite of the resolved theme) */
   toggleTheme: () => void;
   /** Sign out of token/device authentication; null for automatic local/Tailscale access. */
   lock: (() => void) | null;
+  /** Behind the portal: ends the portal's session (a full navigation to /logout); null without the portal */
+  portalSignOut: (() => void) | null;
   /** null once alerts are on (or unsupported); otherwise asks for permission */
   enableNotifications: (() => void) | null;
   refresh: () => void;

@@ -8,6 +8,24 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- A **History** section in the sidebar, under Agents, for the selected project (this PC only):
+  the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
+  transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since
+  local midnight), 7 days and 30 days, a search over title and first prompt, five rows and **See
+  all** for the rest, with **Show automated** (`claude -p`) there. A session is titled by its
+  `/rename`, else its first prompt. Clicking a row acts at once: a session open in a pane (as herdr
+  reports its id, marked **OPEN NOW**) selects that pane; any other opens a new tab in its folder
+  with `claude --resume <id>` and the arguments saved for the claude agent. The copy button on a
+  row copies the command with a `cd`. The list is `GET /api/workspace/history`; PCs added over SSH
+  have no History, as their bridges do not have it.
+- Behind the Data Agile portal (`/api/portal/me` answers `{ authenticated: true }` on the app's own
+  origin) the sidebar footer and the command palette offer **Sign out**, which ends the portal's
+  session through `/logout` (also on a phone). It replaces the app's own Sign out there; without
+  the portal nothing changes.
+- **Add PC** is back in the sidebar footer, above Install app and Settings, opening the same dialog
+  as Settings → Remote PCs.
+- Brazilian Portuguese (Português, Brasil) UI language in Settings > Language; a browser set to
+  any `pt` tag picks it with Language on System.
 - A tab split in herdr shows all its panes side by side in the browser (from 1024px), laid out
   as herdr lays them, each with a thin header (agent, name, split, zoom, close) over its own live
   terminal; the focused pane has the amber edge and a click focuses it, here and in herdr.
@@ -59,6 +77,11 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   its workspaces and tabs, a plain shell excluded; its `⋯` renames the pane). Each section
   folds, remembered per PC.
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
+
+### Changed
+- The interface calls herdr's workspaces **projects** (Projects, New project, Rename project, Close
+  project, …), in English and in the Korean, Japanese and Chinese translations. Only the text
+  changes: the API, the protocol, storage keys and herdr itself still say workspace.
 
 ### Fixed
 - The folder browser's POST no longer resolves a relative parent against the server's own

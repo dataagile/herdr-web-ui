@@ -15,7 +15,7 @@ A bordered popover list of actions: icon, ellipsized label and optional hint per
 
 ## States & variants
 - Hover (pointer devices) and `aria-selected="true"` (keyboard/active row): `--bg-hover` fill, `--text-strong`.
-- `.is-danger`: label and icon in `--status-blocked` (Close, Close workspace, Delete worktree checkout…).
+- `.is-danger`: label and icon in `--status-blocked` (Close, Close project, Delete worktree checkout…).
 - `aria-current="true"`: the open pane in a picker, strong colour and semibold.
 - `role="menuitemcheckbox"` + `aria-checked`: a switch item; its state in words goes in the hint ("On in the app").
 - At `<=640px` RowMenu becomes a `.modal.row-sheet` bottom sheet: grip, title + place, 48px rows, Cancel.
@@ -23,7 +23,7 @@ A bordered popover list of actions: icon, ellipsized label and optional hint per
 ## What the consumer provides
 - `title` (the menu's accessible name, the row's name) and items `{ id, label, icon, hint?, divider?, danger?, current?, checked?, run }`.
 - An anchor button with `aria-haspopup="menu"` and `aria-expanded`; focus returns to it on close.
-- Workspace row order: Rename workspace, Rename pane, New tab, New worktree, Open worktree…, hairline, Close (Close workspace with several panes).
+- Workspace row order: Rename project, Rename pane, New tab, New worktree, Open worktree…, hairline, Close (Close project with several panes).
 
 ## Tokens used
 `--bg-panel`, `--bg-hover`, `--border`, `--shadow-pop`, `--radius-lg`, `--radius-md`, `--control-h`, `--text`, `--text-strong`, `--text-dim`, `--status-blocked`, `--fs-sm`, `--fs-xs`, `--fs-2xs`, `--tracking-caps`, `--hairline`, `--z-drawer`.

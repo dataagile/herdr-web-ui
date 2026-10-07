@@ -30,6 +30,7 @@ import type {
   TabCreated,
   UsageReport,
   WorkspaceCreated,
+  WorkspaceHistory,
   WorktreeListing,
   WorktreeOpened,
   WorktreeRemoved,
@@ -444,6 +445,13 @@ export function listWorktrees(workspaceId: string, machineId = "local"): Promise
 export async function openWorktree(request: OpenWorktreeRequest, machineId = "local"): Promise<WorktreeOpened> {
   const response = await sendJson(machinePath(machineId, "worktree/open"), "POST", request);
   return (await response.json()) as WorktreeOpened;
+}
+
+/** GET /api/workspace/history: the Claude Code sessions that ran in any of `folders` or below, newest first. The local PC only. */
+export function fetchWorkspaceHistory(query: { folders: readonly string[]; since: number; automated: boolean; offset: number }, machineId = "local"): Promise<WorkspaceHistory> {
+  const params = new URLSearchParams({ since: String(Math.max(0, Math.floor(query.since))), offset: String(query.offset), limit: "50", automated: query.automated ? "1" : "0" });
+  for (const folder of query.folders) params.append("cwd", folder);
+  return getJson<WorkspaceHistory>(`${machinePath(machineId, "workspace/history")}?${params}`);
 }
 
 /** POST /api/tab/create: another tab in an existing workspace, with the same agent launch. */

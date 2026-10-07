@@ -80,6 +80,17 @@ function shellWord(word: string): string {
   return /^[\w@%+=:,./~-]+$/.test(word) ? word : `'${word.replace(/'/g, `'\\''`)}'`;
 }
 
+/**
+ * What a row does: the pane that has the session open (Go to tab), and whether a click forks it.
+ * A session this view just started counts as open until herdr reports it: a second click would
+ * otherwise resume it a second time. ponytail: a session running outside herdr, or on another PC,
+ * is not seen as open; it would need the transcript's own liveness.
+ */
+export function rowAction(sessionId: string, panes: readonly Pick<PaneInfo, "pane_id" | "agent" | "agent_session">[], recentlyStarted: ReadonlySet<string>): { openPaneId: string | null; fork: boolean } {
+  const openPaneId = openPaneOf(sessionId, panes);
+  return { openPaneId, fork: openPaneId !== null || recentlyStarted.has(sessionId) };
+}
+
 /** The pane that has `sessionId` open, as herdr reports a Claude pane's session; null when none does. */
 export function openPaneOf(sessionId: string, panes: readonly Pick<PaneInfo, "pane_id" | "agent" | "agent_session">[]): string | null {
   const open = panes.find((pane) => (pane.agent ?? pane.agent_session?.agent) === "claude" && pane.agent_session?.kind === "id" && pane.agent_session.value.toLowerCase() === sessionId.toLowerCase());

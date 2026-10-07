@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type { HistorySession } from "../../shared/protocol.ts";
-import { groupByDay, historyFolders, matchingSessions, openPaneOf, projectFolder, resumeArgs, resumeCommand, resumeCommandIn, sinceFor } from "./history.ts";
+import { rowAction, groupByDay, historyFolders, matchingSessions, openPaneOf, projectFolder, resumeArgs, resumeCommand, resumeCommandIn, sinceFor } from "./history.ts";
 
 const session = (id: string, last_activity: number, title = id, first_prompt = ""): HistorySession => ({ session_id: id, title, first_prompt, last_activity, prompt_count: 1, git_branch: null, model: null, cwd: "/w", automated: false });
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
@@ -59,6 +59,15 @@ describe("open sessions", () => {
     expect(openPaneOf("abc", panes)).toBe("p1");
     expect(openPaneOf("def", panes)).toBeNull();
     expect(openPaneOf("ghi", panes)).toBeNull();
+  });
+});
+
+describe("rowAction", () => {
+  const panes = [{ pane_id: "p1", agent: "claude", agent_session: { agent: "claude", kind: "id", source: "hook", value: "open-id" } }];
+  it("forks a session that is open, or that this view just started", () => {
+    expect(rowAction("open-id", panes, new Set())).toEqual({ openPaneId: "p1", fork: true });
+    expect(rowAction("closed-id", panes, new Set())).toEqual({ openPaneId: null, fork: false });
+    expect(rowAction("fresh-id", panes, new Set(["fresh-id"]))).toEqual({ openPaneId: null, fork: true });
   });
 });
 

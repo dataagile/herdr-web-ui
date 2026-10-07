@@ -580,8 +580,10 @@ One set for both themes: the card is island black wherever it shows.
 - The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows
-  (title with an `OPEN NOW` mark in `--status-working`, then time and prompts in `--text-dim`) that act on
-  click; a copy button appears on hover and focus. Five rows show, then "See all ({n}) →" opens the list
+  (title with an `OPEN NOW` mark in `--status-working`, then time and prompts in `--text-dim`). A click
+  always opens a new tab: `claude --resume <id>`, or for an OPEN NOW row a copy (`--fork-session`), so a
+  running session is never driven twice. An OPEN NOW row also has a → Go to tab icon that selects the
+  pane that has it; both it and the copy-command icon appear on hover and focus, and always on touch. Five rows show, then "See all ({n}) →" opens the list
   in place. It folds like Projects and Agents, and sits in the phone's drawer the same way.
 - Connection is one quiet chip, drawn only while the bridge is not live: a pulsing dot plus the
   written reconnecting/disconnected state. Below `900px` it keeps only its dot; the word stays as

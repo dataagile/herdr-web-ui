@@ -149,7 +149,7 @@ export function HistoryView({ local, workspace, folders: openedFolders, panes, o
                     {session.first_prompt !== "" && session.first_prompt !== session.title && <p className="history-prompt">{session.first_prompt}</p>}
                     <p className="history-meta">
                       <span>{timeOf(session)}</span>
-                      {session.message_count !== null && <span>{t("{n} messages", { n: session.message_count })}</span>}
+                      {session.prompt_count !== null && <span>{t("{n} prompts", { n: session.prompt_count })}</span>}
                       {session.git_branch && <span className="history-branch">{session.git_branch}</span>}
                       {session.model && <span>{session.model}</span>}
                     </p>
@@ -230,7 +230,7 @@ function ResumeDialog({ session, title, when, workspaceId, onClose, onOpened }: 
           <button type="button" className="icon-button" aria-label={t("Close dialog")} disabled={pending} onClick={onClose}><X aria-hidden="true" /></button>
         </header>
         <div className="modal-body">
-          <p className="history-resume-when">{t("Last activity {when}", { when })}{session.message_count !== null && ` · ${t("{n} messages", { n: session.message_count })}`}</p>
+          <p className="history-resume-when">{t("Last activity {when}", { when })}{session.prompt_count !== null && ` · ${t("{n} prompts", { n: session.prompt_count })}`}</p>
           <div className="field">
             <span className="field-label">{t("Folder")}</span>
             <code className="history-code">{session.cwd}</code>

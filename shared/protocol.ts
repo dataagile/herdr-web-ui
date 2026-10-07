@@ -554,8 +554,8 @@ export interface HistorySession {
   first_prompt: string;
   /** epoch ms of the transcript's last write */
   last_activity: number;
-  /** user + assistant lines; null for a transcript too big to count cheaply */
-  message_count: number | null;
+  /** prompts the user typed (not tool results or notices); null for a transcript too big to read whole */
+  prompt_count: number | null;
   git_branch: string | null;
   model: string | null;
   /** the folder the session started in: the project's folder or one below it */

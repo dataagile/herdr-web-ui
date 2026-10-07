@@ -40,21 +40,42 @@ describe("claudeHistory", () => {
       [A, "login-fix", "Fix the login bug"],
       [B, "Add a report", "Add a report"],
     ]);
-    expect(sessions[0]).toMatchObject({ git_branch: "main", cwd: "/work/app", automated: false, message_count: 4 });
+    expect(sessions[0]).toMatchObject({ git_branch: "main", cwd: "/work/app", automated: false, prompt_count: 1 });
   });
 
   it("reads a /rename and the model from the tail of a big transcript", async () => {
     const filler = line({ type: "attachment", cwd: "/work/app", text: "x".repeat(1000) });
     write("p", A, [user("hello"), ...Array(400).fill(filler), line({ type: "assistant", message: { model: "claude-opus-5-5" } }), line({ type: "custom-title", customTitle: "late name" })]);
     const { sessions } = await claudeHistory(query());
-    expect(sessions[0]).toMatchObject({ title: "late name", first_prompt: "hello", model: "claude-opus-5-5", message_count: 2 });
+    expect(sessions[0]).toMatchObject({ title: "late name", first_prompt: "hello", model: "claude-opus-5-5", prompt_count: 1 });
   });
 
   it("drops the count of a transcript too big to read whole", async () => {
     write("p", A, [user("small")]);
     write("p", C, [user("huge"), line({ type: "attachment", text: "z".repeat(5 * 1024 * 1024) })], 1000);
     const { sessions } = await claudeHistory(query());
-    expect(sessions.map((s) => [s.session_id, s.message_count])).toEqual([[A, 1], [C, null]]);
+    expect(sessions.map((s) => [s.session_id, s.prompt_count])).toEqual([[A, 1], [C, null]]);
+  });
+
+  it("takes a /rename and the model of a small transcript from the whole file, skipping side chains", async () => {
+    write("p", A, [
+      user("first"), line({ type: "assistant", message: { model: "claude-opus-5-5" } }),
+      line({ type: "custom-title", customTitle: "mid rename" }),
+      user("sidechain prompt", { isSidechain: true }), line({ type: "assistant", isSidechain: true, message: { model: "claude-haiku-4-5" } }),
+      user([{ type: "tool_result", content: "r" }]), user("second"),
+    ]);
+    const { sessions } = await claudeHistory(query());
+    expect(sessions[0]).toMatchObject({ title: "mid rename", model: "claude-opus-5-5", prompt_count: 2 });
+  });
+
+  it("looks in the project directories named for the folders, and in all of them when none is", async () => {
+    write("-work-app", A, [user("in its own project")]);
+    write("-work-app-wt", B, [user("in a worktree project", { cwd: "/work/app/wt" })], 1000);
+    write("elsewhere", C, [user("same cwd, other directory")], 2000);
+    expect((await claudeHistory(query())).sessions.map((s) => s.session_id)).toEqual([A, B]);
+    forgetClaudeHistory();
+    expect((await claudeHistory({ ...query(), folders: ["/nowhere"] })).sessions).toEqual([]);
+    expect((await claudeHistory({ ...query(), folders: ["/work/app", "/unnamed"] })).sessions.map((s) => s.session_id)).toEqual([A, B]);
   });
 
   it("hides claude -p sessions unless asked", async () => {

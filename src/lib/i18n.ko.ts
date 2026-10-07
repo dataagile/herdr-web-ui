@@ -871,4 +871,5 @@ export const KO: Record<string, string> = {
   "Starting claude… up to 60s": "claude 시작 중… 최대 60초",
   "Open in new tab": "새 탭에서 열기",
   "No match in the loaded sessions. Show more to search further.": "불러온 세션에는 일치하는 항목이 없습니다. 더 보기로 계속 검색하세요.",
+  "{n} prompts": "프롬프트 {n}개",
 };

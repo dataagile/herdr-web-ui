@@ -5,24 +5,29 @@
  * opened.
  *
  * Transcripts reach tens of MB, so a listing reads as little as it can: the files are filtered by
- * mtime from the directory listing, each candidate is read at its head (folder, first prompt) and
- * its tail (a /rename lands at the end), and the message count, which needs the whole file, is
- * taken only for the page returned and only for a file of a few MB.
+ * mtime from the directory listing (in the project directories named for the folders first), each
+ * candidate is read at its head (folder, first prompt) and its tail (a /rename lands at the end),
+ * and what needs the whole file (the prompt count, a /rename mid-file, the latest model) is read
+ * only for the page returned and only for a file of a few MB.
  */
 
 import { open, readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+
+import { claudeProjectDir } from "./claude-store.ts";
 
 import type { HistorySession } from "../shared/protocol.ts";
 
 const SESSION_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i;
 /** How much of a transcript's start and end is read for its folder, title and model. */
 const CHUNK_BYTES = 128 * 1024;
-/** Above this a transcript is not read whole: its message count is unknown (null). */
+/** Above this a transcript is not read whole: its prompt count is unknown (null). */
 const COUNT_MAX_BYTES = 4 * 1024 * 1024;
 const PREVIEW_CHARS = 140;
 /** How long a listing of the store is reused: Show more and a changed filter do not stat every transcript again. */
 const LISTING_TTL_MS = 3000;
+/** Claude hashes a project directory name of this length or more (claude-store.ts). */
+const MAX_NAME = 200;
 const READ_BATCH = 16;
 /** Content that starts a user line without being something the user wrote. */
 const NOT_A_PROMPT = ["<local-command-caveat>", "<local-command-stdout>", "<system-reminder>", "<command-name>", "<command-message>", "[Request interrupted"];
@@ -64,6 +69,13 @@ function promptText(message: unknown): string | null {
   return trimmed.replace(/\s+/g, " ").slice(0, PREVIEW_CHARS);
 }
 
+/** The model an assistant turn of the main conversation names; a side chain's and a synthetic one are not the session's. */
+function modelOf(entry: Record<string, unknown>): string | null {
+  if (entry["isSidechain"] === true) return null;
+  const model = (entry["message"] as { model?: unknown } | null)?.model;
+  return typeof model === "string" && !model.startsWith("<") ? model : null;
+}
+
 /** What a run of transcript lines says about the session; `meta` already holds what an earlier run found. */
 function readLines(text: string, meta: Meta, tail: boolean): void {
   for (const line of text.split("\n")) {
@@ -77,10 +89,7 @@ function readLines(text: string, meta: Meta, tail: boolean): void {
     if (meta.branch === null && typeof entry["gitBranch"] === "string" && entry["gitBranch"] !== "") meta.branch = entry["gitBranch"];
     if (entry["type"] === "custom-title" && typeof entry["customTitle"] === "string" && entry["customTitle"].trim() !== "") meta.title = entry["customTitle"].trim().slice(0, 200);
     else if (!tail && meta.prompt === null && entry["type"] === "user" && entry["isSidechain"] !== true && entry["isMeta"] !== true) meta.prompt = promptText(entry["message"]);
-    else if (tail && entry["type"] === "assistant") {
-      const model = (entry["message"] as { model?: unknown } | null)?.model;
-      if (typeof model === "string" && !model.startsWith("<")) meta.model = model;
-    }
+    else if (entry["type"] === "assistant") meta.model = modelOf(entry) ?? meta.model;
   }
 }
 
@@ -101,10 +110,11 @@ async function chunk(path: string, start: number, length: number, size: number):
 const metaCache = new Map<string, Meta>();
 const META_CACHE_MAX = 1000;
 
-const countCache = new Map<string, number>();
+interface Detail { prompts: number; title: string | null; model: string | null }
+const detailCache = new Map<string, Detail>();
 const listings = new Map<string, { at: number; files: Candidate[] }>();
 
-export function forgetClaudeHistory(): void { metaCache.clear(); countCache.clear(); listings.clear(); }
+export function forgetClaudeHistory(): void { metaCache.clear(); detailCache.clear(); listings.clear(); }
 
 async function metaOf(path: string, size: number, mtime: number): Promise<Meta> {
   const key = `${path}\0${size}\0${mtime}`;
@@ -119,38 +129,63 @@ async function metaOf(path: string, size: number, mtime: number): Promise<Meta> 
   return meta;
 }
 
-/** user + assistant lines, or null for a transcript too big to read whole. A line is matched, not parsed. */
-async function countMessages(path: string, size: number, mtime: number): Promise<number | null> {
+/**
+ * What only the whole transcript tells: how many real prompts the user typed (not tool results,
+ * notices or side chains), the last /rename wherever it sits, and the model of the last main-chain
+ * turn. Null for a transcript too big to read whole. Only lines that can matter are parsed.
+ */
+async function detailOf(path: string, size: number, mtime: number): Promise<Detail | null> {
   if (size > COUNT_MAX_BYTES) return null;
   const key = `${path}\0${size}\0${mtime}`;
-  const known = countCache.get(key);
-  if (known !== undefined) return known;
-  let count = 0;
-  for (const line of (await readFile(path, "utf8")).split("\n")) {
-    if (line.startsWith("{") && (line.includes('"type":"user"') || line.includes('"type":"assistant"'))) count += 1;
+  const known = detailCache.get(key);
+  if (known) return known;
+  const lines = (await readFile(path, "utf8")).split("\n");
+  const detail: Detail = { prompts: 0, title: null, model: null };
+  const parse = (line: string): Record<string, unknown> | null => { try { return JSON.parse(line) as Record<string, unknown>; } catch { return null; } };
+  for (const line of lines) {
+    if (!line.startsWith("{")) continue;
+    const isUser = line.includes('"type":"user"');
+    if (!isUser && !line.includes('"type":"custom-title"')) continue;
+    const entry = parse(line);
+    if (!entry) continue;
+    if (entry["type"] === "custom-title" && typeof entry["customTitle"] === "string" && entry["customTitle"].trim() !== "") detail.title = entry["customTitle"].trim().slice(0, 200);
+    else if (entry["type"] === "user" && entry["isSidechain"] !== true && entry["isMeta"] !== true && promptText(entry["message"]) !== null) detail.prompts += 1;
   }
-  if (countCache.size >= META_CACHE_MAX) countCache.delete(countCache.keys().next().value!);
-  countCache.set(key, count);
-  return count;
+  for (let at = lines.length - 1; at >= 0 && detail.model === null; at--) {
+    const line = lines[at]!;
+    if (line.startsWith("{") && line.includes('"type":"assistant"')) detail.model = modelOf(parse(line) ?? {});
+  }
+  if (detailCache.size >= META_CACHE_MAX) detailCache.delete(detailCache.keys().next().value!);
+  detailCache.set(key, detail);
+  return detail;
 }
 
 interface Candidate { path: string; id: string; size: number; mtime: number }
 
 /** Every transcript in the store touched since `since`, newest first. Symlinks are not followed. */
-async function candidates(configDir: string, since: number): Promise<Candidate[]> {
-  const known = listings.get(configDir);
+async function candidates(configDir: string, folders: readonly string[], since: number): Promise<Candidate[]> {
+  // a project directory is named for the folder Claude started in, so a folder's own and the ones
+  // below it share its name as a prefix; a name Claude had to hash cannot be told that way
+  const names = folders.map(claudeProjectDir);
+  const prefixes = names.every((name) => name.length < MAX_NAME) ? names : null;
+  const key = `${configDir}\0${prefixes?.join("\0") ?? ""}`;
+  const known = listings.get(key);
   if (known && Date.now() - known.at < LISTING_TTL_MS) return known.files.filter((file) => file.mtime >= since);
-  const files = await listStore(configDir);
-  listings.set(configDir, { at: Date.now(), files });
+  const files = await listStore(configDir, prefixes);
+  listings.set(key, { at: Date.now(), files });
   return files.filter((file) => file.mtime >= since);
 }
 
-async function listStore(configDir: string): Promise<Candidate[]> {
+/** `prefixes`: only the project directories that start with one, unless none does (Claude's naming may have changed): then all. */
+async function listStore(configDir: string, prefixes: readonly string[] | null): Promise<Candidate[]> {
   const projects = join(configDir, "projects");
   let dirs;
   try { dirs = await readdir(projects, { withFileTypes: true }); } catch { return []; }
+  dirs = dirs.filter((dir) => dir.isDirectory());
+  const near = prefixes === null ? dirs : dirs.filter((dir) => prefixes.some((prefix) => dir.name.startsWith(prefix)));
+  if (near.length > 0) dirs = near;
   const found: Candidate[] = [];
-  await Promise.all(dirs.filter((dir) => dir.isDirectory()).map(async (dir) => {
+  await Promise.all(dirs.map(async (dir) => {
     let files;
     try { files = await readdir(join(projects, dir.name), { withFileTypes: true }); } catch { return; }
     await Promise.all(files.filter((file) => file.isFile() && SESSION_FILE.test(file.name)).map(async (file) => {
@@ -167,7 +202,7 @@ async function listStore(configDir: string): Promise<Candidate[]> {
 export async function claudeHistory(query: HistoryQuery): Promise<{ sessions: HistorySession[]; has_more: boolean }> {
   const wanted = query.offset + query.limit + 1;
   const matched: (Candidate & { meta: Meta })[] = [];
-  const all = await candidates(query.configDir, query.since);
+  const all = await candidates(query.configDir, query.folders, query.since);
   // newest first, so the page is full after the first files that match: older ones are never opened
   for (let at = 0; at < all.length && matched.length < wanted; at += READ_BATCH) {
     const batch = all.slice(at, at + READ_BATCH);
@@ -178,17 +213,17 @@ export async function claudeHistory(query: HistoryQuery): Promise<{ sessions: Hi
     });
   }
   const page = matched.slice(query.offset, query.offset + query.limit);
-  const counts = await Promise.all(page.map((file) => countMessages(file.path, file.size, file.mtime).catch(() => null)));
+  const details = await Promise.all(page.map((file) => detailOf(file.path, file.size, file.mtime).catch(() => null)));
   return {
     has_more: matched.length > query.offset + query.limit,
     sessions: page.map((file, index) => ({
       session_id: file.id,
-      title: file.meta.title ?? file.meta.prompt ?? "",
+      title: details[index]?.title ?? file.meta.title ?? file.meta.prompt ?? "",
       first_prompt: file.meta.prompt ?? "",
       last_activity: file.mtime,
-      message_count: counts[index] ?? null,
+      prompt_count: details[index]?.prompts ?? null,
       git_branch: file.meta.branch,
-      model: file.meta.model,
+      model: details[index]?.model ?? file.meta.model,
       cwd: file.meta.cwd!,
       automated: file.meta.automated,
     })),

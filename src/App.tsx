@@ -977,7 +977,7 @@ export function App() {
               <span className="header-desktop-only">{t("Terminal")}</span>
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
             </button>
-            {selectedWorkspace && (
+            {selectedWorkspace && selectedMachine?.kind === "local" && (
               <button type="button" aria-pressed={historyShown} aria-label={t("History")} onClick={() => actions.openHistory()} title={t("Claude Code sessions of this project")}>
                 <History />
                 <span className="header-desktop-only header-history-label">{t("History")}</span>

@@ -281,7 +281,7 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
     const items: RowMenuItem[] = [
       { id: "rename-workspace", label: t("Rename project"), icon: Pencil, run: () => beginWorkspaceRename(workspace, state.scope) },
       { id: "new-tab", label: t("New tab"), icon: Plus, run: () => actions.openNewTab({ machineId, workspaceId: workspace.workspace_id }) },
-      { id: "history", label: t("History"), icon: History, run: () => actions.openHistory({ machineId, workspaceId: workspace.workspace_id }) },
+      ...(machineId === "local" ? [{ id: "history", label: t("History"), icon: History, run: () => actions.openHistory({ machineId, workspaceId: workspace.workspace_id }) }] : []),
       ...(linked ? [] : [
         { id: "new-worktree", label: t("New worktree"), icon: GitBranch, run: () => setWorktreeDialog({ mode: "create", workspace }) },
         { id: "open-worktree", label: t("Open worktree…"), icon: FolderOpen, run: () => setWorktreeDialog({ mode: "open", workspace }) },

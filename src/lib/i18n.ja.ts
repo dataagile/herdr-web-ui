@@ -858,7 +858,6 @@ export const JA: Record<string, string> = {
   "Untitled session": "無題のセッション",
   "OPEN NOW": "使用中",
   "Go to tab": "タブへ移動",
-  "Resume": "再開",
   "Copy command": "コマンドをコピー",
   "Show more": "さらに表示",
   "No match in the loaded sessions. Show more to search further.": "読み込み済みのセッションに一致するものはありません。「さらに表示」で検索を続けます。",
@@ -867,4 +866,6 @@ export const JA: Record<string, string> = {
   "See all ({n}) →": "すべて表示 ({n}) →",
   "Show fewer": "表示を減らす",
   "Starting claude…": "claude を起動しています…",
+  "Open a copy in a new tab": "新しいタブでコピーを開く",
+  "Resume in a new tab": "新しいタブで再開",
 };

@@ -61,22 +61,34 @@ export function groupByDay(sessions: readonly HistorySession[], now: number): Da
 }
 
 /** The argv after `claude`: `--resume <id>` and the arguments saved for the claude agent. */
-export function resumeArgs(sessionId: string, savedArgs: string): string[] {
-  return ["--resume", sessionId, ...parseAgentArgs(savedArgs)];
+export function resumeArgs(sessionId: string, savedArgs: string, fork = false): string[] {
+  // a session another process has open is forked: Claude gives the copy its own session id
+  return ["--resume", sessionId, ...(fork ? ["--fork-session"] : []), ...parseAgentArgs(savedArgs)];
 }
 
 /** `claude --resume …` as it is typed; an argument with a space or a quote is quoted. */
-export function resumeCommand(sessionId: string, savedArgs: string): string {
-  return ["claude", ...resumeArgs(sessionId, savedArgs)].map(shellWord).join(" ");
+export function resumeCommand(sessionId: string, savedArgs: string, fork = false): string {
+  return ["claude", ...resumeArgs(sessionId, savedArgs, fork)].map(shellWord).join(" ");
 }
 
 /** The command for a terminal elsewhere: Claude finds a session only from the folder it ran in. */
-export function resumeCommandIn(cwd: string, sessionId: string, savedArgs: string): string {
-  return `cd ${shellWord(cwd)} && ${resumeCommand(sessionId, savedArgs)}`;
+export function resumeCommandIn(cwd: string, sessionId: string, savedArgs: string, fork = false): string {
+  return `cd ${shellWord(cwd)} && ${resumeCommand(sessionId, savedArgs, fork)}`;
 }
 
 function shellWord(word: string): string {
   return /^[\w@%+=:,./~-]+$/.test(word) ? word : `'${word.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * What a row does: the pane that has the session open (Go to tab), and whether a click forks it.
+ * A session this view just started counts as open until herdr reports it: a second click would
+ * otherwise resume it a second time. ponytail: a session running outside herdr, or on another PC,
+ * is not seen as open; it would need the transcript's own liveness.
+ */
+export function rowAction(sessionId: string, panes: readonly Pick<PaneInfo, "pane_id" | "agent" | "agent_session">[], recentlyStarted: ReadonlySet<string>): { openPaneId: string | null; fork: boolean } {
+  const openPaneId = openPaneOf(sessionId, panes);
+  return { openPaneId, fork: openPaneId !== null || recentlyStarted.has(sessionId) };
 }
 
 /** The pane that has `sessionId` open, as herdr reports a Claude pane's session; null when none does. */

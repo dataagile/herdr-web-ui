@@ -313,9 +313,9 @@ One set for both themes: the card is island black wherever it shows.
   from the left `24px` edge opens the drawer and a swipe to the left closes it (`56px` of travel).
 - The terminal stack contains a positioned terminal surface, then composer or key bar. The xterm
   mount stays alive under the chat lens; changing views never creates a second connection.
-- At `<=480px` the brand name, the offline pill, desktop-only control labels, the palette's button,
-  **Files** and the **Alerts** bell go from the header (Split and New tab keep their icons, and New tab leaves the header while the tab is zoomed, to keep Unzoom in reach: it stays on the drawer's project row) and give
-  their room to the title. They are the first rows of the drawer (`.drawer-rows`: the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable, breaking only after a `/`) for a touch screen with no tooltip, then `.drawer-palette`,
+- At `<=480px` the brand name, the offline pill, desktop-only control labels and the palette's button
+  go from the header; at `<=768px` (the drawer's breakpoint) **Files** and the **Alerts** bell go too (Split and New tab keep their icons, and New tab leaves the header while the tab is zoomed, to keep Unzoom in reach: it stays on the drawer's project row) and give
+  their room to the title. They are the first rows of the drawer (`.drawer-rows`: the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable, breaking after a `/` or `\`, and wrapping a longer segment as a last resort) for a touch screen with no tooltip, then `.drawer-palette`,
   `.drawer-files`, `.drawer-alerts` with the bell's state as a `--text-dim` hint at the row end;
   Files and the palette close the drawer). The ☰ toggle carries the `--dot-size` `--accent` dot
   while alerts are off, so the cue stays in sight, and its name says "alerts are off". The header's buttons keep `--touch-target` under

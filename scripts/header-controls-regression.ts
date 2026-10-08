@@ -84,4 +84,19 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
     await phone.close();
   }
   console.log("PASS the phone's copy path button, header and drawer rows");
+
+  // a touch tablet (481-768px) has the drawer too: it carries the path, Files and Alerts, and the header has neither
+  const tablet = await open({ width: 600, height: 900 }, true);
+  try {
+    const { page } = tablet;
+    assert.equal(await visibleCount(page, ".app-header .header-files, .app-header .header-bell"), 0, "tablet: the header has neither Files nor the bell");
+    await page.getByRole("button", { name: /^Open project list/ }).tap();
+    assert.equal((await page.locator(".drawer-path").innerText()).replace(/\s+/g, ""), path, "tablet: the drawer's first line is the pane's full path");
+    for (const selector of [".drawer-files", ".drawer-alerts"]) {
+      assert.equal(await visibleCount(page, `#workspace-drawer ${selector}`), 1, `tablet: the drawer shows ${selector}`);
+    }
+  } finally {
+    await tablet.close();
+  }
+  console.log("PASS the touch tablet's drawer rows");
 }

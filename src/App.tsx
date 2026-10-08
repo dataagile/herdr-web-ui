@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Bell, BellOff, Check, Columns2, Copy, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
@@ -204,8 +204,8 @@ export function App() {
   const [lens, setLens] = useState<{ key: string; view: PaneView }>({ key: "", view: "terminal" });
   const [paletteOpen, setPaletteOpen] = useState(false);
   // the header's copy-path button shows a check for a moment after it copies; the state is the
-  // path it copied, so another pane's button does not show one
-  const [copiedPath, setCopiedPath] = useState<string | null>(null);
+  // pane and path it copied, so neither another pane (even in the same folder) nor another path shows one
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const copiedTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
   const copyPath = async (path: string): Promise<void> => {
@@ -214,9 +214,9 @@ export function App() {
       window.prompt(t("Copy path"), path);
       return;
     }
-    setCopiedPath(path);
+    setCopiedKey(`${selectedPaneId}\0${path}`);
     window.clearTimeout(copiedTimer.current);
-    copiedTimer.current = window.setTimeout(() => setCopiedPath(null), 1500);
+    copiedTimer.current = window.setTimeout(() => setCopiedKey(null), 1500);
   };
   // the Files dialog, and the file open in the viewer (a path as the chat or the dialog gave it)
   const [filesOpen, setFilesOpen] = useState(false);
@@ -643,6 +643,13 @@ export function App() {
   const bellVisible = notifications === "default" || notifications === "granted" || settings.alertInApp;
   // the bell carries a dot while alerts are off here
   const alertsOffDot = bellVisible && !bell.on;
+  // the Alerts button, in the header (icon only) and as a drawer row (icon, label, state)
+  const bellButton = (className: string, label?: ReactNode) => (
+    <button type="button" className={className} aria-label={label === undefined ? t("Alerts") : undefined} aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
+      {bell.on ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+      {label}
+    </button>
+  );
   const connWord = t(connected ? "live" : outputStopped ? "disconnected" : "reconnecting");
   const crumb = selectedPane && selectedTitle !== null
     ? headerCrumb({ machine: selectedMachine?.name ?? selectedMachineId, workspace: selectedWorkspace?.label ?? selectedPane.workspace_id, title: selectedTitle, cwd: selectedPane.cwd })
@@ -844,7 +851,7 @@ export function App() {
   // the copy button sits at the end of the crumb; beside the title while the crumb is wrapped out of sight
   const copyPathButton = (place: "in-title" | "in-crumb") => {
     if (crumb?.path == null) return null;
-    const pathCopied = copiedPath === crumb.path;
+    const pathCopied = copiedKey === `${selectedPaneId}\0${crumb.path}`;
     const label = pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path });
     return (
       <button type="button" className={`icon-button context-copy ${place}`} aria-label={label} title={label} onClick={() => void copyPath(crumb.path ?? "")}>
@@ -904,8 +911,8 @@ export function App() {
             >
               {drawerOpen ? <X /> : <Menu />}
             </button>
-            {/* phone only: the bell is in the drawer there, and its dot stays on the way to it */}
-            {alertsOffDot && <span className="header-bell-dot is-drawer-cue" aria-hidden="true" />}
+            {/* up to 768px: the bell is in the drawer there, and its dot stays on the way to it */}
+            {alertsOffDot && <span className="header-bell-dot" aria-hidden="true" />}
           </span>
           <button
             type="button"
@@ -978,9 +985,7 @@ export function App() {
         )}
         {bellVisible && (
           <span className="header-bell">
-            <button type="button" className="icon-button" aria-label={t("Alerts")} aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
-              {bell.on ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
-            </button>
+            {bellButton("icon-button")}
             {alertsOffDot && <span className="header-bell-dot" aria-hidden="true" />}
           </span>
         )}
@@ -1019,10 +1024,10 @@ export function App() {
 
       <div className="app-body">
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
-          {/* phone only (styles.css): the header's palette, Files and Alerts leave it for the pane's title */}
+          {/* up to 768px (styles.css): the header's Files and Alerts (and, up to 480px, the palette) leave it for the pane's title */}
           <div className="drawer-rows">
-            {/* the full path, for a touch screen that has no tooltip; breaks only after a "/" */}
-            {crumb?.path != null && <p className="drawer-path">{crumb.path.split("/").map((part, index, parts) => <span key={index}>{part}{index < parts.length - 1 && <>/<wbr /></>}</span>)}</p>}
+            {/* the full path, for a touch screen that has no tooltip; breaks after a "/" or "\\" */}
+            {crumb?.path != null && <p className="drawer-path">{crumb.path.split(/(?<=[\\/])/).map((part, index) => <span key={index}>{part}<wbr /></span>)}</p>}
             <button type="button" className="btn btn-ghost drawer-palette" onClick={() => { setDrawerOpen(false); setPaletteOpen(true); }}>
               <Search aria-hidden="true" />
               <span>{t("Command palette")}</span>
@@ -1034,11 +1039,10 @@ export function App() {
               </button>
             )}
             {bellVisible && (
-              <button type="button" className="btn btn-ghost drawer-alerts" aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
-                {bell.on ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+              bellButton("btn btn-ghost drawer-alerts", <>
                 <span>{t("Alerts")}</span>
                 <span className="drawer-hint">{bell.state}</span>
-              </button>
+              </>)
             )}
           </div>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}

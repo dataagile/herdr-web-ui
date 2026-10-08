@@ -38,7 +38,8 @@ import {
   showPaneStatusNotification,
   type NotificationState,
 } from "./lib/notifications.ts";
-import { detectPortal } from "./lib/portal.ts";
+import { fetchPortalSession, type PortalSession } from "./lib/portal.ts";
+import { FeedbackButton } from "./components/FeedbackButton.tsx";
 import { ensurePushSubscription, pushSupported, removePushSubscription } from "./lib/push.ts";
 import { onNotificationTarget } from "./lib/notificationTarget.ts";
 import { useUpdates } from "./lib/updates.ts";
@@ -183,8 +184,9 @@ export function App() {
   const [pairCode] = useState(() => takePairCode());
   const [auth, setAuth] = useState<HealthAuth | null>(null);
   // behind the portal its Sign out is the one offered: this app's own would only end the app's cookie
-  const [portal, setPortal] = useState(false);
-  useEffect(() => { void detectPortal().then(setPortal); }, []);
+  const [portalSession, setPortalSession] = useState<PortalSession | null>(null);
+  useEffect(() => { void fetchPortalSession().then(setPortalSession); }, []);
+  const portal = portalSession?.portal === true;
   const canSignOut = !portal && auth?.authenticated === true && (auth.via === "token" || auth.via === "device");
   // a device that is in only because nothing is paired yet still pairs from the QR code's address
   const pairedFromAddress = useRef(false);
@@ -1055,6 +1057,9 @@ export function App() {
             <FolderOpen aria-hidden="true" />
             <span className="header-desktop-only">{t("Files")}</span>
           </button>
+        )}
+        {portalSession?.portal && portalSession.feedback.enabled && (
+          <FeedbackButton availability={portalSession.feedback} meta={{ herdrVersion: targetHerdr?.version ?? null, machine: selectedMachine?.name ?? null, paneAgent: selectedAgent }} />
         )}
         {bellVisible && (
           <span className="header-bell">

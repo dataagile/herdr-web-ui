@@ -8,6 +8,16 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- An in-app **feedback** button (a megaphone just before the bell) behind the Data Agile portal, when
+  the portal's `/api/portal/me` says `feedback.enabled`: Report a bug, Suggest an improvement or General
+  feedback open a form that the portal turns into a support ticket (`POST /api/portal/feedback`; the
+  herdr server neither proxies nor implements it). The form takes a description and an image of up to
+  10 MB. From 1024px, when the portal allows attachments, it can also point at an element (click) or an
+  area (drag) on the screen for a print, and attach technical data (version, viewport, console warnings
+  and errors, failed requests, the pane's agent) behind a checkbox, with a preview of the exact JSON.
+  Passwords, tokens, e-mails and documents are masked in the browser before anything is sent, and a
+  pane's text is never included, only its length. Adds the `html-to-image` dependency.
+  by @tbc-joaovitor
 - A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the
   tab coming back with it in front) now counts as seen: it leaves Needs you and reads idle, without
   moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges

@@ -8,6 +8,10 @@ import "./styles.css";
 import { App } from "./App.tsx";
 import { SettingsProvider } from "./lib/settings.ts";
 import "./lib/viewport.ts";
+import { installFeedbackBuffer } from "./lib/feedbackBuffer.ts";
+
+// what the feedback form can say about the last minutes: console errors and failed requests
+installFeedbackBuffer();
 
 const container = document.getElementById("root");
 if (!container) throw new Error("#root is missing from index.html");

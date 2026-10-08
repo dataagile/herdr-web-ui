@@ -359,6 +359,18 @@ One set for both themes: the card is island black wherever it shows.
   with the refusal's words above it. Closing a repository workspace over open worktrees says so
   and closes the group, as herdr's `--group` does.
 
+### Feedback (`.feedback-*`, `.picker-*`)
+- The header's megaphone `.icon-button` sits just before the bell at every width and opens a RowMenu
+  (a sheet on a phone) with Report a bug, Suggest an improvement and General feedback. It exists only
+  behind the portal and only when `/api/portal/me` says `feedback.enabled`.
+- `.feedback-modal` is a `.modal` (560px, full height at `<=640px`): subtitle, a textarea
+  (`.feedback-textarea`), an image field with a `.feedback-thumb` (Remove, Redo), from 1024px with
+  attachments on a Select-element button and the technical-data checkbox (`.feedback-check`) with
+  `.feedback-json`, the exact masked JSON that is sent. Success (`.feedback-success`) leaves only Close.
+- The picker (`.picker-layer`: `.picker-dim` at `--scrim`/0.6, `.picker-target` in `--accent` over
+  `--accent-tint`, `.picker-hint`) is fixed over the app, takes the pointer itself and is left out of
+  the print.
+
 ### Field (`.field`, `.input`, `.select`)
 - Stacked uppercase label, optional hint and `--bg-input` field. Desktop fields use `--fs-sm`;
   small-screen fields retain `--fs-input` to avoid focus zoom.

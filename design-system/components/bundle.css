@@ -4733,6 +4733,218 @@ button, a, [role="button"] {
 }
 
 
+/* ===== components/Feedback.css ===== */
+/* The feedback dialog (FeedbackDialog) and the picker (ElementPicker). Tokens only. */
+
+.feedback-modal {
+  width: min(100%, 560px);
+}
+
+.feedback-textarea {
+  width: 100%;
+  height: auto;
+  min-height: calc(var(--control-h) * 3);
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+  line-height: var(--lh-base);
+}
+
+.feedback-textarea::placeholder {
+  color: var(--text-dim);
+}
+
+.feedback-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.feedback-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2);
+  background: var(--bg-input);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.feedback-thumb img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--term-bg);
+}
+
+.feedback-thumb figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.feedback-thumb-actions {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.feedback-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.feedback-check input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.feedback-details summary {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.feedback-json {
+  max-height: 300px;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  overflow: auto;
+  background: var(--bg-input);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.feedback-success {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.feedback-success .new-session-note {
+  margin: 0;
+}
+
+.feedback-success-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.feedback-success-icon {
+  flex: none;
+  color: var(--status-done);
+}
+
+.feedback-success-title {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+
+.feedback-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+}
+
+/* the picker: a layer over the whole app, an outline on the element under the pointer, a floating hint */
+.picker-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  cursor: crosshair;
+}
+
+.picker-dim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0.6;
+}
+
+.picker-target {
+  position: absolute;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-tint);
+  box-shadow: var(--shadow-pop);
+}
+
+.picker-target-tag {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: calc(-1 * var(--space-1));
+  padding: 0 var(--space-2);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  line-height: var(--chip-h);
+  white-space: nowrap;
+}
+
+.picker-hint {
+  position: absolute;
+  bottom: var(--space-6);
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - var(--space-8));
+  padding: var(--space-2) var(--space-4);
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pop);
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.picker-hint svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.picker-hint-sep {
+  color: var(--text-dim);
+}
+
+@media (max-width: 640px) {
+  .feedback-modal {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .feedback-modal .modal-body {
+    flex: 1 1 auto;
+  }
+}
+
+
 /* ===== components/FileViewer.css ===== */
 .file-viewer-scrim {
   /* above the file browser it may open from */

@@ -79,6 +79,9 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Changed
+- On a phone (up to 480px) the tab strip is always shown, even for a workspace with one tab and
+  one pane: the header no longer carries the pane's title, so the strip is where the pane is named.
+  Wider windows keep it away for a lone pane. ([#12](https://github.com/dataagile/herdr-web-ui/pull/12))
 - The header's **More** menu (`⋯`) is gone. **Files** and **Alerts** (a bell, with its dot while
   alerts are off) are buttons of their own, New tab was already one, and a small copy button after
   the pane's folder copies its full path (at the end of the crumb, or after the title when the

@@ -482,7 +482,9 @@ One set for both themes: the card is island black wherever it shows.
 
 ### Tab strip (`.tab-strip`)
 - herdr's tab row, over the pane: shown once the selected pane's workspace has more than one
-  pane (a second tab, or a tab split in the TUI), never for a lone pane. One `role="tab"` per tab
+  pane (a second tab, or a tab split in the TUI), never for a lone pane — except on a phone (up to
+  480px), where it is always shown, a one-tab workspace included, because the header carries no
+  title and the strip is where the pane is named (never without a selected pane). One `role="tab"` per tab
   in herdr's order, named by its label, or **Tab n** while herdr still names it by its number;
   a 7px dot before the name in the state's colour for working, blocked and done. The open tab
   (the selected pane's) is underlined 2px in `--accent` and in the strong colour; the others are

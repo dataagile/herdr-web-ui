@@ -133,6 +133,28 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await screenshot("narrow");
     assert.deepEqual(errors, []);
 
+    // A workspace of one tab and one pane: a phone still draws the strip, because the header does
+    // not name the pane; a wider window keeps it away, as for any lone pane.
+    const lone = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-lone-tab" });
+    try {
+      const loneUrl = `${origin}/?pane=${encodeURIComponent(lone.root_pane.pane_id)}`;
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(loneUrl);
+      await page.locator(".conn-live").waitFor();
+      await page.locator(".tab-strip").waitFor();
+      assert.equal(await page.locator(".tab-strip-tab").count(), 1, "a lone tab: the strip has the one tab");
+      assert.equal((await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim(), "Tab 1", "a lone tab: the strip names it");
+      await assertShell(page, "a lone tab on a phone");
+      await activeTabInView(page, "a lone tab on a phone");
+      await screenshot("lone-tab");
+      await page.setViewportSize({ width: 800, height: 844 });
+      await page.waitForFunction(() => document.querySelector(".tab-strip") === null);
+      await page.setViewportSize({ width: 480, height: 844 });
+      await page.locator(".tab-strip").waitFor();
+    } finally {
+      await workspaceClose(lone.workspace.workspace_id).catch(() => undefined);
+    }
+
     // The app's faces come after the first paint (src/fonts/fonts.css, font-display: swap) and
     // every tab's name is redrawn with them, wider or narrower: the strip that brought the open
     // tab into view in the fallback brings it into view again. The font files are held here until

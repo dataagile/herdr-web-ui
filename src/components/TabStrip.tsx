@@ -1,6 +1,7 @@
 /**
  * The tabs of the selected pane's workspace, above its pane, as herdr's own tab row: shown once
- * the workspace has more than one pane (a second tab, or a tab split in the TUI), with a `+`
+ * the workspace has more than one pane (a second tab, or a tab split in the TUI), or always on a
+ * phone (up to 480px), where it is the only place the pane is named, with a `+`
  * that opens the New tab dialog. A tab opens the pane last viewed in it, else the one herdr has
  * focused there, else its first. The app shows one pane at a time, so a tab with several panes
  * carries a picker of them beside its name.
@@ -25,6 +26,7 @@ import { customTabLabel, tabLabel } from "../lib/tabName.ts";
 import { STRIP_AT_REST, stripPlaced, stripScrolled, stripSelected, type StripScroll } from "../lib/tabStripScroll.ts";
 import { rosterPanes } from "../lib/dagPane.ts";
 import { useMachineApi, useMachineId } from "../lib/machineContext.tsx";
+import { useMediaQuery } from "../lib/useMediaQuery.ts";
 import { knownStatus } from "../lib/status.ts";
 import { AgentMark } from "./AgentMark.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
@@ -112,7 +114,9 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
 
   // the open tab is in view: a pane opened from the sidebar, the palette or an alert can be on a
   // tab scrolled out of a phone's strip. Only the strip scrolls, never the page around it.
-  const shown = panes.length >= 2;
+  // a phone (up to 480px) has no title in its header: the strip names the pane, even a lone one
+  const phone = useMediaQuery("(max-width: 480px)");
+  const shown = panes.length >= 2 || phone;
   const scroll = useRef<StripScroll>(STRIP_AT_REST);
   const bringOpenTab = (): void => {
     const row = strip.current;

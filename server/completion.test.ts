@@ -191,7 +191,32 @@ describe("CompletionTracker", () => {
     expect(tracker.current("c")).toBe("unknown");
   });
 
-  it("keeps a seen native done at rest across a restart while herdr still reports done", () => {
+  it("does not acknowledge a native done on the focus path: herdr clears it itself", () => {
+    const tracker = new CompletionTracker();
+    tracker.observe("p", "working", "claude");
+    expect(tracker.observe("p", "done", "claude")).toBe("done");
+    expect(tracker.seen("p", true)).toBe(false);
+    expect(tracker.current("p")).toBe("done");
+    expect(tracker.observe("p", "idle", "claude")).toBe("idle");
+    // a finish made here is still cleared by focus
+    tracker.observe("q", "working", "claude");
+    expect(tracker.observe("q", "idle", "claude")).toBe("done");
+    expect(tracker.seen("q", true)).toBe(true);
+  });
+
+  it("calls a replay news when it drops an acknowledgement, so the pane's change is broadcast", () => {
+    const tracker = new CompletionTracker();
+    tracker.observe("p", "working", "claude");
+    tracker.observe("p", "done", "claude");
+    tracker.seen("p");
+    expect(tracker.current("p")).toBe("idle");
+    expect(tracker.replayed("p", "done", { before: "done", agent: "claude" })).toBe(true);
+    expect(tracker.observe("p", "done", "claude")).toBe("done");
+    // nothing acknowledged: an unchanged rest is still no news
+    expect(tracker.replayed("p", "done", { before: "done", agent: "claude" })).toBe(false);
+  });
+
+  it("shows a seen native done again after a restart: the acknowledgement is not persisted", () => {
     const dir = mkdtempSync(join(tmpdir(), "herdr-completion-ack-"));
     try {
       const file = join(dir, "completions.json");
@@ -199,11 +224,10 @@ describe("CompletionTracker", () => {
       before.observe("p", "working", "claude");
       expect(before.observe("p", "done", "claude")).toBe("done");
       expect(before.seen("p")).toBe(true);
+      expect(readFileSync(file, "utf8")).not.toContain("acknowledged");
+      // a finish while the server was down would be hidden if this stayed at rest
       const after = new CompletionTracker(file, () => "herdr-a");
-      expect(after.present(snapshot([{ id: "p", status: "done" }])).panes[0]!.agent_status).toBe("idle");
-      // herdr reports anything else: the acknowledgement is gone, the next done shows
-      after.observe("p", "working", "claude");
-      expect(after.observe("p", "done", "claude")).toBe("done");
+      expect(after.present(snapshot([{ id: "p", status: "done" }])).panes[0]!.agent_status).toBe("done");
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 

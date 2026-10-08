@@ -42,7 +42,11 @@ export class CompletionTracker {
   private readonly worked = new Map<string, string | null>();
   /** panes reported here as `done` while herdr says `idle` or `unknown` */
   private readonly finished = new Map<string, string | null>();
-  /** panes whose herdr-native `done` was seen here: reported at rest until herdr reports anything but `done` */
+  /**
+   * panes whose herdr-native `done` was seen here: reported at rest until herdr reports anything but `done`.
+   * Memory only, never in the file: a finish that happens while this server is down would otherwise be hidden
+   * as idle after the restart. A seen done shown again is acceptable; a finished turn hidden is not.
+   */
   private readonly acknowledged = new Set<string>();
   /** what herdr itself last said of each pane, before this tracker settled it */
   private readonly raw = new Map<string, AgentStatus>();
@@ -60,7 +64,7 @@ export class CompletionTracker {
   constructor(private readonly file: string | null = null, private readonly herdr: () => string | null = herdrSocketId) {
     if (file === null) return;
     try {
-      const state = JSON.parse(readFileSync(file, "utf8")) as { herdr?: unknown; finished?: unknown; finishedAgents?: unknown; acknowledged?: unknown };
+      const state = JSON.parse(readFileSync(file, "utf8")) as { herdr?: unknown; finished?: unknown; finishedAgents?: unknown };
       const current = herdr();
       if (current === null || state.herdr !== current) return;
       const agents = state.finishedAgents && typeof state.finishedAgents === "object" && !Array.isArray(state.finishedAgents)
@@ -68,7 +72,6 @@ export class CompletionTracker {
       for (const pane of Array.isArray(state.finished) ? state.finished : []) {
         if (typeof pane === "string") this.finished.set(pane, typeof agents[pane] === "string" ? agents[pane] as string : null);
       }
-      for (const pane of Array.isArray(state.acknowledged) ? state.acknowledged : []) if (typeof pane === "string") this.acknowledged.add(pane);
       this.saved = this.serialize(current);
     } catch { /* none yet, or unreadable: start empty */ }
   }
@@ -85,14 +88,15 @@ export class CompletionTracker {
    * Focus moved onto a pane, or a browser showed it: a `done` has been seen and the pane is at
    * rest again, as herdr does for its own on focus. A finish made here returns to what herdr says
    * of the pane (`idle`, or Codex's `unknown`); a `done` herdr reports itself is acknowledged
-   * and reads `idle` until herdr reports anything else. True when that changed what the pane reads,
+   * and reads `idle` until herdr reports anything else, except `byFocus` (herdr's own focus clears
+   * its done with an `idle` event: acknowledging it here too would double that). True when that changed what the pane reads,
    * and `current` then says what it reads now.
    */
-  seen(paneId: string): boolean {
+  seen(paneId: string, byFocus = false): boolean {
     const raw = this.raw.get(paneId);
     let rest: AgentStatus;
     if (this.finished.delete(paneId)) rest = raw === undefined ? "idle" : raw;
-    else if (raw === "done" && this.reported.get(paneId) === "done") { this.acknowledged.add(paneId); rest = "idle"; }
+    else if (!byFocus && raw === "done" && this.reported.get(paneId) === "done") { this.acknowledged.add(paneId); rest = "idle"; }
     else return false;
     this.record(paneId, rest, ++this.order);
     this.save();
@@ -136,8 +140,9 @@ export class CompletionTracker {
   replayed(paneId: string, status: AgentStatus, before: { before: AgentStatus; agent: string | null }): boolean {
     const busy = (value: AgentStatus): boolean => value === "working" || value === "blocked";
     const shown = this.reported.get(paneId);
-    // events were lost around this gap: what was acknowledged may have finished again since
-    this.acknowledged.delete(paneId);
+    // events were lost around this gap: what was acknowledged may have finished again since. Dropping it changes
+    // what the pane reads (idle -> done), so that is news whatever is decided below: clients must hear it
+    const unacknowledged = this.acknowledged.delete(paneId);
     // never reported, or only from a snapshot taken after the work ended: the work it did is not known here yet
     const unseenWork = busy(before.before) && !busy(status) && !this.worked.has(paneId) && !this.finished.has(paneId) && (shown === undefined || !busy(shown));
     if (shown === undefined || unseenWork) {
@@ -145,7 +150,7 @@ export class CompletionTracker {
       return true;
     }
     // a finish a browser's snapshot settled first is still one nobody was alerted of: it goes on, and stays DONE
-    return busy(shown) || busy(status) || busy(before.before);
+    return unacknowledged || busy(shown) || busy(status) || busy(before.before);
   }
 
   /**
@@ -156,8 +161,10 @@ export class CompletionTracker {
    * change the pane shows, long after it ended.
    */
   resync(panes: readonly { pane_id: string; agent_status: AgentStatus; agent?: string | null }[], newer: ReadonlySet<string>): void {
-    // events were lost: an acknowledged pane may have run a whole new turn, and a done shown again
-    // is better than a finish missed
+    // events were lost: an acknowledged pane may have run a whole new turn. Trade-off: every seen native done
+    // reads DONE again after a resync, finished anew or not, because a done shown again is acceptable and a
+    // finished turn hidden is not. The settle below is silent (alerts are corrected, not raised); a client
+    // that kept the pane idle learns of the DONE from its next snapshot
     this.acknowledged.clear();
     const live = new Set(panes.map((pane) => pane.pane_id));
     for (const pane of panes) {
@@ -248,7 +255,7 @@ export class CompletionTracker {
   private serialize(herdr: string): string {
     const finished = [...this.finished.keys()].sort();
     const finishedAgents = Object.fromEntries(finished.filter((pane) => this.finished.get(pane) !== null).map((pane) => [pane, this.finished.get(pane)]));
-    return JSON.stringify({ herdr, finished, finishedAgents, acknowledged: [...this.acknowledged].sort() });
+    return JSON.stringify({ herdr, finished, finishedAgents });
   }
 
   /** Written whole, and only on a change: a crash mid-write must not leave half a file. */

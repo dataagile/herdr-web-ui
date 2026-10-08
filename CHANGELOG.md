@@ -13,8 +13,8 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges
   lack it, keep the old behaviour. A `done` that herdr reports itself (a Claude Code pane through the
   herdr integration) is cleared too: the server remembers it was seen and reads the pane at rest until
-  herdr reports anything but `done` (kept across a server restart, dropped when status events were
-  lost), so the next finished turn shows DONE again. Only a user action marks a pane seen, never a
+  herdr reports anything but `done` (not kept across a server restart, and dropped when status events
+  were lost: a done shown again is acceptable, a finished turn hidden is not), so the next finished turn shows DONE again. Only a user action marks a pane seen, never a
   done that merely arrives on a visible selected pane or is open at load: a tab nobody is looking at
   must not cancel the phone's done push. The app sends at most one request per pane per done episode
   (a failed one is retried on the next action) and stops asking a PC whose bridge refuses it until
@@ -95,7 +95,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   seen as well as blocked ones (badges INPUT and DONE; blocked first), shows the workspace as the
   row subtitle (the PC is the group around it) and is marked as the sidebar's attention block
   (`--accent-tint` fill, `--accent` bar, heading and count). It is absent for a PC with nothing
-  waiting and for an offline PC, and stays visible when its PC is folded. The screen-reader line counts only
+  waiting and for an offline PC, and stays visible when its PC is folded. Each block is a landmark named "Needs you on {PC}", so a screen reader tells the PCs apart. The screen-reader line counts only
   blocked panes ("Panes waiting for input: {n}"), so done churn does not talk over a screen reader. The design system bundle gains the missing
   `.sidebar-section-header` rules.
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a

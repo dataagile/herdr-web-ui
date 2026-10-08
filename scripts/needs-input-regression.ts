@@ -52,6 +52,9 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     assert.deepEqual(await host.locator(".badge").allTextContents(), ["INPUT", "DONE"]);
     assert.equal(await host.locator(".pill").textContent(), "2");
     assert.equal(await page.locator(".machine-list > section.needs-input").count(), 0);
+    // one landmark per PC, told apart by name
+    assert.equal(await host.getAttribute("aria-label"), "Needs you on QA host");
+    assert.equal(await remote.getAttribute("aria-label"), "Needs you on QA remote");
     // both PCs are folded: no Projects, and the block is still there
     assert.equal(await page.locator(".machine-group .sidebar-section-header").count(), 0);
     // unfolded, it sits under the PC's header, above its Projects section

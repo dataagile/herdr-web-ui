@@ -15,7 +15,7 @@ export function NeedsInput({ machine, waiting, selectedPaneId, onSelect }: {
 }) {
   const t = useT();
   if (waiting.length === 0) return null;
-  return <section className="needs-input" aria-label={t("Needs you")}>
+  return <section className="needs-input" aria-label={t("Needs you on {machine}", { machine: machine.name })}>
     <h2 className="needs-input-heading">{t("Needs you")} <span className="pill">{waiting.length}</span></h2>
     <ul className="pane-list">
       {waiting.map(({ pane, workspace }) => {

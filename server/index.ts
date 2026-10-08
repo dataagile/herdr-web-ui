@@ -967,8 +967,8 @@ export function createServer(
   }
 
   // a finish reported as done has been seen: idle again, for the roster and the alerts
-  function paneSeen(paneId: string): boolean {
-    if (!completions.seen(paneId)) return false;
+  function paneSeen(paneId: string, byFocus = false): boolean {
+    if (!completions.seen(paneId, byFocus)) return false;
     // exactly what the roster reads from now on: `idle`, or a Codex's `unknown`
     const rest = completions.current(paneId) ?? "idle";
     broadcastAll({ type: "pane-status", pane_id: paneId, agent_status: rest });
@@ -997,7 +997,7 @@ export function createServer(
       push.onStatus(paneId, status).catch(logPushError);
     },
     // a finish reported as done, now in front at herdr's terminal: seen, idle again
-    onFocus: (paneId) => { paneSeen(paneId); },
+    onFocus: (paneId) => { paneSeen(paneId, true); },
     onBaseline: (panes) => push.seed(panes),
     // the tracker first: what it makes of each pane (a finish after work is done, not idle) is
     // what the alerts are measured against from here, or the next event would alert of it

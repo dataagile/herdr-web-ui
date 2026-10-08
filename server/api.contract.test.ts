@@ -1805,13 +1805,15 @@ describe("web push", () => {
       expect(await focused()).toBe(focusBefore);
       expect(await shownStatus()).toBe("idle");
       expect(await post()).toEqual({ ok: true, changed: false });
-      // herdr repeating its report does not bring the done back
+      // herdr repeating its report does not bring the done back. Status events reach the collector in order, so the
+      // `working` that follows is the barrier: once its frame arrived, the repeated report has been processed
+      watcher.seen.length = 0;
       await report("idle");
-      await Bun.sleep(300);
       expect(await shownStatus()).toBe("idle");
       // the next finished turn shows done again
       await report("working");
       await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "working", "working again", 5_000);
+      expect(watcher.seen.filter((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done")).toEqual([]);
       await report("idle");
       await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done", "done again", 5_000);
       expect(await shownStatus()).toBe("done");

@@ -294,10 +294,9 @@ try {
   const title = await phone.locator(".context-title-text").boundingBox();
   assert.ok(title && title.width >= 40, "the header keeps room for the pane's title");
   await shot(phone, "phone-390");
-  // at phone width Split is the More menu's, which leaves the pane's title its room
-  assert.equal(await phone.locator(".header-split").isVisible(), false, "the header's own Split button gives its room to the title");
-  await phone.locator(".header-more-button").tap();
-  await phone.getByRole("button", { name: "Split", exact: true }).tap();
+  // at phone width Split stays in the header, icon only
+  assert.equal(await phone.locator(".header-split").isVisible(), true, "the header's own Split button is there on a phone");
+  await phone.locator(".header-split").tap();
   await phone.getByRole("button", { name: "Split right" }).tap();
   await until(async () => (await layoutOf(tabId)).panes.length === 3, "herdr splits from the phone");
   await phone.waitForFunction(() => document.querySelector(".tab-strip-panes-count")?.textContent === "3/3" || /\d\/3/.test(document.querySelector(".tab-strip-panes-count")?.textContent ?? ""));

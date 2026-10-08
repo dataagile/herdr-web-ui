@@ -1,7 +1,9 @@
 /**
  * The tabs of the selected pane's workspace, above its pane, as herdr's own tab row: shown once
- * the workspace has more than one pane (a second tab, or a tab split in the TUI), with a `+`
- * that opens the New tab dialog. A tab opens the pane last viewed in it, else the one herdr has
+ * the workspace has more than one pane (a second tab, or a tab split in the TUI), or always on a
+ * phone (up to 480px), where it is the only place the pane is named: the open tab there is always
+ * named by the pane in front, whatever its own name, and the other tabs by their own name, else
+ * their one pane's, else "Tab n". A `+` opens the New tab dialog. A tab opens the pane last viewed in it, else the one herdr has
  * focused there, else its first. The app shows one pane at a time, so a tab with several panes
  * carries a picker of them beside its name.
  *
@@ -25,6 +27,7 @@ import { customTabLabel, tabLabel } from "../lib/tabName.ts";
 import { STRIP_AT_REST, stripPlaced, stripScrolled, stripSelected, type StripScroll } from "../lib/tabStripScroll.ts";
 import { rosterPanes } from "../lib/dagPane.ts";
 import { useMachineApi, useMachineId } from "../lib/machineContext.tsx";
+import { useMediaQuery } from "../lib/useMediaQuery.ts";
 import { knownStatus } from "../lib/status.ts";
 import { AgentMark } from "./AgentMark.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
@@ -68,7 +71,20 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
   latest.current = { machineId, workspaceId: workspace.workspace_id, tabId: selectedPane.tab_id };
   const panes = rosterPanes(snapshot.panes.filter((pane) => pane.workspace_id === workspace.workspace_id), selectedPane.pane_id);
   const tabs = snapshot.tabs.filter((tab) => tab.workspace_id === workspace.workspace_id).sort((a, b) => a.number - b.number);
-  const nameOf = (tab: HerdrTab): string => sent?.tabId === tab.tab_id ? sent.label : tabLabel(tab, t, tabs.findIndex((candidate) => candidate.tab_id === tab.tab_id) + 1);
+  // a phone (up to 480px) has no title in its header: the strip names the pane, even a lone one
+  const phone = useMediaQuery("(max-width: 480px)");
+  const panesOf = (tab: HerdrTab): PaneInfo[] => panes.filter((pane) => pane.tab_id === tab.tab_id);
+  // the tab's name on herdr's side: what it was given, else "Tab n"
+  const herdrName = (tab: HerdrTab): string => sent?.tabId === tab.tab_id ? sent.label : tabLabel(tab, t, tabs.findIndex((candidate) => candidate.tab_id === tab.tab_id) + 1);
+  // what the strip shows. On a phone the open tab is always named by the pane in front (the header
+  // has no title); the others keep their own name, else their one pane's, else "Tab n".
+  const nameOf = (tab: HerdrTab): string => {
+    if (phone && tab.tab_id === selectedPane.tab_id) return displayPaneTitle(selectedPane);
+    if (sent?.tabId === tab.tab_id) return sent.label;
+    const place = tabs.findIndex((candidate) => candidate.tab_id === tab.tab_id) + 1;
+    const own = phone && customTabLabel(tab, place) === null ? panesOf(tab) : [];
+    return own.length === 1 && own[0] ? displayPaneTitle(own[0]) : herdrName(tab);
+  };
 
   useEffect(() => {
     lastViewed.set(`${machineId}:${selectedPane.tab_id}`, selectedPane.pane_id);
@@ -112,7 +128,7 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
 
   // the open tab is in view: a pane opened from the sidebar, the palette or an alert can be on a
   // tab scrolled out of a phone's strip. Only the strip scrolls, never the page around it.
-  const shown = panes.length >= 2;
+  const shown = panes.length >= 2 || phone;
   const scroll = useRef<StripScroll>(STRIP_AT_REST);
   const bringOpenTab = (): void => {
     const row = strip.current;
@@ -148,7 +164,6 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
 
   if (!shown) return null;
 
-  const panesOf = (tab: HerdrTab): PaneInfo[] => panes.filter((pane) => pane.tab_id === tab.tab_id);
   const paneFor = (tab: HerdrTab): PaneInfo | undefined => {
     const own = panesOf(tab);
     const pick = (id: string | null | undefined) => (id ? own.find((pane) => pane.pane_id === id) : undefined);
@@ -171,7 +186,7 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
     const label = editing?.value.trim() ?? "";
     refocus.current = tab.tab_id;
     setEditing(null);
-    if (label === "" || label === nameOf(tab)) return;
+    if (label === "" || label === herdrName(tab)) return;
     setSent({ tabId: tab.tab_id, label });
     void renameTab(tab.tab_id, label).catch((reason: unknown) => {
       setSent((current) => current?.tabId === tab.tab_id ? null : current);
@@ -273,7 +288,7 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
                   autoFocus
                   size={Math.max(8, editing.value.length + 1)}
                   maxLength={80}
-                  placeholder={name}
+                  placeholder={herdrName(tab)}
                   value={editing.value}
                   onFocus={(event) => event.currentTarget.select()}
                   onChange={(event) => setEditing({ tabId: tab.tab_id, value: event.target.value })}
@@ -294,7 +309,7 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
                   data-tab-id={tab.tab_id}
                   aria-selected={active}
                   tabIndex={active ? 0 : -1}
-                  title={own.length === 1 && own[0] ? displayPaneTitle(own[0]) : t("{n} panes", { n: own.length })}
+                  title={name !== herdrName(tab) && own.length > 1 ? herdrName(tab) : own.length === 1 && own[0] ? displayPaneTitle(own[0]) : t("{n} panes", { n: own.length })}
                   onClick={() => {
                     const pane = paneFor(tab);
                     if (pane && pane.pane_id !== selectedPane.pane_id) onSelectPane(pane.pane_id);

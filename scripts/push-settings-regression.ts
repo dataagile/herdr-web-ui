@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Browser } from "playwright-core";
-import { alertsState, runMoreItem } from "./header-more.ts";
+import { alertsState, tapBell } from "./header-bell.ts";
 
 export async function checkPushSettings(browser: Browser, origin: string): Promise<void> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, permissions: ["notifications"] });
@@ -47,8 +47,8 @@ export async function checkPushSettings(browser: Browser, origin: string): Promi
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(origin);
     await page.locator(".conn-live").waitFor();
-    // the More menu's Alerts item says so once this device's push subscription is made
-    for (const deadline = Date.now() + 15_000; (await alertsState(page)) !== "On, pushed to this device";) {
+    // the bell's title says so once this device's push subscription is made
+    for (const deadline = Date.now() + 15_000; !(await alertsState(page)).title.includes("pushed to this device");) {
       assert.ok(Date.now() < deadline, "alerts are pushed to this device");
       await page.waitForTimeout(100);
     }
@@ -93,7 +93,7 @@ export async function checkPushSettings(browser: Browser, origin: string): Promi
     assert.equal(tests.length, beforeMissing);
 
     await page.getByRole("button", { name: "Close settings", exact: true }).click();
-    await runMoreItem(page, "Alerts");
+    await tapBell(page);
     await page.keyboard.press("ControlOrMeta+Shift+Comma");
     assert.equal(await send.isDisabled(), true, "testing must not turn alerts on implicitly");
     await page.getByRole("button", { name: "Turn alerts on again", exact: true }).waitFor();

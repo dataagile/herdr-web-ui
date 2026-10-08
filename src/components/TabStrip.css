@@ -239,3 +239,13 @@
     --strip-bg: var(--bg);
   }
 }
+
+/* a phone names the pane here, and a pane's title has no length: cut it short so the open tab,
+   its chevron and the + always fit (the full title is the tab's `title`) */
+@media (max-width: 480px) {
+  .tab-strip-label {
+    overflow: hidden;
+    max-width: calc(100vw - 4 * var(--touch-target) - var(--space-4));
+    text-overflow: ellipsis;
+  }
+}

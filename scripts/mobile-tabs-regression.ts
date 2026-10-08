@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { appFaces } from "./app-faces.ts";
-import { herdrRpc, tabCreate, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+import { herdrRpc, tabCreate, tabRename, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
 
 type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
 type KeyboardQA = Window & { keyboardQA: (height: number | null) => void };
@@ -22,14 +22,15 @@ async function box(page: Page, selector: string): Promise<Box> {
   return found;
 }
 
-/** The header keeps the pane's title and the strip sits right under it, whatever the lens. */
-async function assertShell(page: Page, label: string, titleRoom = 60): Promise<void> {
+/** A phone's header is icons only: the strip right under it names the open tab, whatever the lens. */
+async function assertShell(page: Page, label: string): Promise<void> {
   const newTab = page.locator(".app-header").getByRole("button", { name: "New tab" });
   assert.equal(await newTab.count(), 1, `${label}: the header has its own New tab button`);
   assert.equal(await newTab.locator(".header-desktop-only").isVisible(), false, `${label}: the New tab button is icon-only on this width`);
-  assert.equal(await page.locator(".app-header .header-more-button").isVisible(), true, `${label}: New tab is an item of the header's More menu`);
-  const title = await box(page, ".context-title-text");
-  assert.ok(title.width >= titleRoom, `${label}: the pane's title keeps its room in the header (${title.width}px)`);
+  assert.equal(await page.locator(".app-header .header-more-button").count(), 0, `${label}: the header has no More menu`);
+  assert.equal(await page.locator(".context-title-text").isVisible(), false, `${label}: the header draws no title text`);
+  const openTab = (await page.locator(".tab-strip-item.is-active .tab-strip-tab").innerText()).trim();
+  assert.ok(openTab.length > 0, `${label}: the strip names the open tab ("${openTab}")`);
   const header = await box(page, ".app-header");
   const strip = await box(page, ".tab-strip");
   assert.ok(Math.abs(strip.top - header.bottom) <= 1, `${label}: the strip sits under the header (${strip.top} vs ${header.bottom})`);
@@ -116,21 +117,52 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
 
     await page.goto(`${origin}/?pane=${encodeURIComponent(last)}`);
     await page.locator(".conn-live").waitFor();
-    await page.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "docs" }).waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll(".tab-strip-item")].at(-1)?.classList.contains("is-active"));
     await activeTabInView(page, "a pane opened from outside the strip");
     await assertShell(page, "the last tab");
     await screenshot("last-tab");
 
     await page.locator(".tab-strip").evaluate((node) => { node.scrollLeft = 0; });
-    await page.getByRole("tab", { name: "Tab 1", exact: true }).tap();
-    await page.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "Tab 1" }).waitFor();
+    // on a phone a numbered tab with one pane is named by that pane: tap the first tab by place
+    await page.locator(".tab-strip-tab").first().tap();
+    await page.locator('.tab-strip-item:first-child [role="tab"][aria-selected="true"]').waitFor();
     await activeTabInView(page, "the first tab, tapped");
 
     await page.setViewportSize({ width: 320, height: 640 });
     await activeTabInView(page, "a 320px phone");
-    await assertShell(page, "a 320px phone", 0);
+    await assertShell(page, "a 320px phone");
     await screenshot("narrow");
     assert.deepEqual(errors, []);
+
+    // A workspace of one tab and one pane: a phone still draws the strip, because the header does
+    // not name the pane; a wider window keeps it away, as for any lone pane.
+    const lone = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-lone-tab" });
+    try {
+      const loneUrl = `${origin}/?pane=${encodeURIComponent(lone.root_pane.pane_id)}`;
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(loneUrl);
+      await page.locator(".conn-live").waitFor();
+      await page.locator(".tab-strip").waitFor();
+      assert.equal(await page.locator(".tab-strip-tab").count(), 1, "a lone tab: the strip has the one tab");
+      const loneTab = page.locator(".tab-strip-item.is-active .tab-strip-tab");
+      const loneName = (await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim();
+      assert.notEqual(loneName, "Tab 1", "a lone tab on a phone is not named by its number");
+      assert.equal(loneName, (await loneTab.getAttribute("title"))?.trim(), "a lone tab on a phone: the strip names its pane");
+      await assertShell(page, "a lone tab on a phone");
+      // the open tab on a phone is named by the pane in front even when the tab has a name of its own
+      await tabRename(lone.tab.tab_id, "renamed-lone-tab");
+      await page.waitForFunction((name) => document.querySelector(".tab-strip-item.is-active .tab-strip-label")?.textContent?.trim() === name, loneName);
+      await page.waitForTimeout(500);
+      assert.equal((await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim(), loneName, "a renamed one-pane tab on a phone still shows the pane's title");
+      await activeTabInView(page, "a lone tab on a phone");
+      await screenshot("lone-tab");
+      await page.setViewportSize({ width: 800, height: 844 });
+      await page.waitForFunction(() => document.querySelector(".tab-strip") === null);
+      await page.setViewportSize({ width: 480, height: 844 });
+      await page.locator(".tab-strip").waitFor();
+    } finally {
+      await workspaceClose(lone.workspace.workspace_id).catch(() => undefined);
+    }
 
     // The app's faces come after the first paint (src/fonts/fonts.css, font-display: swap) and
     // every tab's name is redrawn with them, wider or narrower: the strip that brought the open
@@ -157,7 +189,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
         try {
           await late.goto(`${origin}/?pane=${encodeURIComponent(last)}`);
           await late.locator(".conn-live").waitFor();
-          await late.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "docs" }).waitFor();
+          await late.waitForFunction(() => [...document.querySelectorAll(".tab-strip-item")].at(-1)?.classList.contains("is-active"));
           assert.equal(await late.evaluate(() => [...document.fonts].filter((face) => face.family.replace(/["']/g, "") === "Pretendard Variable" && face.status === "loaded").length), 0, "the strip is first drawn before its face comes");
           await activeTabInView(late, "the last tab, before the faces came");
           if (scrolled) {
@@ -170,8 +202,8 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
         if (scrolled) {
           assert.equal(await strip.evaluate((node) => node.scrollLeft), 0, "a strip the user scrolled is left there when the faces come");
           assert.equal(await openInView(), false);
-          await late.getByRole("tab", { name: "Tab 1", exact: true }).tap();
-          await late.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "Tab 1" }).waitFor();
+          await late.locator(".tab-strip-tab").first().tap();
+          await late.locator('.tab-strip-item:first-child [role="tab"][aria-selected="true"]').waitFor();
           await activeTabInView(late, "a tab opened after the user's scroll");
         } else {
           await activeTabInView(late, "the last tab, after the faces came");
@@ -179,7 +211,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
         assert.deepEqual(lateErrors, []);
       } finally { await slow.close(); }
     }
-    console.log("PASS a phone keeps the pane's title in the header and the open tab and the + in the strip, in both lenses and with the keyboard up");
+    console.log("PASS a phone names the pane in the strip (its open tab) and keeps the + there, in both lenses and with the keyboard up");
   } finally {
     await context.close();
     if (workspaceId) await workspaceClose(workspaceId).catch(() => undefined);

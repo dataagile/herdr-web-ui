@@ -42,6 +42,10 @@ export class CompletionTracker {
   private readonly worked = new Map<string, string | null>();
   /** panes reported here as `done` while herdr says `idle` or `unknown` */
   private readonly finished = new Map<string, string | null>();
+  /** panes whose herdr-native `done` was seen here: reported at rest until herdr reports anything but `done` */
+  private readonly acknowledged = new Set<string>();
+  /** what herdr itself last said of each pane, before this tracker settled it */
+  private readonly raw = new Map<string, AgentStatus>();
   /** Last reported statuses, and changes that must take precedence over an in-flight snapshot. */
   private readonly reported = new Map<string, AgentStatus>();
   private readonly pending = new Map<number, Map<string, AgentStatus | null>>();
@@ -77,15 +81,21 @@ export class CompletionTracker {
   }
 
   /**
-   * Focus moved onto a pane: a finish reported here as `done` has been seen and is
-   * `idle` again, as herdr does for its own. True when that changed what the pane reads.
+   * Focus moved onto a pane, or a browser showed it: a `done` has been seen and the pane is at
+   * rest again, as herdr does for its own on focus. A finish made here returns to what herdr says
+   * of the pane (`idle`, or Codex's `unknown`); a `done` herdr reports itself is acknowledged
+   * and reads `idle` until herdr reports anything else. True when that changed what the pane reads,
+   * and `current` then says what it reads now.
    */
   seen(paneId: string): boolean {
-    const changed = this.finished.delete(paneId);
-    const current = this.reported.get(paneId);
-    if (changed || current !== undefined) this.record(paneId, changed ? "idle" : current!, ++this.order);
-    if (changed) this.save();
-    return changed;
+    const raw = this.raw.get(paneId);
+    let rest: AgentStatus;
+    if (this.finished.delete(paneId)) rest = raw === undefined || raw === "done" ? "idle" : raw;
+    else if (raw === "done" && this.reported.get(paneId) === "done") { this.acknowledged.add(paneId); rest = "idle"; }
+    else return false;
+    this.record(paneId, rest, ++this.order);
+    this.save();
+    return true;
   }
 
   /**
@@ -218,6 +228,8 @@ export class CompletionTracker {
   private drop(paneId: string, order: number): void {
     this.worked.delete(paneId);
     this.finished.delete(paneId);
+    this.acknowledged.delete(paneId);
+    this.raw.delete(paneId);
     this.record(paneId, null, order);
   }
 
@@ -253,6 +265,8 @@ export class CompletionTracker {
   }
 
   private settle(paneId: string, status: AgentStatus, agent: string | null): AgentStatus {
+    this.raw.set(paneId, status);
+    if (status !== "done") this.acknowledged.delete(paneId);
     if (this.finished.has(paneId)) {
       const finishedAgent = this.finished.get(paneId);
       // Older state files have no identity: retain their idle finishes, but never apply them to unknown agents.
@@ -267,7 +281,7 @@ export class CompletionTracker {
       case "done":
         this.worked.delete(paneId);
         this.finished.delete(paneId);
-        return status;
+        return this.acknowledged.has(paneId) ? "idle" : status;
       case "idle":
         if (this.worked.delete(paneId)) this.finished.set(paneId, agent);
         return this.finished.has(paneId) ? "done" : status;

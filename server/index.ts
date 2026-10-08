@@ -969,8 +969,10 @@ export function createServer(
   // a finish reported as done has been seen: idle again, for the roster and the alerts
   function paneSeen(paneId: string): boolean {
     if (!completions.seen(paneId)) return false;
-    broadcastAll({ type: "pane-status", pane_id: paneId, agent_status: "idle" });
-    push.onStatus(paneId, "idle").catch(logPushError);
+    // exactly what the roster reads from now on: `idle`, or a Codex's `unknown`
+    const rest = completions.current(paneId) ?? "idle";
+    broadcastAll({ type: "pane-status", pane_id: paneId, agent_status: rest });
+    push.onStatus(paneId, rest).catch(logPushError);
     return true;
   }
 

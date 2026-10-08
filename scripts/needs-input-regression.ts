@@ -10,6 +10,11 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
   let seen = false;
   let offline = false;
   try {
+    // both PCs start folded: Needs you must still show, so a waiting agent is never hidden
+    await context.addInitScript(() => {
+      localStorage.setItem("herdr-web-ui:pc-collapsed:local", "1");
+      localStorage.setItem("herdr-web-ui:pc-collapsed:qa-remote", "1");
+    });
     await context.route("**/api/machines/events", (route) => route.abort());
     await context.route("**/api/machines", async (route) => {
       const response = await route.fetch();
@@ -45,7 +50,11 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     assert.deepEqual(await host.locator(".badge").allTextContents(), ["INPUT", "DONE"]);
     assert.equal(await host.locator(".pill").textContent(), "2");
     assert.equal(await page.locator(".machine-list > section.needs-input").count(), 0);
-    // under the PC's header, above its Projects section
+    // both PCs are folded: no Projects, and the block is still there
+    assert.equal(await page.locator(".machine-group .sidebar-section-header").count(), 0);
+    // unfolded, it sits under the PC's header, above its Projects section
+    await page.locator('.machine-group[aria-label="PC QA host"] .machine-toggle').click();
+    await page.locator('.machine-group[aria-label="PC QA host"] .sidebar-section-header').first().waitFor();
     assert.equal(await host.evaluate((el) => {
       const group = el.closest(".machine-group")!;
       const before = (a: Element, b: Element | null) => b !== null && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -59,10 +68,13 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await host.getByRole("button", { name: /Local waiting/ }).click();
     await page.locator(".context .machine-context-name").filter({ hasText: "QA host" }).waitFor();
     await page.locator(".conn-live").waitFor();
-    // the block folds with its PC
-    await page.locator('.machine-group[aria-label="PC QA remote"] .machine-toggle').click();
-    await remote.waitFor({ state: "detached" });
-    await page.locator('.machine-group[aria-label="PC QA remote"] .machine-toggle').click();
+    // folding or unfolding a PC never hides its block
+    const remoteToggle = page.locator('.machine-group[aria-label="PC QA remote"] .machine-toggle');
+    await remoteToggle.click();
+    assert.equal(await remoteToggle.getAttribute("aria-expanded"), "true");
+    await remote.waitFor();
+    await remoteToggle.click();
+    assert.equal(await remoteToggle.getAttribute("aria-expanded"), "false");
     await remote.waitFor();
     if (process.env.UI_EVIDENCE_DIR) {
       mkdirSync(process.env.UI_EVIDENCE_DIR, { recursive: true });
@@ -92,6 +104,6 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await remote.waitFor({ state: "detached" });
     assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for you: 0");
     assert.deepEqual(errors, []);
-    console.log("PASS Needs you: one block per PC, blocked then done, same pane IDs, selection, fold, resume, seen, offline and mobile drawer");
+    console.log("PASS Needs you: one block per PC, blocked then done, same pane IDs, selection, folded PCs keep the block, resume, seen, offline and mobile drawer");
   } finally { await context.close(); }
 }

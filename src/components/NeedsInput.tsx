@@ -1,21 +1,21 @@
 import type { Machine } from "../../shared/machines.ts";
 import { paneStorageId } from "../../shared/machines.ts";
 import { useT } from "../lib/i18n.ts";
-import { panesNeedingYou } from "../lib/needsInput.ts";
+import type { PaneNeedingYou } from "../lib/needsInput.ts";
 import { AgentMark } from "./AgentMark.tsx";
 import { displayPaneTitle, StatusBadge } from "./Sidebar.tsx";
 import "./NeedsInput.css";
 
 /** One PC's panes that wait for the user (blocked, then done); nothing at all when there are none. */
-export function NeedsInput({ machine, selectedPaneId, onSelect }: {
+export function NeedsInput({ machine, waiting, selectedPaneId, onSelect }: {
   machine: Machine;
+  waiting: PaneNeedingYou[];
   selectedPaneId: string | null;
   onSelect(machineId: string, paneId: string): void;
 }) {
   const t = useT();
-  const waiting = panesNeedingYou(machine);
   if (waiting.length === 0) return null;
-  return <section className="needs-input is-machine" aria-label={t("Needs you")}>
+  return <section className="needs-input" aria-label={t("Needs you")}>
     <h2 className="needs-input-heading">{t("Needs you")} <span className="pill">{waiting.length}</span></h2>
     <ul className="pane-list">
       {waiting.map(({ pane, workspace }) => {

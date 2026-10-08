@@ -1732,23 +1732,89 @@ describe("web push", () => {
       expect(await (await post({ pane_id: "no-such-pane" })).json()).toEqual({ ok: true, changed: false });
 
       // not done: no-op
+      // the collector may still be subscribing to the new pane: alternate real changes until one lands
+      let live = false;
+      for (let attempt = 0; attempt < 8 && !live; attempt += 1) {
+        const state = attempt % 2 === 0 ? "working" : "blocked";
+        await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "codex", state });
+        live = await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === state, "live", 2_500).then(() => true).catch(() => false);
+      }
+      expect(live).toBe(true);
       await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "codex", state: "working" });
       await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "working", "working", 5_000);
       expect(await (await post({ pane_id: paneId })).json()).toEqual({ ok: true, changed: false });
 
-      // done -> idle, the pane-status herdr's own focus would have caused, and the focus stays
+      // done -> rest (a Codex at rest reads `unknown`), the pane-status herdr's own focus would have caused, and the focus stays
       await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "codex", state: "unknown" });
       await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done", "done", 5_000);
       const focusBefore = await focused();
       watcher.seen.length = 0;
       expect(await (await post({ pane_id: paneId })).json()).toEqual({ ok: true, changed: true });
-      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "idle", "idle after seen", 5_000);
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "unknown", "rest after seen", 5_000);
       expect(await focused()).toBe(focusBefore);
       const shown = await (await fetch(`${origin}/api/session`)).json() as { snapshot: SessionSnapshot };
       // a Codex at rest reads `unknown` in the roster (as after herdr's own focus); what matters is that it no longer reads done
       expect(shown.snapshot.panes.find((pane) => pane.pane_id === paneId)?.agent_status).not.toBe("done");
       // idempotent
       expect(await (await post({ pane_id: paneId })).json()).toEqual({ ok: true, changed: false });
+    } finally {
+      watcher?.close();
+      bridge?.stop();
+      if (dir) rmSync(dir, { recursive: true, force: true });
+      if (created) await workspaceClose(created.workspace.workspace_id).catch(() => undefined);
+    }
+  }, 40_000);
+
+  it("marks a herdr-native done seen, and shows the next native done again", async () => {
+    let created: Awaited<ReturnType<typeof workspaceCreate>> | undefined;
+    let dir: string | undefined;
+    let bridge: ReturnType<typeof createServer> | undefined;
+    let watcher: RecordingSocket | undefined;
+    try {
+      created = await workspaceCreate({ cwd: tmpdir(), label: "herdr-web-ui-test-native-done-seen" });
+      const paneId = created.root_pane.pane_id;
+      dir = mkdtempSync(join(tmpdir(), "herdr-web-ui-native-done-"));
+      bridge = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: dir, machines: false });
+      const origin = `http://127.0.0.1:${bridge.port}`;
+      watcher = await RecordingSocket.connect(`ws://127.0.0.1:${bridge.port}/ws`);
+      const post = () => fetch(`${origin}/api/pane/seen`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pane_id: paneId }),
+      }).then((response) => response.json());
+      const focused = async () => (await herdrRpc<{ snapshot: SessionSnapshot }>("session.snapshot", {})).snapshot.focused_pane_id;
+      const report = (state: string) => herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "claude", state });
+      const shownStatus = async () => ((await (await fetch(`${origin}/api/session`)).json()) as { snapshot: SessionSnapshot }).snapshot.panes.find((pane) => pane.pane_id === paneId)?.agent_status;
+
+      // the collector may still be subscribing to the new pane: alternate real changes until one lands
+      let live = false;
+      for (let attempt = 0; attempt < 8 && !live; attempt += 1) {
+        const state = attempt % 2 === 0 ? "working" : "blocked";
+        await report(state);
+        live = await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === state, "live", 2_500).then(() => true).catch(() => false);
+      }
+      expect(live).toBe(true);
+      await report("working");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "working", "working", 5_000);
+      // an integration agent (claude) back to idle in an unfocused pane: herdr itself turns that into done
+      await report("idle");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done", "native done", 5_000);
+      expect(await shownStatus()).toBe("done");
+      const focusBefore = await focused();
+      watcher.seen.length = 0;
+      expect(await post()).toEqual({ ok: true, changed: true });
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "idle", "rest after seen", 5_000);
+      expect(await focused()).toBe(focusBefore);
+      expect(await shownStatus()).toBe("idle");
+      expect(await post()).toEqual({ ok: true, changed: false });
+      // herdr repeating its report does not bring the done back
+      await report("idle");
+      await Bun.sleep(300);
+      expect(await shownStatus()).toBe("idle");
+      // the next finished turn shows done again
+      await report("working");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "working", "working again", 5_000);
+      await report("idle");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done", "done again", 5_000);
+      expect(await shownStatus()).toBe("done");
     } finally {
       watcher?.close();
       bridge?.stop();

@@ -11,7 +11,11 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 - A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the
   tab coming back with it in front) now counts as seen: it leaves Needs you and reads idle, without
   moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges
-  lack it, keep the old behaviour.
+  lack it, keep the old behaviour. A `done` that herdr reports itself (a Claude Code pane through the
+  herdr integration) is cleared too: the server remembers it was seen and reads the pane at rest until
+  herdr reports anything but `done`, so the next finished turn shows DONE again. The pane also counts
+  as seen when it finishes, or is already done at load, while it is in front on a visible page; the app
+  sends at most one request per pane per done episode and stops asking a PC whose bridge refuses it.
 - A **History** section in the sidebar, under Agents, for the selected project (this PC only):
   the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
   transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since
@@ -88,7 +92,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   seen as well as blocked ones (badges INPUT and DONE; blocked first), shows the workspace as the
   row subtitle (the PC is the group around it) and is marked as the sidebar's attention block
   (`--accent-tint` fill, `--accent` bar, heading and count). It is absent for a PC with nothing
-  waiting and for an offline PC, and folds with its PC. The screen-reader line counts both states
+  waiting and for an offline PC, and stays visible when its PC is folded. The screen-reader line counts both states
   ("Panes waiting for you: {n}"). The design system bundle gains the missing
   `.sidebar-section-header` rules.
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a

@@ -41,8 +41,8 @@ describe("CompletionTracker", () => {
       if (acknowledge) expect(tracker.seen("p")).toBe(true);
       old.release(snapshot([{ id: "p", agent: "codex", status: "working" }]));
       const shown = await reading;
-      expect(shown.panes[0]!.agent_status).toBe(acknowledge ? "idle" : "done");
-      expect(shown.agents[0]!.agent_status).toBe(acknowledge ? "idle" : "done");
+      expect(shown.panes[0]!.agent_status).toBe(acknowledge ? "unknown" : "done");
+      expect(shown.agents[0]!.agent_status).toBe(acknowledge ? "unknown" : "done");
       expect(tracker.observe("p", "unknown", "codex")).toBe(acknowledge ? "unknown" : "done");
     }
   });
@@ -170,6 +170,25 @@ describe("CompletionTracker", () => {
     expect(tracker.present(snapshot([{ id: "p", status: "idle", focused: true }])).panes[0]!.agent_status).toBe("idle");
     expect(tracker.present(snapshot([{ id: "p", status: "idle" }])).panes[0]!.agent_status).toBe("idle");
     expect(tracker.seen("p")).toBe(false);
+  });
+
+  it("clears a done herdr reports itself, keeps it at rest while herdr repeats it, and shows the next one", () => {
+    const tracker = new CompletionTracker();
+    expect(tracker.observe("p", "working", "claude")).toBe("working");
+    expect(tracker.observe("p", "done", "claude")).toBe("done");
+    expect(tracker.seen("p")).toBe(true);
+    expect(tracker.current("p")).toBe("idle");
+    expect(tracker.present(snapshot([{ id: "p", status: "done" }])).panes[0]!.agent_status).toBe("idle");
+    expect(tracker.observe("p", "done", "claude")).toBe("idle");
+    expect(tracker.seen("p")).toBe(false);
+    // anything but done drops the acknowledgement
+    expect(tracker.observe("p", "working", "claude")).toBe("working");
+    expect(tracker.observe("p", "done", "claude")).toBe("done");
+    // a Codex's finish rests as what herdr says of it
+    expect(tracker.observe("c", "working", "codex")).toBe("working");
+    expect(tracker.observe("c", "unknown", "codex")).toBe("done");
+    expect(tracker.seen("c")).toBe(true);
+    expect(tracker.current("c")).toBe("unknown");
   });
 
   it("finishes the pane herdr has focused as done: nobody moved focus there to see it", () => {

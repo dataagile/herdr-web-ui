@@ -1,7 +1,7 @@
 herdr's tab row over the pane: one tab per herdr tab of the selected workspace, state dots, the open tab underlined in the accent, and a `+` for a new tab.
 
 ## When to use
-- Over the pane column, once the selected pane's workspace has two or more panes (a second tab or a split); for a lone pane only on a phone (up to 480px), where the header carries no title and this strip is the one place the pane is named.
+- Over the pane column, once the selected pane's workspace has two or more panes (a second tab or a split); for a lone pane only on a phone (up to 480px), where the header carries no title and this strip is the one place the pane is named: a tab herdr still names by its number and that holds one pane shows the pane's title instead of **Tab n**.
 - Not for switching workspaces (that is the roster) or for app-level navigation.
 
 ## Anatomy

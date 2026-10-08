@@ -123,8 +123,9 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await screenshot("last-tab");
 
     await page.locator(".tab-strip").evaluate((node) => { node.scrollLeft = 0; });
-    await page.getByRole("tab", { name: "Tab 1", exact: true }).tap();
-    await page.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "Tab 1" }).waitFor();
+    // on a phone a numbered tab with one pane is named by that pane: tap the first tab by place
+    await page.locator(".tab-strip-tab").first().tap();
+    await page.locator('.tab-strip-item:first-child [role="tab"][aria-selected="true"]').waitFor();
     await activeTabInView(page, "the first tab, tapped");
 
     await page.setViewportSize({ width: 320, height: 640 });
@@ -143,7 +144,10 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
       await page.locator(".conn-live").waitFor();
       await page.locator(".tab-strip").waitFor();
       assert.equal(await page.locator(".tab-strip-tab").count(), 1, "a lone tab: the strip has the one tab");
-      assert.equal((await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim(), "Tab 1", "a lone tab: the strip names it");
+      const loneTab = page.locator(".tab-strip-item.is-active .tab-strip-tab");
+      const loneName = (await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim();
+      assert.notEqual(loneName, "Tab 1", "a lone tab on a phone is not named by its number");
+      assert.equal(loneName, (await loneTab.getAttribute("title"))?.trim(), "a lone tab on a phone: the strip names its pane");
       await assertShell(page, "a lone tab on a phone");
       await activeTabInView(page, "a lone tab on a phone");
       await screenshot("lone-tab");
@@ -193,8 +197,8 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
         if (scrolled) {
           assert.equal(await strip.evaluate((node) => node.scrollLeft), 0, "a strip the user scrolled is left there when the faces come");
           assert.equal(await openInView(), false);
-          await late.getByRole("tab", { name: "Tab 1", exact: true }).tap();
-          await late.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "Tab 1" }).waitFor();
+          await late.locator(".tab-strip-tab").first().tap();
+          await late.locator('.tab-strip-item:first-child [role="tab"][aria-selected="true"]').waitFor();
           await activeTabInView(late, "a tab opened after the user's scroll");
         } else {
           await activeTabInView(late, "the last tab, after the faces came");
@@ -202,7 +206,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
         assert.deepEqual(lateErrors, []);
       } finally { await slow.close(); }
     }
-    console.log("PASS a phone keeps the pane's title in the header and the open tab and the + in the strip, in both lenses and with the keyboard up");
+    console.log("PASS a phone names the pane in the strip (its open tab) and keeps the + there, in both lenses and with the keyboard up");
   } finally {
     await context.close();
     if (workspaceId) await workspaceClose(workspaceId).catch(() => undefined);

@@ -70,7 +70,13 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
   latest.current = { machineId, workspaceId: workspace.workspace_id, tabId: selectedPane.tab_id };
   const panes = rosterPanes(snapshot.panes.filter((pane) => pane.workspace_id === workspace.workspace_id), selectedPane.pane_id);
   const tabs = snapshot.tabs.filter((tab) => tab.workspace_id === workspace.workspace_id).sort((a, b) => a.number - b.number);
-  const nameOf = (tab: HerdrTab): string => sent?.tabId === tab.tab_id ? sent.label : tabLabel(tab, t, tabs.findIndex((candidate) => candidate.tab_id === tab.tab_id) + 1);
+  const nameOf = (tab: HerdrTab): string => {
+    if (sent?.tabId === tab.tab_id) return sent.label;
+    const place = tabs.findIndex((candidate) => candidate.tab_id === tab.tab_id) + 1;
+    // a phone's header has no title: a tab herdr still names by its number, holding one pane, is named by that pane
+    const own = phone && customTabLabel(tab, place) === null ? panesOf(tab) : [];
+    return own.length === 1 && own[0] ? displayPaneTitle(own[0]) : tabLabel(tab, t, place);
+  };
 
   useEffect(() => {
     lastViewed.set(`${machineId}:${selectedPane.tab_id}`, selectedPane.pane_id);

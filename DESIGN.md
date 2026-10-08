@@ -289,7 +289,7 @@ One set for both themes: the card is island black wherever it shows.
   sidebar toggle and the command palette (`.header-side`); the flexible context, agent mark and
   title then the PC › workspace › folder crumb; segmented Chat/Terminal switch; the connection
   chip while the bridge is not live (herdr version in its tooltip), the offline pill, and sign out.
-  **Files** (`FolderOpen`) and **Alerts** (the bell) sit before the switch. Theme lives in Settings and the palette; the herdr version is also read
+  **Files** (`FolderOpen`), the feedback megaphone (portal only) and **Alerts** (the bell) sit before the switch, in that order, and the modified-files button ends the bar. Theme lives in Settings and the palette; the herdr version is also read
   in Settings. Beside **New tab** sits **Split** (`.header-split`, a ghost button; icon only at
   `<=1100px`, where the label goes), which opens the split menu for the pane in front; while the tab is zoomed an
   **Unzoom** button (`.header-unzoom`) joins the switch, and the crumb's last part reads
@@ -315,7 +315,7 @@ One set for both themes: the card is island black wherever it shows.
   mount stays alive under the chat lens; changing views never creates a second connection.
 - At `<=480px` the brand name, the offline pill, desktop-only control labels and the palette's button
   go from the header, and so do the pane's title, agent mark and crumb: the bar is icons only (☰, copy path
-  as the title's `.context-copy.in-title`, Split, Files, the Alerts bell, the Chat/Terminal toggle and the modified-files button),
+  as the title's `.context-copy.in-title`, Split, Files, the feedback megaphone, the Alerts bell, the Chat/Terminal toggle and the modified-files button),
   each with a `title` for hover and an `aria-label` naming it, and the tab strip below names the pane.
   Files and the bell stay in the header at every width; New tab leaves the bar at `<=480px` (the tab
   strip below is always there on a phone and ends in its own `+`, and the drawer's project row has one
@@ -360,6 +360,21 @@ One set for both themes: the card is island black wherever it shows.
   with the refusal's words above it. Closing a repository workspace over open worktrees says so
   and closes the group, as herdr's `--group` does.
 
+### Feedback (`.feedback-*`, `.picker-*`)
+- The header's megaphone `.icon-button` sits just before the bell at every width and opens a RowMenu
+  (a sheet on a phone) with Report a bug, Suggest an improvement and General feedback. It exists only
+  behind the portal and only when `/api/portal/me` says `feedback.enabled`.
+- `.feedback-modal` is a `.modal` (its 560px, full height at `<=640px`): subtitle, a textarea
+  (`.feedback-textarea`), an image field with a `.feedback-thumb` (Remove, Redo), from 1024px with
+  attachments on a Select-element button and the technical-data checkbox (`.feedback-check`) with
+  `.feedback-json`, the exact JSON that is sent (the description with its secrets masked as the portal does, the technical data, the element); unchecked, neither technical data nor element is sent. Success (`.feedback-success`) leaves only Close.
+- The picker (`.picker-layer`: `.picker-dim` at `--scrim`, `.picker-target` in `--accent` over
+  `--accent-tint`, `.picker-hint`) is fixed over the app, takes the pointer itself and is left out of
+  the print. The hint ends with an on-screen Cancel (`.picker-cancel`, a ghost button) next to Esc; the layer
+  sets `touch-action: none`, a `pointercancel` drops the press, and a drag needs both sides at 6px or
+  more to be an area (a thin one picks the element). The dialog says the print shows the screen exactly
+  as it is, terminal and chat included. A 201 without a ticket number reads "Ticket opened", with no link.
+
 ### Field (`.field`, `.input`, `.select`)
 - Stacked uppercase label, optional hint and `--bg-input` field. Desktop fields use `--fs-sm`;
   small-screen fields retain `--fs-input` to avoid focus zoom.
@@ -401,7 +416,10 @@ One set for both themes: the card is island black wherever it shows.
   that wait for the user, blocked (INPUT) first, then done and not yet seen (DONE), each in workspace
   order, with the workspace label as the subtitle. It is the one attention block of the sidebar:
   `--accent-tint` fill, a `--rail-w` bar in `--accent`, `--radius-md`, heading and count pill in
-  `--accent`; the row badges keep their own status colours. It is absent when the PC has no such
+  `--accent`; the heading is a button (the Projects header's `.sidebar-section-header`, in the
+  accent, `--text-strong` on hover and focus) with a fold chevron that hides the rows and keeps the
+  count, remembered per PC and never reopened by a new waiting pane; the row badges keep their own
+  status colours. It is absent when the PC has no such
   pane or is offline, and stays visible when the PC is folded (the fold hides Projects and Agents only). A DONE row leaves the block once its pane has been
   opened in the browser (the app tells the server the pane was seen), not only when herdr's own
   focus reaches it. Only a user action marks a pane seen (selecting it, or returning to the page with it

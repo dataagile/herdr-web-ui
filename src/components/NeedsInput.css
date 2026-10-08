@@ -13,14 +13,17 @@
 }
 
 .needs-input-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   margin: 0;
-  padding: var(--space-2);
+}
+
+/* the Projects header's look and fold behaviour, in the accent */
+.needs-input .needs-input-toggle {
   color: var(--accent);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
+}
+
+.needs-input .needs-input-toggle:hover,
+.needs-input .needs-input-toggle:focus-visible {
+  color: var(--text-strong);
 }
 
 .needs-input-select {

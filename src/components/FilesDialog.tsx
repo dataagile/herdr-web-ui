@@ -29,7 +29,7 @@ export function FilesDialog({ start, viewing, onOpenFile, onClose }: FilesDialog
           <h2 className="modal-title" id="files-dialog-title">{t("Files")}</h2>
           <button type="button" className="icon-button" aria-label={t("Close files")} onClick={onClose}><X aria-hidden="true" /></button>
         </header>
-        <div className="modal-body">
+        <div className="modal-body" data-feedback-private="">
           <DirectoryBrowser start={start} onOpenFile={onOpenFile} />
         </div>
       </section>

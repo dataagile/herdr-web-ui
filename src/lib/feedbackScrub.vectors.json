@@ -1,0 +1,713 @@
+{
+ "version": 1,
+ "descricao": "Fixtures do scrub por valor (DAI-165). Contrato compartilhado front (TS) e back (Python): mesma tabela, dois testes. Regra nova = caso novo no mesmo PR.",
+ "placeholders": {
+  "TOKEN": "segredo/token/credencial",
+  "Q": "valor de query string",
+  "DOC": "CPF/CNPJ",
+  "NUM": "sequência ≥13 dígitos",
+  "EMAIL": "e-mail",
+  "TEXTO OMITIDO n chars": "texto de chat"
+ },
+ "kinds": {
+  "text": "scrub de texto livre (console, message)",
+  "url": "scrub de path+query",
+  "chat_text": "texto que veio do chat",
+  "key": "nome de chave sensível? expected=bool"
+ },
+ "cases": [
+  {
+   "id": "cpf-mask",
+   "kind": "text",
+   "input": "CPF do favorecido 123.456.789-09 pendente",
+   "expected": "CPF do favorecido [DOC] pendente",
+   "note": ""
+  },
+  {
+   "id": "cpf-plain",
+   "kind": "text",
+   "input": "cpf 12345678909 pendente",
+   "expected": "cpf [DOC] pendente",
+   "note": ""
+  },
+  {
+   "id": "cnpj-mask",
+   "kind": "text",
+   "input": "fornecedor 12.345.678/0001-95 bloqueado",
+   "expected": "fornecedor [DOC] bloqueado",
+   "note": ""
+  },
+  {
+   "id": "cnpj-plain",
+   "kind": "text",
+   "input": "cnpj=12345678000195",
+   "expected": "cnpj=[DOC]",
+   "note": ""
+  },
+  {
+   "id": "pix-longa",
+   "kind": "text",
+   "input": "conta 1234567890123456 ativa",
+   "expected": "conta [NUM] ativa",
+   "note": "≥13 dígitos seguidos = [NUM] (boleto, conta, chave)"
+  },
+  {
+   "id": "fone-11",
+   "kind": "text",
+   "input": "ligar 11987654321",
+   "expected": "ligar [DOC]",
+   "note": "11 dígitos colados vira [DOC] mesmo sendo telefone: erra pro lado seguro, aceito"
+  },
+  {
+   "id": "cpf-em-frase-2x",
+   "kind": "text",
+   "input": "de 111.222.333-44 para 55566677788",
+   "expected": "de [DOC] para [DOC]",
+   "note": ""
+  },
+  {
+   "id": "pix-copia-e-cola",
+   "kind": "text",
+   "input": "00020126580014br.gov.bcb.pix0136abc",
+   "expected": "[DOC]br.gov.bcb.pix0136abc",
+   "note": "trecho de 14 dígitos vira [DOC]: over-mask aceito, lado seguro"
+  },
+  {
+   "id": "jwt",
+   "kind": "text",
+   "input": "falha ao renovar eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiAiZmFrZS11c2VyIiwgInRlbmFudCI6ICJmYWtlIn0.c2lnbmF0dXJlLWZha2UtMTIzNDU2Nzg5MA ontem",
+   "expected": "falha ao renovar [TOKEN] ontem",
+   "note": "JWT sintético, não é segredo real"
+  },
+  {
+   "id": "bearer",
+   "kind": "text",
+   "input": "Authorization: Bearer abc123.def-456_xyz",
+   "expected": "Authorization: Bearer [TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "auth-header-basic",
+   "kind": "text",
+   "input": "authorization=Basic dXNlcjpwYXNz",
+   "expected": "authorization: [TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "token-query-em-texto",
+   "kind": "text",
+   "input": "GET /x?token=abc123&a=1",
+   "expected": "GET /x?token=[TOKEN]&a=1",
+   "note": ""
+  },
+  {
+   "id": "senha-em-texto",
+   "kind": "text",
+   "input": "senha=Hunter2! falhou",
+   "expected": "senha=[TOKEN] falhou",
+   "note": ""
+  },
+  {
+   "id": "apikey-texto",
+   "kind": "text",
+   "input": "api_key=sk_live_51H8xYz falhou",
+   "expected": "api_key=[TOKEN] falhou",
+   "note": ""
+  },
+  {
+   "id": "email",
+   "kind": "text",
+   "input": "enviado para joao.silva+teste@empresa.com.br hoje",
+   "expected": "enviado para [EMAIL] hoje",
+   "note": "some tudo, inclusive o domínio"
+  },
+  {
+   "id": "limpo-erro-normal",
+   "kind": "text",
+   "input": "TypeError: Cannot read properties of undefined (reading 'map')",
+   "expected": "TypeError: Cannot read properties of undefined (reading 'map')",
+   "note": "texto sem dado não pode mudar"
+  },
+  {
+   "id": "versao-nao-doc",
+   "kind": "text",
+   "input": "versão 1.2.3 build 20260928",
+   "expected": "versão 1.2.3 build 20260928",
+   "note": "data/versão não é documento (8 dígitos, com pontos curtos)"
+  },
+  {
+   "id": "id-curto-nao-num",
+   "kind": "text",
+   "input": "agent 42 run 1234567",
+   "expected": "agent 42 run 1234567",
+   "note": "<13 dígitos e ≠11/14 fica"
+  },
+  {
+   "id": "auth-reset",
+   "kind": "url",
+   "input": "/api/v1/auth/password-reset/aB3dE6gH9jK2mN5pQ8sT1vW4yZ7cF0hL",
+   "expected": "/api/v1/auth/password-reset/[TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "auth-invite",
+   "kind": "url",
+   "input": "/api/v1/auth/invitations/aB3dE6gH9jK2mN5pQ8sT1vW4yZ7cF0hL",
+   "expected": "/api/v1/auth/invitations/[TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "auth-invite-uuid",
+   "kind": "url",
+   "input": "/api/v1/auth/invitations/3f2b8c1e-9d4a-4e6b-8a7c-1d2e3f4a5b6c",
+   "expected": "/api/v1/auth/invitations/[TOKEN]",
+   "note": "em /auth/* até UUID vira [TOKEN]"
+  },
+  {
+   "id": "chat-message-query",
+   "kind": "url",
+   "input": "/api/v1/conversations/17/stream?message=pague%20o%20boleto%20do%20Jo%C3%A3o",
+   "expected": "/api/v1/conversations/17/stream?message=[Q]",
+   "note": "mensagem do chat nunca sai; chave da query fica"
+  },
+  {
+   "id": "query-q",
+   "kind": "url",
+   "input": "/api/v1/erp/lookup?q=cooprata&limit=20",
+   "expected": "/api/v1/erp/lookup?q=[Q]&limit=[Q]",
+   "note": "todos os valores viram [Q], sem exceção"
+  },
+  {
+   "id": "path-token-solto",
+   "kind": "url",
+   "input": "/api/v1/files/aB3dE6gH9jK2mN5pQ8sT1vW4yZ7cF0hL/download",
+   "expected": "/api/v1/files/[TOKEN]/download",
+   "note": "segmento ≥20 chars misturando letra+dígito"
+  },
+  {
+   "id": "uuid-rota-normal",
+   "kind": "url",
+   "input": "/api/v1/conversations/3f2b8c1e-9d4a-4e6b-8a7c-1d2e3f4a5b6c",
+   "expected": "/api/v1/conversations/3f2b8c1e-9d4a-4e6b-8a7c-1d2e3f4a5b6c",
+   "note": "UUID fora de /auth/* fica: é o que torna o chamado reproduzível"
+  },
+  {
+   "id": "id-numerico",
+   "kind": "url",
+   "input": "/api/v1/agents/42/runs/9001",
+   "expected": "/api/v1/agents/42/runs/9001",
+   "note": ""
+  },
+  {
+   "id": "rota-longa-so-letras",
+   "kind": "url",
+   "input": "/api/v1/knowledge-local-search-documents",
+   "expected": "/api/v1/knowledge-local-search-documents",
+   "note": "segmento longo sem dígito não é token"
+  },
+  {
+   "id": "sem-query",
+   "kind": "url",
+   "input": "/api/v1/me",
+   "expected": "/api/v1/me",
+   "note": ""
+  },
+  {
+   "id": "chat-texto",
+   "kind": "chat_text",
+   "input": "pague o boleto do João Silva, CPF 123.456.789-09",
+   "expected": "[TEXTO OMITIDO 48 chars]",
+   "note": "breadcrumb/console originado do chat: só o tamanho"
+  },
+  {
+   "id": "key-password",
+   "kind": "key",
+   "input": "password",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-passwd",
+   "kind": "key",
+   "input": "passwd",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-senha",
+   "kind": "key",
+   "input": "senha",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-api_key",
+   "kind": "key",
+   "input": "api_key",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-apiKey",
+   "kind": "key",
+   "input": "apiKey",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-authToken",
+   "kind": "key",
+   "input": "authToken",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-Authorization",
+   "kind": "key",
+   "input": "Authorization",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-x-auth",
+   "kind": "key",
+   "input": "x-auth",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-client_secret",
+   "kind": "key",
+   "input": "client_secret",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-cpf",
+   "kind": "key",
+   "input": "cpf",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-keyboard",
+   "kind": "key",
+   "input": "keyboard",
+   "expected": false,
+   "note": "bordas de palavra (o regex antigo `key|auth` casaria por substring)"
+  },
+  {
+   "id": "key-author",
+   "kind": "key",
+   "input": "author",
+   "expected": false,
+   "note": "bordas de palavra (o regex antigo `key|auth` casaria por substring)"
+  },
+  {
+   "id": "key-monkey",
+   "kind": "key",
+   "input": "monkey",
+   "expected": false,
+   "note": "bordas de palavra (o regex antigo `key|auth` casaria por substring)"
+  },
+  {
+   "id": "key-authors_list",
+   "kind": "key",
+   "input": "authors_list",
+   "expected": false,
+   "note": "bordas de palavra (o regex antigo `key|auth` casaria por substring)"
+  },
+  {
+   "id": "key-keyPress",
+   "kind": "key",
+   "input": "keyPress",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-turkey",
+   "kind": "key",
+   "input": "turkey",
+   "expected": false,
+   "note": "bordas de palavra (o regex antigo `key|auth` casaria por substring)"
+  },
+  {
+   "id": "key-certificate_name",
+   "kind": "key",
+   "input": "certificate_name",
+   "expected": false,
+   "note": "bordas de palavra (o regex antigo `key|auth` casaria por substring)"
+  },
+  {
+   "id": "key-cert",
+   "kind": "key",
+   "input": "cert",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-status",
+   "kind": "key",
+   "input": "status",
+   "expected": false,
+   "note": "bordas de palavra (o regex antigo `key|auth` casaria por substring)"
+  },
+  {
+   "id": "kv-colon",
+   "kind": "text",
+   "input": "token: abc123",
+   "expected": "token: [TOKEN]",
+   "note": "rodada 2 do SHIP GATE (revisor 28/09)"
+  },
+  {
+   "id": "kv-access-token",
+   "kind": "text",
+   "input": "access_token=abc123&x=1",
+   "expected": "access_token=[TOKEN]&x=1",
+   "note": "prefixo antes de _token não impede"
+  },
+  {
+   "id": "kv-refresh-token",
+   "kind": "text",
+   "input": "refresh_token=abc",
+   "expected": "refresh_token=[TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "kv-json-token",
+   "kind": "text",
+   "input": "{\"token\":\"abc\"}",
+   "expected": "{\"token\":\"[TOKEN]\"}",
+   "note": "JSON em console.error"
+  },
+  {
+   "id": "kv-json-password",
+   "kind": "text",
+   "input": "{\"password\":\"hunter2\",\"user\":\"joao\"}",
+   "expected": "{\"password\":\"[TOKEN]\",\"user\":\"joao\"}",
+   "note": "só o valor sensível; o resto fica"
+  },
+  {
+   "id": "kv-password-space",
+   "kind": "text",
+   "input": "password : hunter2",
+   "expected": "password : [TOKEN]",
+   "note": "espaço antes do separador"
+  },
+  {
+   "id": "kv-senha-colon",
+   "kind": "text",
+   "input": "senha: hunter2 falhou",
+   "expected": "senha: [TOKEN] falhou",
+   "note": ""
+  },
+  {
+   "id": "kv-quoted-value",
+   "kind": "text",
+   "input": "token=\"abc def\" fim",
+   "expected": "token=\"[TOKEN]\" fim",
+   "note": "valor entre aspas com espaço inteiro"
+  },
+  {
+   "id": "kv-x-api-key",
+   "kind": "text",
+   "input": "x-api-key: abcdef123456",
+   "expected": "x-api-key: [TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "kv-apikey",
+   "kind": "text",
+   "input": "apikey: abc123",
+   "expected": "apikey: [TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "kv-cookie",
+   "kind": "text",
+   "input": "Cookie: session=abc; theme=dark",
+   "expected": "Cookie: [TOKEN]",
+   "note": "cookie: até o fim da linha"
+  },
+  {
+   "id": "prov-sk-ant",
+   "kind": "text",
+   "input": "chave sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWx falhou",
+   "expected": "chave [TOKEN] falhou",
+   "note": "chave de provedor de IA"
+  },
+  {
+   "id": "prov-ghp",
+   "kind": "text",
+   "input": "push ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8 ok",
+   "expected": "push [TOKEN] ok",
+   "note": ""
+  },
+  {
+   "id": "prov-akia",
+   "kind": "text",
+   "input": "aws AKIAIOSFODNN7EXAMPLE ok",
+   "expected": "aws [TOKEN] ok",
+   "note": ""
+  },
+  {
+   "id": "card-spaces",
+   "kind": "text",
+   "input": "cartão 4111 1111 1111 1111 recusado",
+   "expected": "cartão [NUM] recusado",
+   "note": ""
+  },
+  {
+   "id": "card-dashes",
+   "kind": "text",
+   "input": "4111-1111-1111-1111",
+   "expected": "[NUM]",
+   "note": ""
+  },
+  {
+   "id": "cpf-spaces",
+   "kind": "text",
+   "input": "cpf 123 456 789 09 ok",
+   "expected": "cpf [DOC] ok",
+   "note": ""
+  },
+  {
+   "id": "cpf-dot-tail",
+   "kind": "text",
+   "input": "123.456.789.01",
+   "expected": "[DOC]",
+   "note": "ponto no lugar do hífen"
+  },
+  {
+   "id": "cpf-glued-letter",
+   "kind": "text",
+   "input": "CPF123.456.789-01",
+   "expected": "CPF[DOC]",
+   "note": "colado em letra (\\b não separa; lookbehind de dígito sim)"
+  },
+  {
+   "id": "cnpj-glued",
+   "kind": "text",
+   "input": "id12.345.678/0001-90",
+   "expected": "id[DOC]",
+   "note": ""
+  },
+  {
+   "id": "fullwidth-cpf",
+   "kind": "text",
+   "input": "１２３４５６７８９０１",
+   "expected": "[DOC]",
+   "note": "NFKC antes das regras: dígitos fullwidth viram ASCII"
+  },
+  {
+   "id": "fullwidth-at",
+   "kind": "text",
+   "input": "joao＠empresa.com",
+   "expected": "[EMAIL]",
+   "note": "NFKC: ＠ vira @"
+  },
+  {
+   "id": "email-accent",
+   "kind": "text",
+   "input": "joão.silva@empresa.com.br",
+   "expected": "[EMAIL]",
+   "note": "parte local com acento inteira, sem sobra"
+  },
+  {
+   "id": "bearer-then-auth",
+   "kind": "text",
+   "input": "Bearer abc123 then Authorization: Basic dXNlcjpwYXNz",
+   "expected": "Bearer [TOKEN] then Authorization: [TOKEN]",
+   "note": "um Bearer no texto não desliga a regra de Authorization"
+  },
+  {
+   "id": "jwt-big",
+   "kind": "text",
+   "input": "x eyJhbGciOiJIUzI1NiJ9.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb y",
+   "expected": "x [TOKEN] y",
+   "note": "JWT com payload de 5000 e assinatura de 2000 (Keycloak)"
+  },
+  {
+   "id": "jwt-prefixed",
+   "kind": "text",
+   "input": "prefix-eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2ln",
+   "expected": "prefix-[TOKEN]",
+   "note": "sem lookbehind: fail-safe"
+  },
+  {
+   "id": "no-fp-suffix-word",
+   "kind": "text",
+   "input": "tokens: 5 keyboard: 1 author: joao",
+   "expected": "tokens: 5 keyboard: 1 author: joao",
+   "note": "a palavra sensível tem de TERMINAR no keyword"
+  },
+  {
+   "id": "no-fp-token-no-sep",
+   "kind": "text",
+   "input": "token expired",
+   "expected": "token expired",
+   "note": "sem : nem = não é valor"
+  },
+  {
+   "id": "url-abs-userinfo",
+   "kind": "url",
+   "input": "https://user:senha@host.com/api/x?a=1",
+   "expected": "/api/x?a=[Q]",
+   "note": "esquema, host e userinfo somem (como no front)"
+  },
+  {
+   "id": "url-abs-auth",
+   "kind": "url",
+   "input": "https://h/api/v1/auth/invitations/abc123",
+   "expected": "/api/v1/auth/invitations/[TOKEN]",
+   "note": "regra /auth/* vale também em URL absoluta"
+  },
+  {
+   "id": "url-proto-relative",
+   "kind": "url",
+   "input": "//evil/api/v1/auth/invitations/abc",
+   "expected": "/api/v1/auth/invitations/[TOKEN]",
+   "note": ""
+  },
+  {
+   "id": "url-fragment-token",
+   "kind": "url",
+   "input": "/reset#token=abc123",
+   "expected": "/reset",
+   "note": "fragmento sempre descartado"
+  },
+  {
+   "id": "url-abs-plain",
+   "kind": "url",
+   "input": "https://app.example.com/inbox?x=1",
+   "expected": "/inbox?x=[Q]",
+   "note": ""
+  },
+  {
+   "id": "key-cookie",
+   "kind": "key",
+   "input": "cookie",
+   "expected": true,
+   "note": "palavras acrescentadas na rodada 2"
+  },
+  {
+   "id": "key-jwt",
+   "kind": "key",
+   "input": "jwt",
+   "expected": true,
+   "note": "palavras acrescentadas na rodada 2"
+  },
+  {
+   "id": "key-apikey",
+   "kind": "key",
+   "input": "apikey",
+   "expected": true,
+   "note": "palavras acrescentadas na rodada 2"
+  },
+  {
+   "id": "key-x-api-key",
+   "kind": "key",
+   "input": "x-api-key",
+   "expected": true,
+   "note": "palavras acrescentadas na rodada 2"
+  },
+  {
+   "id": "key-sessionCookie",
+   "kind": "key",
+   "input": "sessionCookie",
+   "expected": true,
+   "note": "palavras acrescentadas na rodada 2"
+  },
+  {
+   "id": "jwt-minimal",
+   "kind": "text",
+   "input": "eyJ.eyJ.eyJ",
+   "expected": "[TOKEN]",
+   "note": "3 segmentos começando em eyJ: fail-safe (achado do cruzamento py×ts)"
+  },
+  {
+   "id": "url-host-only",
+   "kind": "url",
+   "input": "https://h",
+   "expected": "/",
+   "note": "host sem path vira / nos dois lados (achado do cruzamento py×ts)"
+  },
+  {
+   "id": "seg-19-fica",
+   "kind": "url",
+   "input": "/x/aB3dE6gH9jK2mN5pQ8s",
+   "expected": "/x/aB3dE6gH9jK2mN5pQ8s",
+   "note": "19 chars: abaixo do limite de segmento-token — rodada 3 do SHIP GATE (devil 28/09)"
+  },
+  {
+   "id": "seg-20-mascara",
+   "kind": "url",
+   "input": "/x/aB3dE6gH9jK2mN5pQ8sT",
+   "expected": "/x/[TOKEN]",
+   "note": "20 chars exatos: no limite"
+  },
+  {
+   "id": "seg-digitos-longos",
+   "kind": "url",
+   "input": "/x/12345678901234567890",
+   "expected": "/x/[NUM]",
+   "note": "segmento só de dígitos com ≥13: mesma regra do texto (boleto/conta/chave)"
+  },
+  {
+   "id": "seg-digitos-curtos",
+   "kind": "url",
+   "input": "/x/123456789012",
+   "expected": "/x/123456789012",
+   "note": "12 dígitos: id normal, fica"
+  },
+  {
+   "id": "url-frag-com-query",
+   "kind": "url",
+   "input": "/x#frag?a=1",
+   "expected": "/x",
+   "note": "tudo depois de # é descartado, inclusive o que parece query"
+  },
+  {
+   "id": "auth-cauda",
+   "kind": "url",
+   "input": "/api/v1/auth/password-reset/a/b/abcdefghij0123456789xyz",
+   "expected": "/api/v1/auth/password-reset/[TOKEN]/b/[TOKEN]",
+   "note": "cauda depois do token de auth segue a regra normal de segmento"
+  },
+  {
+   "id": "key-APIKey",
+   "kind": "key",
+   "input": "APIKey",
+   "expected": true,
+   "note": "acrônimo seguido de palavra: API|Key"
+  },
+  {
+   "id": "key-apiKeyName",
+   "kind": "key",
+   "input": "apiKeyName",
+   "expected": true,
+   "note": ""
+  },
+  {
+   "id": "key-HTTPStatus",
+   "kind": "key",
+   "input": "HTTPStatus",
+   "expected": false,
+   "note": "acrônimo sem palavra sensível"
+  },
+  {
+   "id": "kv-passwd",
+   "kind": "text",
+   "input": "passwd=abc",
+   "expected": "passwd=[TOKEN]",
+   "note": "passwd faltava no TS (revisor rodada 2, M1)"
+  },
+  {
+   "id": "kv-PASSWD-upper",
+   "kind": "text",
+   "input": "PASSWD: abc",
+   "expected": "PASSWD: [TOKEN]",
+   "note": "passwd faltava no TS (revisor rodada 2, M1)"
+  }
+ ]
+}

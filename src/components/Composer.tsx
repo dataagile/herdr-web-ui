@@ -750,7 +750,7 @@ export function Composer({
   const menuId = `composer-menu-${paneId}`;
 
   return (
-    <div className="composer" role="group" aria-label={t("Message composer")} data-dictating={dictation.voice.state !== "idle" ? "" : undefined}>
+    <div className="composer" data-feedback-private="" role="group" aria-label={t("Message composer")} data-dictating={dictation.voice.state !== "idle" ? "" : undefined}>
       {greeting}
       {/* no Tab key on a phone: the suggestion can be a chip there that fills the box, once chosen in Settings */}
       {settings.showSuggestionChip && offered !== null && text === "" && (

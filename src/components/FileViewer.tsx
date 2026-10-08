@@ -235,7 +235,7 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
           </div>
           {session !== null && <span className="changed-tabs-note">{t(session.edits === 1 ? "{n} edit · last {time}" : "{n} edits · last {time}", { n: session.edits, time: formatTime(session.last_at) ?? "–" })}</span>}
         </div>}
-        <div className="file-viewer-body">
+        <div className="file-viewer-body" data-feedback-private="">
           {changesSeen && changes !== undefined && paneId !== null && <div className="file-viewer-changes" hidden={!showChanges}><FileChanges paneId={paneId} path={changes.file.path} /></div>}
           {!showChanges && body}
         </div>

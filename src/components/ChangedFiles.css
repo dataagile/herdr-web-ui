@@ -1,0 +1,159 @@
+/* the modified-files panel (header button, dialog) and the changes tab of the file viewer */
+
+/* the header button with its count (modelled on .header-bell + .header-bell-dot) */
+.header-amod {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.header-amod-count {
+  position: absolute;
+  top: 0;
+  right: calc(var(--space-1) / -2);
+  height: auto;
+  padding: 0 var(--space-1);
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-base);
+  pointer-events: none;
+}
+
+.changed-dialog .modal-body {
+  padding-top: var(--space-2);
+}
+
+.changed-dialog .menu-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: 0;
+}
+
+.changed-gap {
+  margin-top: var(--space-3);
+}
+
+.changed-note {
+  margin: 0 0 var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.changed-row {
+  min-height: calc(var(--control-h) + var(--space-3));
+  padding-block: var(--space-1);
+}
+
+.changed-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-1) / 2);
+  overflow: visible;
+}
+
+.dir-browser-item .changed-path {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-strong);
+}
+
+.changed-dir {
+  color: var(--text-dim);
+}
+
+.dir-browser-item .changed-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow: visible;
+}
+
+.changed-time {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+}
+
+.dir-browser-item .changed-git {
+  flex: none;
+  width: var(--space-5);
+  text-align: center;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.changed-git.is-add {
+  color: var(--status-done);
+}
+
+.changed-git.is-del {
+  color: var(--status-blocked);
+}
+
+/* the viewer's tabs: what the session changed, or the file as it is */
+.changed-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.changed-tabs-note {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.changed-edits {
+  align-self: stretch;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.changed-edit-head {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.changed-edit-head strong {
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+
+.changed-edits .chat-tool-io {
+  max-height: none;
+}
+
+@media (max-width: 640px) {
+  .changed-tabs {
+    flex-wrap: wrap;
+    padding-inline: var(--space-3);
+  }
+
+  .changed-tabs-note {
+    display: none;
+  }
+
+  .changed-tabs .segmented {
+    width: 100%;
+  }
+
+  .changed-tabs .segmented > button {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}

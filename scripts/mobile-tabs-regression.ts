@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { appFaces } from "./app-faces.ts";
 import { herdrRpc, tabCreate, tabRename, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+import { setLens } from "./lens.ts";
 
 type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
 type KeyboardQA = Window & { keyboardQA: (height: number | null) => void };
@@ -25,8 +26,8 @@ async function box(page: Page, selector: string): Promise<Box> {
 /** A phone's header is icons only: the strip right under it names the open tab, whatever the lens. */
 async function assertShell(page: Page, label: string): Promise<void> {
   const newTab = page.locator(".app-header").getByRole("button", { name: "New tab" });
-  assert.equal(await newTab.count(), 1, `${label}: the header has its own New tab button`);
-  assert.equal(await newTab.locator(".header-desktop-only").isVisible(), false, `${label}: the New tab button is icon-only on this width`);
+  assert.equal(await newTab.isVisible(), false, `${label}: the header's New tab button is hidden on a phone`);
+  assert.equal(await page.locator(".tab-strip .tab-strip-add").isVisible(), true, `${label}: the strip's + (New tab) is shown`);
   assert.equal(await page.locator(".app-header .header-more-button").count(), 0, `${label}: the header has no More menu`);
   assert.equal(await page.locator(".context-title-text").isVisible(), false, `${label}: the header draws no title text`);
   const openTab = (await page.locator(".tab-strip-item.is-active .tab-strip-tab").innerText()).trim();
@@ -87,7 +88,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.goto(`${origin}/?pane=${encodeURIComponent(first)}`);
     await page.locator(".conn-live").waitFor();
     await page.locator(".tab-strip").waitFor();
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await setLens(page, "chat");
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.waitFor();
     await assertShell(page, "chat");
@@ -104,7 +105,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); (window as unknown as KeyboardQA).keyboardQA(null); });
     await page.waitForFunction(() => !document.documentElement.hasAttribute("data-keyboard"));
 
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await setLens(page, "terminal");
     await page.locator(".key-bar").waitFor();
     await assertShell(page, "terminal");
 

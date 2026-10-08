@@ -9,6 +9,7 @@ bun scripts/split-regression.ts
 bun scripts/chat-history-browser-qa.ts
 bun scripts/math-browser-qa.ts
 bun scripts/file-viewer-regression.ts
+bun scripts/changed-files-regression.ts
 bun scripts/keyboard-viewport-regression.ts
 bun scripts/file-viewer-mobile-regression.ts
 bun scripts/droplet-demo-regression.ts

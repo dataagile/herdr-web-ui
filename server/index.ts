@@ -19,6 +19,7 @@ import { badRequest, errorResponse, isCount, isJsonObject, jsonResponse } from "
 import { serveStatic } from "./static.ts";
 import { startStatusCollector } from "./collector.ts";
 import { conversationImage, ConversationUnavailable, HistoryChanged, paneConversation, paneRunsOmo, toolOutput } from "./conversation.ts";
+import { ChangedFileNotListed, paneChanges, paneFileDiff } from "./changed-files.ts";
 import { omoPanes } from "./omo.ts";
 import { OMO_ALIASES, OmoStatus, processAlive } from "./omo-status.ts";
 import { omoRuns, omoTasks } from "./omo-tasks.ts";
@@ -1056,8 +1057,8 @@ export function createServer(
       // drops it before forwarding: `/api/machines/<id>//fs/file` would pass as not a file read.
       if (pathname.startsWith("/api/") && pathname.includes("//")) return jsonResponse({ error: { code: "not_found", message: "not found" } }, 404);
       // Watching a terminal grants no arbitrary filesystem access: those files include credentials.
-      // the History list quotes prompts, which can hold secrets, so it is a file read too
-      const fileRead = /^\/api\/(?:machines\/[^/]+\/)?(?:fs\/|workspace\/history$)/.test(pathname);
+      // the History list quotes prompts, which can hold secrets, so it is a file read too; so is a changed file's diff (an untracked file diffs whole)
+      const fileRead = /^\/api\/(?:machines\/[^/]+\/)?(?:fs\/|workspace\/history$|pane\/changed-files\/diff$)/.test(pathname);
       const ownPreferences = pathname === "/api/auth" || pathname === "/api/push/subscribe" || pathname === "/api/push/test";
       if (readOnly && (fileRead || mutating && !ownPreferences)) {
         return jsonResponse({ error: { code: "read_only", message: "this device can only watch" } }, 403);
@@ -1614,6 +1615,20 @@ export function createServer(
           const text = await paneSelectionRead(paneId, { row: anchorRow!, col: anchorCol! }, { row: cursorRow!, col: cursorCol! });
           return jsonResponse({ text });
         } catch (error) {
+          return errorResponse(error);
+        }
+      }
+
+      if (pathname === "/api/pane/changed-files" || pathname === "/api/pane/changed-files/diff") {
+        if (request.method !== "GET") return badRequest("method_not_allowed", "use GET");
+        const paneId = url.searchParams.get("pane_id");
+        if (!paneId) return badRequest("missing_pane_id", "pane_id query parameter is required");
+        const path = url.searchParams.get("path");
+        if (pathname.endsWith("/diff") && !path) return badRequest("missing_path", "path query parameter is required");
+        try {
+          return jsonResponse(path === null || !pathname.endsWith("/diff") ? (await paneChanges(paneId, options.codexHome)).report : await paneFileDiff(paneId, path, options.codexHome), 200, { "cache-control": "no-store" });
+        } catch (error) {
+          if (error instanceof ChangedFileNotListed) return jsonResponse({ error: { code: "file_not_changed", message: error.message } }, 404);
           return errorResponse(error);
         }
       }

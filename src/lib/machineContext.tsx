@@ -6,7 +6,12 @@ export const useMachineId = () => useContext(MachineContext);
 /** Bound functions retain their owner across an async upload or a fast PC switch. */
 export function useMachineApi() {
   const id = useMachineId();
-  return useMemo(() => ({
+  return useMemo(() => machineApi(id), [id]);
+}
+
+/** The same bound calls for a PC named outright, for the code above the provider (the app shell). */
+export function machineApi(id: string) {
+  return ({
     fetchPaneTranscript: (pane: string, lines: number) => api.fetchPaneTranscript(pane, lines, id),
     fetchPaneConversation: (pane: string, page?: api.ConversationPageQuery) => api.fetchPaneConversation(pane, id, page),
     fetchPanePrompt: (pane: string) => api.fetchPanePrompt(pane, id),
@@ -15,6 +20,8 @@ export function useMachineApi() {
     uploadPaneImage: (pane: string, image: Blob) => api.uploadPaneImage(pane, image, id),
     fetchPaneCommands: (pane: string) => api.fetchPaneCommands(pane, id),
     fetchPaneFiles: (pane: string, query: string, limit = 20) => api.fetchPaneFiles(pane, query, limit, id),
+    fetchChangedFiles: (pane: string) => api.fetchChangedFiles(pane, id),
+    fetchChangedFileDiff: (pane: string, path: string) => api.fetchChangedFileDiff(pane, path, id),
     fetchPaneOmoActivity: (pane: string) => api.fetchPaneOmoActivity(pane, id),
     closePane: (pane: string) => api.closePane(pane, id),
     closeWorkspace: (workspace: string, closeGroup = false) => api.closeWorkspace(workspace, id, closeGroup),
@@ -36,5 +43,5 @@ export function useMachineApi() {
     fetchWorkspaceHistory: (query: Parameters<typeof api.fetchWorkspaceHistory>[0]) => api.fetchWorkspaceHistory(query, id),
     renameTab: (tab: string, label: string) => api.renameTab(tab, label, id),
     closeTab: (tab: string) => api.closeTab(tab, id),
-  }), [id]);
+  });
 }

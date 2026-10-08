@@ -92,8 +92,8 @@ export async function checkChatKeepsTerminalSize(browser: Browser, origin: strin
     console.log(`PASS a phone's chat lens leaves the shared grid at the desktop's ${desktopSize}`);
 
     // the phone's terminal lens fits the grid to the phone: the shell sees it change
-    // on a phone the lens switch shows no label: the button is known by its title
-    await phone.locator('button[title^="Live terminal"]').tap();
+    // on a phone the lens switch is one button that goes to the other lens: the chat's terminal
+    await phone.locator('.view-toggle[title="Switch to Terminal"]').tap();
     await phone.waitForFunction(() => (window as unknown as { frames_: { dir: string; type: string }[] }).frames_.some((f) => f.dir === "out" && f.type === "resize"), undefined, { timeout: 10_000 });
     const deadline = Date.now() + 10_000;
     let phoneSize = desktopSize;

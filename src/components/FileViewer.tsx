@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Download, ExternalLink, Pencil, X } from "lucide-react";
+import { Download, ExternalLink, FileDiff, FileText, Pencil, X } from "lucide-react";
 
 import "./FileViewer.css";
 import { DirectoryBrowser } from "./DirectoryBrowser.tsx";
+import { FileChanges } from "./FileChanges.tsx";
+import { formatTime } from "./diffLines.tsx";
 
-import type { FileInfo } from "../../shared/protocol.ts";
+import type { ChangedFile, FileInfo, SessionChangedFile } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";
 import { formatBytes } from "../lib/bridgeProgress.ts";
 import { LOCAL_MACHINE } from "../../shared/machines.ts";
@@ -25,6 +27,8 @@ export interface FileViewerProps {
   onClose: () => void;
   /** a file chosen in a folder's listing: opened as the preview, so history and a reload keep it */
   onOpen?: (path: string) => void;
+  /** the file is one the pane's agent (or git) changed: a tab with its changes beside the file itself */
+  changes?: { file: ChangedFile | SessionChangedFile; first: boolean };
 }
 
 /**
@@ -32,8 +36,14 @@ export interface FileViewerProps {
  * play and seek at once), PDFs, and the start of a text file. A text file can also be edited
  * in place and saved here. Anything can be downloaded.
  */
-export function FileViewer({ path: asked, paneId, onClose, onOpen }: FileViewerProps) {
+export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: FileViewerProps) {
   const t = useT();
+  const [tab, setTab] = useState<"changes" | "file">(changes?.first ? "changes" : "file");
+  const showChanges = changes !== undefined && paneId !== null && tab === "changes";
+  // the changes stay mounted once opened, and a text file's content is read only once the File tab has been shown
+  const [changesSeen, setChangesSeen] = useState(tab === "changes");
+  const [fileSeen, setFileSeen] = useState(tab === "file");
+  useEffect(() => { if (tab === "changes") setChangesSeen(true); else setFileSeen(true); }, [tab]);
   const { fetchFileInfo, fileUrl, fetchDirectories, writeFile } = useMachineApi();
   // a remote PC's bridge reads a relative folder from the pane's folder only from its next bundle
   // on; until then it would list the bridge's own folder, so only an absolute or ~/ one is listed there
@@ -62,11 +72,6 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen }: FileViewerP
       if (cancelled) return;
       if ("candidates" in next) { setCandidates(next.candidates); return; }
       setInfo(next);
-      if (next.kind !== "text") return;
-      // only the first part of a text file travels: a range, whatever the file's size
-      const response = await fetch(fileUrl(next.path, paneId), { headers: { range: `bytes=0-${TEXT_PREVIEW_BYTES - 1}` } });
-      const body = await response.text();
-      if (!cancelled) { setText(body); setTruncated(next.size > TEXT_PREVIEW_BYTES); }
     }).catch(async (reason: unknown) => {
       if (cancelled) return;
       // a folder is listed from the pane's folder, as a file is found from it
@@ -83,6 +88,18 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen }: FileViewerP
     return () => { cancelled = true; };
   }, [path, paneId, fetchFileInfo, fileUrl, fetchDirectories, remote]);
 
+  useEffect(() => {
+    if (info === null || info.kind !== "text" || !fileSeen || text !== null) return;
+    let cancelled = false;
+    // only the first part of a text file travels: a range, whatever the file's size
+    fetch(fileUrl(info.path, paneId), { headers: { range: `bytes=0-${TEXT_PREVIEW_BYTES - 1}` } })
+      .then((response) => response.text())
+      .then((body) => { if (!cancelled) { setText(body); setTruncated(info.size > TEXT_PREVIEW_BYTES); } })
+      .catch(() => { if (!cancelled) setError(t("The file could not be opened.")); });
+    return () => { cancelled = true; };
+  }, [info, fileSeen, text, paneId, fileUrl, t]);
+
+  const session = changes !== undefined && "edits" in changes.file ? changes.file : null;
   const dirty = editing && draft !== (text ?? "");
 
   const cancelEdit = (): void => { setEditing(false); setDraft(""); setSaveError(null); };
@@ -211,7 +228,17 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen }: FileViewerP
           <a className="icon-button" href={fileUrl(info?.path ?? path, paneId, true)} download={info?.name ?? true} aria-label={t("Download")} title={t("Download")}><Download aria-hidden="true" /></a>
           <button type="button" className="icon-button" aria-label={t("Close file")} onClick={requestClose}><X aria-hidden="true" /></button>
         </header>
-        <div className="file-viewer-body" data-feedback-private="">{body}</div>
+        {changes !== undefined && paneId !== null && <div className="changed-tabs">
+          <div className="segmented" role="group" aria-label={t("File content")}>
+            <button type="button" aria-pressed={tab === "changes"} onClick={() => setTab("changes")}><FileDiff aria-hidden="true" /><span>{t(session !== null ? "Changes in this session" : "Changes in git")}</span></button>
+            <button type="button" aria-pressed={tab === "file"} onClick={() => setTab("file")}><FileText aria-hidden="true" /><span>{t("File")}</span></button>
+          </div>
+          {session !== null && <span className="changed-tabs-note">{t(session.edits === 1 ? "{n} edit · last {time}" : "{n} edits · last {time}", { n: session.edits, time: formatTime(session.last_at) ?? "–" })}</span>}
+        </div>}
+        <div className="file-viewer-body" data-feedback-private="">
+          {changesSeen && changes !== undefined && paneId !== null && <div className="file-viewer-changes" hidden={!showChanges}><FileChanges paneId={paneId} path={changes.file.path} /></div>}
+          {!showChanges && body}
+        </div>
       </section>
     </div>
   );

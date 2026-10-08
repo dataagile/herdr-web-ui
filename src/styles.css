@@ -826,6 +826,11 @@ button {
   }
 }
 
+/* the Chat/Terminal switch on a phone is one button (see max-width: 480px): hidden wider */
+.icon-button.view-toggle {
+  display: none;
+}
+
 /* the Alerts button: a dot on it while alerts are off on this device. Its title says it in words. */
 .header-bell {
   position: relative;
@@ -1552,6 +1557,15 @@ button {
     background: transparent;
   }
 
+  /* two lens options do not fit beside the other seven touch targets: one button, the lens it shows is the pane's */
+  .view-switch {
+    display: none;
+  }
+
+  .icon-button.view-toggle {
+    display: inline-flex;
+  }
+
   .pill-version,
   .pill-offline,
   .brand-name,
@@ -1577,14 +1591,17 @@ button {
     display: inline-flex;
   }
 
-  /* seven touch-sized targets share 360px: the bar's own spacing goes, the 40px hit areas do the spacing */
+  /* the touch-sized targets share 360px: the bar's own spacing goes, the 40px hit areas do the spacing */
   .app-header {
     gap: 0;
     padding-left: calc(var(--space-2) + env(safe-area-inset-left, 0px));
     padding-right: calc(var(--space-2) + env(safe-area-inset-right, 0px));
   }
 
-  /* zoomed, the Unzoom button takes New tab's place: New tab stays on the drawer's project row */
+  /* the tab strip right below the bar is always there on a phone and ends in its own +, so the bar's
+     New tab gives its slot to the controls that have no other home (Files, feedback, bell, lens, changes);
+     zoomed, the rule is moot: Unzoom already had that slot */
+  .app-header > .header-new-tab,
   .app-header.has-unzoom > .header-new-tab {
     display: none;
   }

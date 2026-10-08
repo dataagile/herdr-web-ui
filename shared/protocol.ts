@@ -93,6 +93,12 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *         clock, which the times are on)
  *  GET    /api/pane/files?pane_id=&q=&limit=  -> { files: string[] } (paths relative to the pane
  *         cwd matching q, for @-mentions; git ls-files when the cwd is a repo, bounded walk otherwise)
+ *  GET    /api/pane/changed-files?pane_id=  -> ChangedFilesResponse (the files the pane's agent changed
+ *         in its session, read from its whole transcript, and the other changes git sees in the pane's
+ *         folder; a bridge that predates it answers 404 and the client hides the button)
+ *  GET    /api/pane/changed-files/diff?pane_id=&path=  -> ChangedFileDiff (`path` as that list gave it:
+ *         a session file's edits from the transcript, a git-only file's `git diff`; 404 otherwise; a file read,
+ *         so a watch-only device gets 403)
  *  GET    /api/pane/prompt?pane_id=     -> { prompt: InteractivePrompt | null, suggestion: string | null }
  *         (the agent's TUI question/approval menu currently on screen, parsed from the visible pane
  *         text; with no menu, the next prompt Claude Code suggests, grey in its empty input box)
@@ -288,6 +294,8 @@ export type ConversationPart =
   /** `error`: the call failed (the agent recorded it so, or its output says a command exited non-zero) */
   | {
     kind: "tool"; name: string; summary: string; input: string; output: string; error?: boolean;
+    /** the folder the call ran in, when the transcript records it (Claude's record cwd; Codex's workdir, else the session's) */
+    cwd?: string;
     skill?: SkillActivity;
     /** set when `output` was cut: the call's id, for GET /api/pane/conversation/tool-output, and the whole output's length */
     output_ref?: string; output_size?: number;
@@ -378,6 +386,58 @@ export interface OmoActivity {
   /** the PC's clock, which the times are on */
   server_time: string;
 }
+
+/** One file in GET /api/pane/changed-files. */
+export interface ChangedFile {
+  /** absolute */
+  path: string;
+  /** relative to the pane's folder when the file is inside it, else the absolute path again */
+  rel: string;
+  /** the file still exists on disk */
+  exists: boolean;
+  /** git's one-letter state; absent outside a repo and for a file git sees no change in */
+  git?: "M" | "A" | "D" | "R" | "?";
+}
+
+/** A file the session's calls changed. */
+export interface SessionChangedFile extends ChangedFile {
+  /** how many calls changed it */
+  edits: number;
+  /** the file did not exist before the session's first call on it (a patch's Add File; a write that made it; git's `?`/`A` when the transcript cannot tell) */
+  created: boolean;
+  /** a Codex script that applies a patch failed as a whole: the patch may or may not have landed */
+  uncertain?: boolean;
+  /** when the turn of its last change ended; null when the transcript recorded no time */
+  last_at: string | null;
+}
+
+/** GET /api/pane/changed-files */
+export interface ChangedFilesResponse {
+  session: SessionChangedFile[];
+  /** changed in the pane's repo, but by no call of the session: it may be someone else's change */
+  git: (ChangedFile & { git: NonNullable<ChangedFile["git"]> })[];
+  /** the pane's folder is inside a git work tree */
+  repo: boolean;
+  /** git status had more output than is read: `git` is empty rather than a partial list */
+  gitTruncated?: boolean;
+  /** git did not answer in time: `git` is empty because nothing was read, not because nothing changed */
+  gitTimedOut?: boolean;
+  /** the session was longer than the pages read: `session` lists the changes of its newest `sessionParts` parts only */
+  sessionTruncated?: boolean;
+  sessionParts?: number;
+}
+
+/** One change a session's call made to a file; `body` is what the chat draws for that call. */
+export interface ChangedFileEdit {
+  /** when the turn that made it began */
+  at: string | null;
+  body: import("./file-changes.ts").ChangeBody;
+}
+
+/** GET /api/pane/changed-files/diff */
+export type ChangedFileDiff =
+  | { kind: "session"; path: string; edits: ChangedFileEdit[] }
+  | { kind: "git"; path: string; diff: string; truncated: boolean; /** git did not answer in time */ timedOut?: boolean; /** git failed: `diff` is empty because of that, not because nothing differs */ failed?: boolean };
 
 /** GET /api/pane/conversation: native conversation with settings, or scrollback fallback. */
 export interface ConversationResponse {

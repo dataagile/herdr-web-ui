@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll } from "bun:test";
+import { describe, expect, it, beforeAll, afterAll, spyOn } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -8,7 +8,8 @@ import { HerdrUpdater } from "./herdr-update.ts";
 import type { HerdrUpdateStatus } from "../shared/update.ts";
 import { USAGE_PROVIDERS, UsageService } from "./usage.ts";
 import { VoiceService } from "./voice.ts";
-import { herdrRpc, ping, sessionSnapshot, tabCreate, workspaceCreate, workspaceClose } from "./herdr/client.ts";
+import * as conversationModule from "./conversation.ts";
+import { HerdrError, herdrRpc, ping, sessionSnapshot, tabCreate, workspaceCreate, workspaceClose } from "./herdr/client.ts";
 import { startFakePushService, type FakePushService } from "./push.fake.ts";
 import { descriptorPath, type BridgeDescriptor } from "./bridge.ts";
 import { handleMachineRequest } from "./machine-api.ts";
@@ -2422,5 +2423,88 @@ describe("pane split, focus, resize and zoom", () => {
       for (const path of ["focus", "resize", "zoom"]) expect((await post(path, { pane_id: "no-such-pane", direction: "left", amount: 0.1 })).status).toBe(404);
       for (const path of ["split", "focus", "resize", "zoom"]) expect((await fetch(`${base()}/api/pane/${path}`)).status).toBe(400);
     } finally { await workspaceClose(created.workspace.workspace_id); }
+  });
+});
+
+describe("changed files API", () => {
+  let workspaceId: string | null = null;
+  let paneId = "";
+  let repo = "";
+  const git = (...args: string[]) => {
+    const done = Bun.spawnSync(["git", "-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { stdout: "pipe", stderr: "pipe" });
+    if (done.exitCode !== 0) throw new Error(done.stderr.toString());
+  };
+  const changed = (query: string, init?: RequestInit) => fetch(`${base()}/api/pane/changed-files${query}`, init);
+
+  beforeAll(async () => {
+    repo = realpathSync(mkdtempSync(join(tmpdir(), "herdr-web-ui-changed-")));
+    git("init", "-q");
+    writeFileSync(join(repo, "tracked.txt"), "one\n");
+    git("add", "."); git("commit", "-q", "-m", "init");
+    writeFileSync(join(repo, "tracked.txt"), "two\n");
+    writeFileSync(join(repo, "fresh.txt"), "new\n");
+    const created = await herdrRpc<{ workspace: { workspace_id: string }; root_pane: { pane_id: string } }>(
+      "workspace.create", { label: "herdr-web-ui-test-changed", cwd: repo, focus: false },
+    );
+    workspaceId = created.workspace.workspace_id;
+    paneId = created.root_pane.pane_id;
+  });
+
+  afterAll(async () => {
+    if (workspaceId) await herdrRpc("workspace.close", { workspace_id: workspaceId });
+    if (repo) rmSync(repo, { recursive: true, force: true });
+  });
+
+  it("stays behind the token gate and refuses what is not a read of a pane", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "herdr-changed-auth-"));
+    const gated = createServer({ port: 0, stateDir, token: "changed-token" });
+    try {
+      for (const path of ["/api/pane/changed-files?pane_id=x", "/api/pane/changed-files/diff?pane_id=x&path=%2Fa"]) {
+        expect((await fetch(`http://localhost:${gated.port}${path}`)).status).toBe(401);
+      }
+      const allowed = await fetch(`http://localhost:${gated.port}/api/pane/changed-files?pane_id=${encodeURIComponent(paneId)}`, { headers: { authorization: "Bearer changed-token" } });
+      expect(allowed.status).toBe(200);
+    } finally { gated.stop(); rmSync(stateDir, { recursive: true, force: true }); }
+    expect((await changed("")).status).toBe(400);
+    expect(((await (await changed("/diff?pane_id=" + encodeURIComponent(paneId))).json()) as ApiError).error.code).toBe("missing_path");
+    expect(((await (await changed("?pane_id=" + encodeURIComponent(paneId), { method: "POST" })).json()) as ApiError).error.code).toBe("method_not_allowed");
+    const unknown = await changed("?pane_id=w9999:p9999");
+    expect(unknown.ok).toBe(false);
+    expect(typeof ((await unknown.json()) as ApiError).error.code).toBe("string");
+  });
+
+  it("lists what git sees changed in a pane that runs no agent, and no session", async () => {
+    const response = await changed(`?pane_id=${encodeURIComponent(paneId)}`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = (await response.json()) as { session: unknown[]; git: { path: string; rel: string; git: string }[]; repo: boolean };
+    expect(body.repo).toBe(true);
+    expect(body.session).toEqual([]);
+    expect(Object.fromEntries(body.git.map((file) => [file.rel, file.git]))).toEqual({ "tracked.txt": "M", "fresh.txt": "?" });
+  });
+
+  it("still lists git's changes when the transcript cannot be resolved", async () => {
+    const spy = spyOn(conversationModule, "paneWholeConversation").mockRejectedValue(new HerdrError("timeout", "herdr did not answer"));
+    const quiet = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const response = await changed(`?pane_id=${encodeURIComponent(paneId)}`);
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { session: unknown[]; git: unknown[] };
+      expect(body.session).toEqual([]);
+      expect(body.git).toHaveLength(2);
+    } finally { spy.mockRestore(); quiet.mockRestore(); }
+  });
+
+  it("answers the diff of a listed path and refuses every other", async () => {
+    const ok = await changed(`/diff?pane_id=${encodeURIComponent(paneId)}&path=${encodeURIComponent(join(repo, "tracked.txt"))}`);
+    expect(ok.status).toBe(200);
+    const diff = (await ok.json()) as { kind: string; diff: string; truncated: boolean };
+    expect(diff).toMatchObject({ kind: "git", truncated: false });
+    expect(diff.diff).toContain("+two");
+    for (const path of ["/etc/passwd", join(repo, "..", "..", "etc", "passwd"), join(repo, "missing.txt")]) {
+      const refused = await changed(`/diff?pane_id=${encodeURIComponent(paneId)}&path=${encodeURIComponent(path)}`);
+      expect(refused.status).toBe(404);
+      expect(((await refused.json()) as ApiError).error.code).toBe("file_not_changed");
+    }
   });
 });

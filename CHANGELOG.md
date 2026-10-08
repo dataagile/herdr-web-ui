@@ -8,6 +8,17 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- **Modified files** in the header: a button (icon `FileDiff` with a count) after the Chat/Terminal
+  switch lists the files the pane's agent changed in its session, read from its whole transcript
+  (Claude, Codex, pi, omp, gjc and omo; a failed call changes nothing, except a Codex script that applies a patch and failed as a whole, which is kept and marked "uncertain") and marked with git's letter,
+  and, apart, the other changes git sees in the pane's folder, which may not be the agent's. A file
+  opens in the viewer on a new "Changes in this session" tab (each edit in order, drawn like the
+  chat's diffs; git's own diff for a file the session did not edit) beside the existing "File"
+  tab. The list refreshes when the pane's status changes and every 15 s while the panel is open.
+  New `GET /api/pane/changed-files` and `/diff` (a path the list did not name is refused); a PC whose
+  bridge lacks them shows no button. On a phone (480px and below) the Chat/Terminal switch is one
+  button that shows the current lens and switches to the other, and the bar's New tab button goes
+  (the tab strip below always has its own +), so every header button keeps its touch size. A relative path resolves against the folder the call ran in when the transcript records it (Claude's record cwd, Codex's `workdir` or session folder); a Codex patch's `Move to` names the new file too; "created" means the file did not exist before the session's first write (git's `?`/`A` decides when the transcript cannot tell); a repo whose `git status` is too long shows a note instead of a cut list. Edit times are the turn's, not each call's. A Codex patch applied through `shell` / `local_shell` / `exec_command` is listed too; a session longer than 40 pages of the transcript says so in the panel; a device paired to watch only cannot read a file's diff. The list reads a grown transcript from its last turn on instead of the whole session again; a repo with no commit yet shows a staged new file's content; `~/` in a call's path is the user's home; a deleted file under a symlinked folder matches git's path; git that takes over 5 s says so ("Git took too long to respond") instead of showing an empty list, and a failed diff says it failed; the 15 s refresh pauses while the page is hidden; the file viewer keeps the changes tab loaded when you switch tabs and reads a file's content only once its File tab is shown. ([#16](https://github.com/dataagile/herdr-web-ui/pull/16) by @tbc-joaovitor)
 - An in-app **feedback** button (a megaphone just before the bell) behind the Data Agile portal, when
   the portal's `/api/portal/me` says `feedback.enabled`: Report a bug, Suggest an improvement or General
   feedback open a form that the portal turns into a support ticket (`POST /api/portal/feedback`; the

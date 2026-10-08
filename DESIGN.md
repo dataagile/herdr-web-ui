@@ -289,7 +289,7 @@ One set for both themes: the card is island black wherever it shows.
   sidebar toggle and the command palette (`.header-side`); the flexible context, agent mark and
   title then the PC › workspace › folder crumb; segmented Chat/Terminal switch; the connection
   chip while the bridge is not live (herdr version in its tooltip), the offline pill, and sign out.
-  **Files** (`FolderOpen`) and **Alerts** (the bell) sit before the switch. Theme lives in Settings and the palette; the herdr version is also read
+  **Files** (`FolderOpen`), the feedback megaphone (portal only) and **Alerts** (the bell) sit before the switch, in that order, and the modified-files button ends the bar. Theme lives in Settings and the palette; the herdr version is also read
   in Settings. Beside **New tab** sits **Split** (`.header-split`, a ghost button; icon only at
   `<=1100px`, where the label goes), which opens the split menu for the pane in front; while the tab is zoomed an
   **Unzoom** button (`.header-unzoom`) joins the switch, and the crumb's last part reads
@@ -315,15 +315,16 @@ One set for both themes: the card is island black wherever it shows.
   mount stays alive under the chat lens; changing views never creates a second connection.
 - At `<=480px` the brand name, the offline pill, desktop-only control labels and the palette's button
   go from the header, and so do the pane's title, agent mark and crumb: the bar is icons only (☰, copy path
-  as the title's `.context-copy.in-title`, New tab, Split, Files, the Alerts bell, the Chat/Terminal switch),
+  as the title's `.context-copy.in-title`, Split, Files, the feedback megaphone, the Alerts bell, the Chat/Terminal toggle and the modified-files button),
   each with a `title` for hover and an `aria-label` naming it, and the tab strip below names the pane.
-  Files and the bell stay in the header at every width; New tab leaves it while the tab is zoomed, to keep
-  Unzoom in reach (it stays on the drawer's project row). Up to `768px` the drawer's first row
+  Files and the bell stay in the header at every width; New tab leaves the bar at `<=480px` (the tab
+  strip below is always there on a phone and ends in its own `+`, and the drawer's project row has one
+  too), which keeps every other button at `--touch-target` in 360px; zoomed, Unzoom takes its place. Up to `768px` the drawer's first row
   (`.drawer-rows`) is the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable,
   breaking after a `/` or `\`, and wrapping a longer segment as a last resort) for a touch screen with
   no tooltip; at `<=480px`, where the header's palette button is gone, `.drawer-palette` follows (it closes the drawer). The header's buttons, the lens switch's
   included, keep `--touch-target` under `pointer: coarse`: no smaller size is drawn for the phone, and
-  at `<=480px` the bar drops its own gap and gutter to `--space-2` so seven targets fit 360px.
+  at `<=480px` the bar drops its own gap and gutter to `--space-2` so the targets fit 360px.
   Icons and selected context remain.
 
 ## 5. Components
@@ -622,6 +623,22 @@ One set for both themes: the card is island black wherever it shows.
   copy button keep the room; the Chat/Terminal switch keeps its words down to 560px. Hovering a
   header icon shows its name (the `title`); the bell and Files never move into the drawer.
 - The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
+  At `<=480px` it is replaced by one `.view-toggle` icon button (`MessageSquare` / `SquareTerminal`)
+  that shows the lens the pane is in; its title says what a tap switches to ("Switch to Terminal" /
+  "Switch to Chat"). Two options plus the seven other `--touch-target` buttons do not fit 360px; one
+  button does, and `.view-switch` is `display: none` there.
+- **Modified files** (`.header-amod`, `ChangedFiles.css`) is the last control of the bar, after the
+  Chat/Terminal switch, at every width: an icon button (`FileDiff`) with a `.pill.header-amod-count`
+  over its top-right corner (`--accent` edge, `--accent-tint` fill, `--lh-base` line). It is not drawn
+  at 0 session files, nor for a PC whose bridge lacks `GET /api/pane/changed-files`. It opens the
+  Files dialog's modal (a bottom sheet up to `640px`) with two groups, **In this session** and **Other
+  changes in git** ("May include changes that are not from this agent."; a repo with more changes than git status is read for shows the note "Too many changes in the repository to list" instead). A row is a `.dir-browser-item`
+  with the folder in `--text-dim`, the file name in `--text-strong` (mono `--fs-xs`), a pill ("edited
+  ×N" / "created", and "uncertain" for a failed script whose patch may have landed), the turn's time, and git's letter at the right: `A` and `?` in `--status-done`,
+  `D` in `--status-blocked`, `M` and `R` in `--text-dim`. A row opens the file viewer on a
+  `.changed-tabs` segmented control, "Changes in this session" (or "Changes in git") and "File":
+  the first is a column of `.changed-edit` sections, "Edit 2 of 3 · 10:35" over the chat's own diff
+  (`.chat-diff`, `--status-done` / `--status-blocked`), the second the viewer as it was. A watch-only device has no changes tab. A session longer than the server reads shows a `.changed-note`, "Long session: showing the last N parts", above the groups.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows
   (title with an `OPEN NOW` mark in `--status-working`, then time and prompts in `--text-dim`). A click

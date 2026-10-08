@@ -3,7 +3,7 @@
  * The folder shows as its last name, and only when nothing beside it already says that name (the
  * title, the PC, the workspace): it is what tells two worktrees of one workspace apart, and
  * "api › api" told nobody anything. The full path is not lost: it is in the header's tooltip and
- * the first thing in its More menu, which is where a touch screen reads it.
+ * the first line of the phone drawer, which is where a touch screen reads it.
  */
 import { folderName } from "./paneName.ts";
 
@@ -12,9 +12,7 @@ export interface HeaderCrumb {
   workspace: string;
   /** the folder's last name, or null when another part already says it (or there is no folder) */
   folder: string | null;
-  /** "PC › workspace": the More menu's first line */
-  place: string;
-  /** the folder written out, as herdr reports it: the More menu's second line */
+  /** the folder written out, as herdr reports it: the drawer's path line and the copy button's text */
   path: string | null;
   /** the context's tooltip: workspace › title, then the full path */
   tooltip: string;
@@ -32,7 +30,6 @@ export function headerCrumb(input: { machine: string; workspace: string; title: 
     machine,
     workspace,
     folder: said ? null : name,
-    place: `${machine} › ${workspace}`,
     path,
     tooltip: path === null ? `${workspace} › ${title}` : `${workspace} › ${title} · ${path}`,
   };

@@ -658,7 +658,7 @@ export function App() {
     if (!context) return;
     const title = context.querySelector<HTMLElement>(".context-title");
     const sub = context.querySelector<HTMLElement>(".context-sub");
-    const measure = (): void => setCrumbHidden(!title || !sub || sub.offsetTop > title.offsetTop);
+    const measure = (): void => setCrumbHidden(!title || !sub || sub.offsetTop >= title.offsetTop + title.offsetHeight);
     measure();
     const observer = new ResizeObserver(measure);
     for (const element of [context, title, sub]) if (element) observer.observe(element);
@@ -888,7 +888,7 @@ export function App() {
 
   return (
     <MachineContext.Provider value={selectedMachineId}><div className={`app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <header className={`app-header is-zoned${chatShown ? " is-chat" : ""}`}>
+      <header className={`app-header is-zoned${chatShown ? " is-chat" : ""}${selectedPane && zoomedPaneId !== null ? " has-unzoom" : ""}`}>
         {/* is-zoned tells this header from the connecting shell's, which has no zones to draw.
             .header-side is the sidebar's own top row from 769px (styles.css); below that its
             buttons sit in the bar */}
@@ -897,7 +897,7 @@ export function App() {
             <button
               type="button"
               className="icon-button drawer-toggle"
-              aria-label={t(drawerOpen ? "Close project list" : "Open project list")}
+              aria-label={drawerOpen ? t("Close project list") : t(alertsOffDot ? "Open project list · alerts are off" : "Open project list")}
               aria-expanded={drawerOpen}
               aria-controls="workspace-drawer"
               onClick={() => setDrawerOpen((open) => !open)}
@@ -950,7 +950,7 @@ export function App() {
           <><Brand /><span className="machine-context-name">{selectedMachine?.name ?? selectedMachineId}</span></>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost" title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
+          <button type="button" className="btn btn-ghost header-new-tab" title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
             <Plus aria-hidden="true" />
             <span className="header-desktop-only">{t("New tab")}</span>
           </button>
@@ -1021,6 +1021,8 @@ export function App() {
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
           {/* phone only (styles.css): the header's palette, Files and Alerts leave it for the pane's title */}
           <div className="drawer-rows">
+            {/* the full path, for a touch screen that has no tooltip; breaks only after a "/" */}
+            {crumb?.path != null && <p className="drawer-path">{crumb.path.split("/").map((part, index, parts) => <span key={index}>{part}{index < parts.length - 1 && <>/<wbr /></>}</span>)}</p>}
             <button type="button" className="btn btn-ghost drawer-palette" onClick={() => { setDrawerOpen(false); setPaletteOpen(true); }}>
               <Search aria-hidden="true" />
               <span>{t("Command palette")}</span>

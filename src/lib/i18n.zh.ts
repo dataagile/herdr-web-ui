@@ -114,6 +114,7 @@ export const ZH: Record<string, string> = {
   "Connecting to herdr web ui…": "正在连接 herdr web ui…",
   "Close project list": "关闭项目列表",
   "Open project list": "打开项目列表",
+  "Open project list · alerts are off": "打开项目列表 · 提醒已关闭",
   "Show project list": "显示项目列表",
   "Hide project list": "隐藏项目列表",
   "Toggle sidebar (⌘⇧B)": "切换侧边栏 (⌘⇧B)",

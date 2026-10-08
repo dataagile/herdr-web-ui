@@ -291,7 +291,7 @@ One set for both themes: the card is island black wherever it shows.
   chip while the bridge is not live (herdr version in its tooltip), the offline pill, and sign out.
   **Files** (`FolderOpen`) and **Alerts** (the bell) sit before the switch. Theme lives in Settings and the palette; the herdr version is also read
   in Settings. Beside **New tab** sits **Split** (`.header-split`, a ghost button; icon only at
-  `<=480px`, where the label goes), which opens the split menu for the pane in front; while the tab is zoomed an
+  `<=1100px`, where the label goes), which opens the split menu for the pane in front; while the tab is zoomed an
   **Unzoom** button (`.header-unzoom`) joins the switch, and the crumb's last part reads
   "zoom n/N". With several panes side by side the **Chat** half of the switch is disabled
   (`opacity: 0.45`, `not-allowed` cursor, tooltip "Chat: zoom (⤢) a pane") and every pane shows
@@ -314,11 +314,11 @@ One set for both themes: the card is island black wherever it shows.
 - The terminal stack contains a positioned terminal surface, then composer or key bar. The xterm
   mount stays alive under the chat lens; changing views never creates a second connection.
 - At `<=480px` the brand name, the offline pill, desktop-only control labels, the palette's button,
-  **Files** and the **Alerts** bell go from the header (Split and New tab keep their icons) and give
-  their room to the title. They are the first rows of the drawer (`.drawer-rows`: `.drawer-palette`,
+  **Files** and the **Alerts** bell go from the header (Split and New tab keep their icons, and New tab leaves the header while the tab is zoomed, to keep Unzoom in reach: it stays on the drawer's project row) and give
+  their room to the title. They are the first rows of the drawer (`.drawer-rows`: the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable, breaking only after a `/`) for a touch screen with no tooltip, then `.drawer-palette`,
   `.drawer-files`, `.drawer-alerts` with the bell's state as a `--text-dim` hint at the row end;
   Files and the palette close the drawer). The ☰ toggle carries the `--dot-size` `--accent` dot
-  while alerts are off, so the cue stays in sight. The header's buttons keep `--touch-target` under
+  while alerts are off, so the cue stays in sight, and its name says "alerts are off". The header's buttons keep `--touch-target` under
   `pointer: coarse`: no smaller size is drawn for the phone.
   Icons and selected context remain.
 
@@ -572,7 +572,7 @@ One set for both themes: the card is island black wherever it shows.
   title may shorten with an ellipsis; the crumb never does: when it does not fit whole beside the
   whole title it is not drawn, and the title has the row. The full path is in the context's
   tooltip and behind a small copy button (`.context-copy`, `Copy` icon, `--text-dim`, `--space-6`
-  square; `--touch-target` under `pointer: coarse`): at the end of the crumb, or - while the crumb
+  square, capped at the context line so compact density does not clip it; `--touch-target` under `pointer: coarse`): at the end of the crumb, or - while the crumb
   is wrapped out of sight (the context carries `.is-crumb-hidden`, set by a `ResizeObserver` in
   `App.tsx`) - right after the title. Exactly one is shown; the crumb's keeps its room hidden. The
   button turns into a check for 1.5 s once that pane's path is on the clipboard; where the clipboard

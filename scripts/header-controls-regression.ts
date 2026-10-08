@@ -66,7 +66,13 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
         assert.ok(size >= 40, `phone: ${selector} keeps the 40px touch target (${size}px)`);
       }
     }
-    await page.getByRole("button", { name: "Open project list" }).tap();
+    assert.equal(await visibleCount(page, ".app-header > .header-new-tab"), 1, "phone: New tab is in the header");
+    // this harness has one pane per tab, so no real zoom: the class App.tsx sets while zoomed is applied by hand
+    await page.evaluate(() => document.querySelector(".app-header")?.classList.add("has-unzoom"));
+    assert.equal(await visibleCount(page, ".app-header > .header-new-tab"), 0, "phone: a zoomed tab hides the header's New tab");
+    await page.evaluate(() => document.querySelector(".app-header")?.classList.remove("has-unzoom"));
+    await page.getByRole("button", { name: /^Open project list/ }).tap();
+    assert.equal((await page.locator(".drawer-path").innerText()).replace(/\s+/g, ""), path, "phone: the drawer's first line is the pane's full path");
     for (const selector of [".drawer-palette", ".drawer-files", ".drawer-alerts"]) {
       assert.equal(await visibleCount(page, `#workspace-drawer ${selector}`), 1, `phone: the drawer shows ${selector}`);
     }

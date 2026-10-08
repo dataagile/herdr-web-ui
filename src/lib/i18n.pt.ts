@@ -109,6 +109,7 @@ export const PT: Record<string, string> = {
   "Connecting to herdr web ui…": "Conectando ao herdr web ui…",
   "Close project list": "Fechar lista de projetos",
   "Open project list": "Abrir lista de projetos",
+  "Open project list · alerts are off": "Abrir lista de projetos · alertas desativados",
   "Show project list": "Mostrar lista de projetos",
   "Hide project list": "Ocultar lista de projetos",
   "Toggle sidebar (⌘⇧B)": "Alternar barra lateral (⌘⇧B)",

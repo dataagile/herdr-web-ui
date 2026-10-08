@@ -314,12 +314,16 @@ One set for both themes: the card is island black wherever it shows.
 - The terminal stack contains a positioned terminal surface, then composer or key bar. The xterm
   mount stays alive under the chat lens; changing views never creates a second connection.
 - At `<=480px` the brand name, the offline pill, desktop-only control labels and the palette's button
-  go from the header; at `<=768px` (the drawer's breakpoint) **Files** and the **Alerts** bell go too (Split and New tab keep their icons, and New tab leaves the header while the tab is zoomed, to keep Unzoom in reach: it stays on the drawer's project row) and give
-  their room to the title. They are the first rows of the drawer (`.drawer-rows`: the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable, breaking after a `/` or `\`, and wrapping a longer segment as a last resort) for a touch screen with no tooltip, then `.drawer-palette`,
-  `.drawer-files`, `.drawer-alerts` with the bell's state as a `--text-dim` hint at the row end;
-  Files and the palette close the drawer). The ☰ toggle carries the `--dot-size` `--accent` dot
-  while alerts are off, so the cue stays in sight, and its name says "alerts are off". The header's buttons keep `--touch-target` under
-  `pointer: coarse`: no smaller size is drawn for the phone.
+  go from the header, and so do the pane's title, agent mark and crumb: the bar is icons only (☰, copy path
+  as the title's `.context-copy.in-title`, New tab, Split, Files, the Alerts bell, the Chat/Terminal switch),
+  each with a `title` for hover and an `aria-label` naming it, and the tab strip below names the pane.
+  Files and the bell stay in the header at every width; New tab leaves it while the tab is zoomed, to keep
+  Unzoom in reach (it stays on the drawer's project row). Up to `768px` the drawer's first rows
+  (`.drawer-rows`) are the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable,
+  breaking after a `/` or `\`, and wrapping a longer segment as a last resort) for a touch screen with
+  no tooltip, then `.drawer-palette` (it closes the drawer). The header's buttons, the lens switch's
+  included, keep `--touch-target` under `pointer: coarse`: no smaller size is drawn for the phone, and
+  at `<=480px` the bar drops its own gap and gutter to `--space-2` so seven targets fit 360px.
   Icons and selected context remain.
 
 ## 5. Components
@@ -583,7 +587,8 @@ One set for both themes: the card is island black wherever it shows.
   button carries a `--dot-size` `--accent` dot: the dot marks the state that needs a look, never
   "on". **Files** opens the file browser for the pane in front. At `<=1100px` the header's buttons
   (New tab, Split, Unzoom, Files) drop their labels and keep only the icon, so the title and its
-  copy button keep the room; the Chat/Terminal switch keeps its words down to 560px.
+  copy button keep the room; the Chat/Terminal switch keeps its words down to 560px. Hovering a
+  header icon shows its name (the `title`); the bell and Files never move into the drawer.
 - The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows

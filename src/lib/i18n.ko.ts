@@ -110,7 +110,6 @@ export const KO: Record<string, string> = {
   "Connecting to herdr web ui…": "herdr web ui에 연결하는 중…",
   "Close project list": "프로젝트 목록 닫기",
   "Open project list": "프로젝트 목록 열기",
-  "Open project list · alerts are off": "프로젝트 목록 열기 · 알림 꺼짐",
   "Show project list": "프로젝트 목록 보이기",
   "Hide project list": "프로젝트 목록 숨기기",
   "Toggle sidebar (⌘⇧B)": "사이드바 토글 (⌘⇧B)",

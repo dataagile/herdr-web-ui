@@ -112,7 +112,6 @@ export const JA: Record<string, string> = {
   "Connecting to herdr web ui…": "herdr web ui に接続しています…",
   "Close project list": "プロジェクト一覧を閉じる",
   "Open project list": "プロジェクト一覧を開く",
-  "Open project list · alerts are off": "プロジェクト一覧を開く · 通知オフ",
   "Show project list": "プロジェクト一覧を表示",
   "Hide project list": "プロジェクト一覧を非表示",
   "Toggle sidebar (⌘⇧B)": "サイドバーの切り替え (⌘⇧B)",

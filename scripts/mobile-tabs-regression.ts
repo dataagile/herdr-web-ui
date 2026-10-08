@@ -22,14 +22,15 @@ async function box(page: Page, selector: string): Promise<Box> {
   return found;
 }
 
-/** The header keeps the pane's title and the strip sits right under it, whatever the lens. */
-async function assertShell(page: Page, label: string, titleRoom = 60): Promise<void> {
+/** A phone's header is icons only: the strip right under it names the open tab, whatever the lens. */
+async function assertShell(page: Page, label: string): Promise<void> {
   const newTab = page.locator(".app-header").getByRole("button", { name: "New tab" });
   assert.equal(await newTab.count(), 1, `${label}: the header has its own New tab button`);
   assert.equal(await newTab.locator(".header-desktop-only").isVisible(), false, `${label}: the New tab button is icon-only on this width`);
   assert.equal(await page.locator(".app-header .header-more-button").count(), 0, `${label}: the header has no More menu`);
-  const title = await box(page, ".context-title-text");
-  assert.ok(title.width >= titleRoom, `${label}: the pane's title keeps its room in the header (${title.width}px)`);
+  assert.equal(await page.locator(".context-title-text").isVisible(), false, `${label}: the header draws no title text`);
+  const openTab = (await page.locator(".tab-strip-item.is-active .tab-strip-tab").innerText()).trim();
+  assert.ok(openTab.length > 0, `${label}: the strip names the open tab ("${openTab}")`);
   const header = await box(page, ".app-header");
   const strip = await box(page, ".tab-strip");
   assert.ok(Math.abs(strip.top - header.bottom) <= 1, `${label}: the strip sits under the header (${strip.top} vs ${header.bottom})`);
@@ -128,7 +129,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
 
     await page.setViewportSize({ width: 320, height: 640 });
     await activeTabInView(page, "a 320px phone");
-    await assertShell(page, "a 320px phone", 0);
+    await assertShell(page, "a 320px phone");
     await screenshot("narrow");
     assert.deepEqual(errors, []);
 

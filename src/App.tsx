@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Bell, BellOff, Check, Columns2, Copy, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
@@ -643,13 +643,6 @@ export function App() {
   const bellVisible = notifications === "default" || notifications === "granted" || settings.alertInApp;
   // the bell carries a dot while alerts are off here
   const alertsOffDot = bellVisible && !bell.on;
-  // the Alerts button, in the header (icon only) and as a drawer row (icon, label, state)
-  const bellButton = (className: string, label?: ReactNode) => (
-    <button type="button" className={className} aria-label={label === undefined ? t("Alerts") : undefined} aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
-      {bell.on ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
-      {label}
-    </button>
-  );
   const connWord = t(connected ? "live" : outputStopped ? "disconnected" : "reconnecting");
   const crumb = selectedPane && selectedTitle !== null
     ? headerCrumb({ machine: selectedMachine?.name ?? selectedMachineId, workspace: selectedWorkspace?.label ?? selectedPane.workspace_id, title: selectedTitle, cwd: selectedPane.cwd })
@@ -904,15 +897,14 @@ export function App() {
             <button
               type="button"
               className="icon-button drawer-toggle"
-              aria-label={drawerOpen ? t("Close project list") : t(alertsOffDot ? "Open project list · alerts are off" : "Open project list")}
+              aria-label={drawerOpen ? t("Close project list") : t("Open project list")}
+              title={drawerOpen ? t("Close project list") : t("Open project list")}
               aria-expanded={drawerOpen}
               aria-controls="workspace-drawer"
               onClick={() => setDrawerOpen((open) => !open)}
             >
               {drawerOpen ? <X /> : <Menu />}
             </button>
-            {/* up to 768px: the bell is in the drawer there, and its dot stays on the way to it */}
-            {alertsOffDot && <span className="header-bell-dot" aria-hidden="true" />}
           </span>
           <button
             type="button"
@@ -957,13 +949,13 @@ export function App() {
           <><Brand /><span className="machine-context-name">{selectedMachine?.name ?? selectedMachineId}</span></>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost header-new-tab" title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
+          <button type="button" className="btn btn-ghost header-new-tab" aria-label={t("New tab")} title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
             <Plus aria-hidden="true" />
             <span className="header-desktop-only">{t("New tab")}</span>
           </button>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost header-split" aria-haspopup="menu" aria-expanded={paneMenu?.whole === false} title={t("Split")} onClick={(event) => {
+          <button type="button" className="btn btn-ghost header-split" aria-haspopup="menu" aria-expanded={paneMenu?.whole === false} aria-label={t("Split")} title={t("Split")} onClick={(event) => {
             const anchor = event.currentTarget;
             setPaneMenu(paneMenu?.whole === false ? null : { anchor, paneId: selectedPane.pane_id, whole: false });
           }}>
@@ -972,30 +964,32 @@ export function App() {
           </button>
         )}
         {selectedPane && zoomedPaneId !== null && (
-          <button type="button" className="btn header-unzoom" title={t("Unzoom")} onClick={() => void zoomSplitPane(zoomedPaneId ?? selectedPane.pane_id, "off")}>
+          <button type="button" className="btn header-unzoom" aria-label={t("Unzoom")} title={t("Unzoom")} onClick={() => void zoomSplitPane(zoomedPaneId ?? selectedPane.pane_id, "off")}>
             <Minimize2 aria-hidden="true" />
             <span className="header-desktop-only">{t("Unzoom")}</span>
           </button>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost header-files" title={t("Browse files")} onClick={() => setFilesOpen(true)}>
+          <button type="button" className="btn btn-ghost header-files" aria-label={t("Files")} title={t("Browse files")} onClick={() => setFilesOpen(true)}>
             <FolderOpen aria-hidden="true" />
             <span className="header-desktop-only">{t("Files")}</span>
           </button>
         )}
         {bellVisible && (
           <span className="header-bell">
-            {bellButton("icon-button")}
+            <button type="button" className="icon-button" aria-label={t("Alerts")} aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
+              {bell.on ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+            </button>
             {alertsOffDot && <span className="header-bell-dot" aria-hidden="true" />}
           </span>
         )}
         {selectedPane && (
           <div className="segmented view-switch" role="group" aria-label="Pane view">
-            <button type="button" aria-pressed={shownView === "chat"} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
+            <button type="button" aria-pressed={shownView === "chat"} aria-label={t("Chat")} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
               <MessageSquare />
               <span className="header-desktop-only">{t("Chat")}</span>
             </button>
-            <button type="button" aria-pressed={shownView === "terminal"} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
+            <button type="button" aria-pressed={shownView === "terminal"} aria-label={t("Terminal")} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
               <SquareTerminal />
               <span className="header-desktop-only">{t("Terminal")}</span>
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
@@ -1024,7 +1018,7 @@ export function App() {
 
       <div className="app-body">
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
-          {/* up to 768px (styles.css): the header's Files and Alerts (and, up to 480px, the palette) leave it for the pane's title */}
+          {/* up to 768px (styles.css): the pane's full path and, up to 480px, the palette's header button */}
           <div className="drawer-rows">
             {/* the full path, for a touch screen that has no tooltip; breaks after a "/" or "\\" */}
             {crumb?.path != null && <p className="drawer-path">{crumb.path.split(/(?<=[\\/])/).map((part, index) => <span key={index}>{part}<wbr /></span>)}</p>}
@@ -1032,18 +1026,6 @@ export function App() {
               <Search aria-hidden="true" />
               <span>{t("Command palette")}</span>
             </button>
-            {selectedPane && (
-              <button type="button" className="btn btn-ghost drawer-files" onClick={() => { setDrawerOpen(false); setFilesOpen(true); }}>
-                <FolderOpen aria-hidden="true" />
-                <span>{t("Files")}</span>
-              </button>
-            )}
-            {bellVisible && (
-              bellButton("btn btn-ghost drawer-alerts", <>
-                <span>{t("Alerts")}</span>
-                <span className="drawer-hint">{bell.state}</span>
-              </>)
-            )}
           </div>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}
           <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} onSelect={selectTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />

@@ -84,6 +84,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   the pane's folder copies its full path (at the end of the crumb, or after the title when the
   crumb does not fit). On a phone Split stays in the header (icon only). Up to 768px (the ☰ drawer's width) the path,
   the command palette, Files and Alerts are the first rows of the drawer.
+  ([#12](https://github.com/dataagile/herdr-web-ui/pull/12) by @tbc-joaovitor)
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
   copy, `claude --resume <id> --fork-session`, so the running session is never driven by two
   processes; its **Go to tab** icon, beside the copy icon, selects the pane that has it. Copy command

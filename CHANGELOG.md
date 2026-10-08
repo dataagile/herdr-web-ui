@@ -19,6 +19,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   must not cancel the phone's done push. The app sends at most one request per pane per done episode
   (a failed one is retried on the next action) and stops asking a PC whose bridge refuses it until
   that PC reconnects (a 403 is also forgotten when the device's role changes). A notification tap that opens the app cold counts as an action; keyboard stepping between panes does not. On a PC that refuses it, Needs you lists only the INPUT rows (DONE still shows as the badge in Projects). A seen native done also reads DONE again after a server restart or whenever a status subscription reopens (herdr has no API to acknowledge a done).
+  ([#13](https://github.com/dataagile/herdr-web-ui/pull/13) by @tbc-joaovitor)
 - A **History** section in the sidebar, under Agents, for the selected project (this PC only):
   the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
   transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since
@@ -92,7 +93,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ### Changed
 - The **+** for a new project moved from the PC's header to the end of its **Projects** header,
   where it reads as "add a project here"; it keeps the label "New project on {PC}" and is out of
-  reach while the PC is offline. (by @tbc-joaovitor)
+  reach while the PC is offline. ([#13](https://github.com/dataagile/herdr-web-ui/pull/13) by @tbc-joaovitor)
 - **Needs you** moved from the top of the sidebar into each PC group, under the PC's header row and
   above Projects, listing only that PC's panes. It now holds agents that are `done` and not yet
   seen as well as blocked ones (badges INPUT and DONE; blocked first), shows the workspace as the
@@ -101,6 +102,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   waiting and for an offline PC, and stays visible when its PC is folded. Each block is a landmark named "Needs you on {PC}", so a screen reader tells the PCs apart. The screen-reader line counts only
   blocked panes ("Panes waiting for input: {n}"), so done churn does not talk over a screen reader. The design system bundle gains the missing
   `.sidebar-section-header` rules.
+  ([#13](https://github.com/dataagile/herdr-web-ui/pull/13) by @tbc-joaovitor)
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
   copy, `claude --resume <id> --fork-session`, so the running session is never driven by two
   processes; its **Go to tab** icon, beside the copy icon, selects the pane that has it. Copy command

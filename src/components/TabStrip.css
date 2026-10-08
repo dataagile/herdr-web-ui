@@ -245,7 +245,7 @@
 @media (max-width: 480px) {
   .tab-strip-label {
     overflow: hidden;
-    max-width: calc(100vw - 11rem);
+    max-width: calc(100vw - 4 * var(--touch-target) - var(--space-4));
     text-overflow: ellipsis;
   }
 }

@@ -15,7 +15,7 @@ herdr's tab row over the pane: one tab per herdr tab of the selected workspace, 
 - `.tab-strip-error`: a `--status-blocked` line at the end for six seconds after a failed rename/close.
 
 ## States & variants
-- Phone (≤480px): the label is cut short with an ellipsis (`max-width: calc(100vw - 11rem)`) so a long pane title never pushes the open tab's chevron or the `+` out of the strip.
+- Phone (≤480px): the label is cut short with an ellipsis (`max-width: calc(100vw - 4 * var(--touch-target) - var(--space-4))`: room for the chevron, the `+` and the strip's padding) so a long pane title never pushes the open tab's chevron or the `+` out of the strip.
 - Open tab: strong text and a 2px `--accent` inset underline under the whole item, x included; the x is visible.
 - Other tabs: dim text; the x shows on hover or focus.
 - Dots (7px) only for working (`--status-working`), blocked (`--status-blocked`) and done (`--status-done`); idle shows none.

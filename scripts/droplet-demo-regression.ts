@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright-core";
 import panes from "../site/demo/fixtures/panes.json";
+import { setLens } from "./lens.ts";
 
 // Build the unmodified app and inject only the demo's fixture transport. All files and
 // HTTP traffic stay in this disposable, loopback-only app; no herdr session is opened.
@@ -61,7 +62,7 @@ try {
         await page.goto(`http://127.0.0.1:${server.port}/herdr-web-ui/demo/app/?pane=${encodeURIComponent(panes.api)}`);
         await page.locator(".conn-live").waitFor();
         await page.locator(`.pane-item:has(.pane-select[title^="${panes.api} —"]) [data-status="done"]`).first().waitFor({ state: "attached", timeout: 8_000 });
-        await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+        await setLens(page, "chat");
         const message = page.getByRole("textbox", { name: "Message", exact: true });
         await message.fill("Demo geometry check");
         await page.getByRole("button", { name: "Send message", exact: true }).click();

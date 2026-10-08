@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Bell, BellOff, Check, Columns2, Copy, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
+import { Bell, BellOff, Check, Columns2, Copy, FileDiff, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
 import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, markPaneSeen, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
@@ -43,10 +43,12 @@ import { ensurePushSubscription, pushSupported, removePushSubscription } from ".
 import { onNotificationTarget } from "./lib/notificationTarget.ts";
 import { useUpdates } from "./lib/updates.ts";
 import { UpdateNotice } from "./components/UpdateControls.tsx";
+import { ChangedFilesDialog } from "./components/ChangedFilesDialog.tsx";
 import { FilesDialog } from "./components/FilesDialog.tsx";
 import { FileViewer } from "./components/FileViewer.tsx";
 import { OpenFileContext } from "./lib/filePaths.ts";
 import { useFileViewer } from "./lib/useFileViewer.ts";
+import { changeOf, useChangedFiles } from "./lib/useChangedFiles.ts";
 import { useT } from "./lib/i18n.ts";
 import { knownStatus } from "./lib/status.ts";
 import { useScreenWakeLock } from "./lib/wakeLock.ts";
@@ -228,6 +230,9 @@ export function App() {
   // the Files dialog, and the file open in the viewer (a path as the chat or the dialog gave it)
   const [filesOpen, setFilesOpen] = useState(false);
   const { viewing, openFile, closeFile } = useFileViewer();
+  // the modified-files panel; `changesFirst` is the file it opened, whose viewer starts on its changes
+  const [changedOpen, setChangedOpen] = useState(false);
+  const [changesFirst, setChangesFirst] = useState<string | null>(null);
   const viewFile = useCallback((path: string) => {
     openFile({ path, paneId: selectedPaneId, machineId: selectedMachineId });
   }, [openFile, selectedPaneId, selectedMachineId]);
@@ -662,6 +667,11 @@ export function App() {
     ? (snapshot?.workspaces.find((workspace) => workspace.workspace_id === selectedPane.workspace_id) ?? null)
     : null;
   const targetHerdr = selectedMachineId === "local" ? health?.herdr : selectedMachine?.herdr;
+  const changed = useChangedFiles(selectedMachineId, selectedPaneId, selectedPane?.agent_status, changedOpen);
+  const changedCount = changed.files?.session.length ?? 0;
+  const changedLabel = t("Files modified in this session ({n})", { n: changedCount });
+  // another pane has its own list: the panel does not stay open over it
+  useEffect(() => { setChangedOpen(false); }, [selectedPaneId, selectedMachineId]);
   const selectedTitle = selectedPane ? displayPaneTitle(selectedPane) : null;
   const selectedAgent = selectedPane?.agent ?? null;
   // unknown herdr (offline, or a server that predates the flag) counts as attach-capable
@@ -1065,6 +1075,13 @@ export function App() {
           </span>
         )}
         {selectedPane && (
+          // a phone's bar (styles.css, 480px) shows this one button instead of the two-option switch below:
+          // it shows the lens the pane is in, and a tap goes to the other
+          <button type="button" className="icon-button view-toggle" disabled={splitting} aria-label={shownView === "chat" ? t("Switch to Terminal") : t("Switch to Chat")} title={shownView === "chat" ? t("Switch to Terminal") : t("Switch to Chat")} onClick={() => setView(shownView === "chat" ? "terminal" : "chat")}>
+            {shownView === "chat" ? <MessageSquare aria-hidden="true" /> : <SquareTerminal aria-hidden="true" />}
+          </button>
+        )}
+        {selectedPane && (
           <div className="segmented view-switch" role="group" aria-label="Pane view">
             <button type="button" aria-pressed={shownView === "chat"} aria-label={t("Chat")} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
               <MessageSquare />
@@ -1076,6 +1093,14 @@ export function App() {
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
             </button>
           </div>
+        )}
+        {selectedPane && changed.supported && changedCount > 0 && (
+          <span className="header-amod">
+            <button type="button" className="icon-button" aria-label={changedLabel} title={changedLabel} onClick={() => setChangedOpen(true)}>
+              <FileDiff aria-hidden="true" />
+            </button>
+            <span className="pill header-amod-count" aria-hidden="true">{changedCount}</span>
+          </span>
         )}
         <div className="header-meta">
           {/* speaks only while the bridge is not live; live, it stays in the document for a screen
@@ -1226,8 +1251,12 @@ export function App() {
       {filesOpen && selectedPane && (
         <FilesDialog start={selectedPane.foreground_cwd ?? selectedPane.cwd ?? ""} viewing={viewing !== null} onOpenFile={viewFile} onClose={() => setFilesOpen(false)} />
       )}
+      {changedOpen && selectedPane && (
+        <ChangedFilesDialog files={changed.files} viewing={viewing !== null} onOpenFile={(path) => { setChangesFirst(path); viewFile(path); }} onClose={() => setChangedOpen(false)} />
+      )}
       {viewing !== null && <MachineContext.Provider value={viewing.machineId}>
-        <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={closeFile} onOpen={(path) => openFile({ ...viewing, path })} />
+        <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={closeFile} onOpen={(path) => openFile({ ...viewing, path })}
+          {...(changeOf(changed.files, viewing, selectedMachineId, selectedPaneId, changesFirst) ?? {})} />
       </MachineContext.Provider>}
       {paneMenu && (
         <SplitMenu

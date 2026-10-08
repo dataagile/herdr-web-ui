@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { appFaces } from "./app-faces.ts";
 import panes from "../site/demo/fixtures/panes.json";
+import { setLens } from "./lens.ts";
 
 // The model label in the input card's last row, fitted to what is measured there, on the
 // unmodified app over the demo's fixture transport. The demo's panes name no context window and
@@ -193,7 +194,7 @@ try {
       page.on("console", (message) => { if (message.type() === "error" && message.text().includes("ResizeObserver")) errors.push(message.text()); });
       await page.goto(url);
       await page.locator(".conn-live").waitFor({ state: "attached" });
-      if (await page.locator(".terminal-stack.is-chat").count() === 0) await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+      if (await page.locator(".terminal-stack.is-chat").count() === 0) await setLens(page, "chat");
       await page.locator(".terminal-stack.is-chat").waitFor();
       await page.locator(".composer-model").waitFor({ state: "attached" });
       await appFaces(page);

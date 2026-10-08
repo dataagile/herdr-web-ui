@@ -11,6 +11,8 @@ const remote = Bun.serve({
     const path = new URL(request.url).pathname;
     if (path === "/api/pane/conversation/image") return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } });
     if (path === "/api/pane/conversation/tool-output") return new Response("complete remote output", { headers: { "content-type": "text/plain; charset=utf-8" } });
+    if (path === "/api/pane/changed-files") return Response.json({ session: [], git: [], repo: false });
+    if (path === "/api/pane/changed-files/diff") return Response.json({ kind: "git", path: "/x", diff: "", truncated: false });
     if (path === "/api/fs/file") return new Response("%PDF-1.7", { headers: { "content-type": "application/pdf" } });
     const ifNoneMatch = request.headers.get("if-none-match");
     asked.push(ifNoneMatch);
@@ -83,4 +85,14 @@ it("refuses a path with an empty segment instead of forwarding it as another rou
     expect((await handleMachineRequest(new Request(`http://127.0.0.1/api/machines/${path}`), manager)).status).toBe(404);
   }
   expect(asked.length).toBe(before);
+});
+
+it("forwards the changed-files routes to a PC, same-origin only", async () => {
+  const list = await handleMachineRequest(new Request("http://127.0.0.1/api/machines/pc1/pane/changed-files?pane_id=w1%3Ap1"), manager);
+  expect(await list.json()).toEqual({ session: [], git: [], repo: false });
+  const diff = await handleMachineRequest(new Request("http://127.0.0.1/api/machines/pc1/pane/changed-files/diff?pane_id=w1%3Ap1&path=%2Fx"), manager);
+  expect(diff.status).toBe(200);
+  expect((await handleMachineRequest(new Request("http://127.0.0.1/api/machines/pc1/pane/changed-files/other"), manager)).status).toBe(404);
+  const foreign = await handleMachineRequest(new Request("http://127.0.0.1/api/machines/pc1/pane/changed-files?pane_id=w1%3Ap1", { headers: { "sec-fetch-site": "cross-site" } }), manager);
+  expect(foreign.status).toBe(403);
 });

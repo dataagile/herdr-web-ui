@@ -1,5 +1,7 @@
 import { machinePath, type BridgeHealth, type HerdrIdentity, type Machine, type SetupAction, type SetupJob, type SetupRequest } from "../../shared/machines.ts";
 import type {
+  ChangedFileDiff,
+  ChangedFilesResponse,
   AgentKind,
   ConversationResponse,
   CreateWorktreeRequest,
@@ -512,6 +514,25 @@ export async function fetchPaneOmoActivity(paneId: string, machineId = "local"):
 export async function fetchPaneFiles(paneId: string, query: string, limit = 20, machineId = "local"): Promise<string[]> {
   const params = new URLSearchParams({ pane_id: paneId, q: query, limit: String(limit) });
   return (await getJson<{ files: string[] }>(machinePath(machineId, `pane/files?${params.toString()}`))).files;
+}
+
+/**
+ * GET /api/pane/changed-files: the files the pane's agent changed in its session and the other
+ * changes git sees. Null when that PC's bridge predates the route (its 404 `not_found`): the
+ * client then has no button for it.
+ */
+export async function fetchChangedFiles(paneId: string, machineId = "local"): Promise<ChangedFilesResponse | null> {
+  try {
+    return await getJson<ChangedFilesResponse>(machinePath(machineId, `pane/changed-files?pane_id=${encodeURIComponent(paneId)}`));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404 && error.code === "not_found") return null;
+    throw error;
+  }
+}
+
+/** GET /api/pane/changed-files/diff: one listed file's edits (or its git diff); ApiError 404 `file_not_changed` for any other path. */
+export async function fetchChangedFileDiff(paneId: string, path: string, machineId = "local"): Promise<ChangedFileDiff> {
+  return await getJson<ChangedFileDiff>(machinePath(machineId, `pane/changed-files/diff?${new URLSearchParams({ pane_id: paneId, path }).toString()}`));
 }
 
 /** GET /api/pane/prompt: the agent's interactive menu currently on screen, or null. */

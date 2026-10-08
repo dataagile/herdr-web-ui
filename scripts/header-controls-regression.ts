@@ -65,7 +65,7 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
   }
   console.log("PASS the header's copy path and Files buttons on a desktop");
 
-  // phone: the bar is icons only (no title); Files and the bell stay in it; the drawer has the path and the palette
+  // phone: the bar is icons only (no title); Files, the bell and the one Chat/Terminal toggle stay in it; the drawer has the path and the palette
   for (const width of [390, 360]) {
     const phone = await open({ width, height: 844 }, true);
     try {
@@ -73,10 +73,11 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
       assert.equal(await visibleCount(page, ".context-title-text, .context-sub, .context .agent-mark"), 0, `phone ${width}: no title text, crumb or agent mark in the header`);
       assert.equal(await visibleCount(page, ".context-copy.in-title"), 1, `phone ${width}: the copy button is in the header`);
       assert.equal(await visibleCount(page, ".context-copy.in-crumb"), 0, `phone ${width}: the crumb's copy button is not shown`);
-      for (const selector of [".drawer-toggle", ".header-new-tab", ".header-split", ".header-files", ".header-bell button", ".view-switch button"]) {
+      for (const selector of [".drawer-toggle", ".header-new-tab", ".header-split", ".header-files", ".header-bell button", ".view-toggle"]) {
         assert.ok(await visibleCount(page, `.app-header ${selector}`) >= 1, `phone ${width}: ${selector} is in the header`);
       }
-      for (const selector of [".app-header .btn", ".app-header .icon-button", ".app-header .view-switch button"]) {
+      assert.equal(await visibleCount(page, ".app-header .view-switch"), 0, `phone ${width}: the two-option switch gives way to the single toggle`);
+      for (const selector of [".app-header .btn", ".app-header .icon-button"]) {
         for (const rect of await page.locator(selector).evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect()).filter((r) => r.width > 0))) {
           assert.ok(rect.height >= 40 && rect.width >= 40, `phone ${width}: ${selector} keeps the 40px touch target (${rect.width}x${rect.height})`);
         }

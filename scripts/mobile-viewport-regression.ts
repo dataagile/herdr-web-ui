@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Browser } from "playwright-core";
+import { setLens } from "./lens.ts";
 
 type ViewportQA = Window & { viewportQA: { resize: (height: number) => void; pointer: (touch: boolean) => void } };
 
@@ -29,7 +30,7 @@ export async function checkMobileViewport(browser: Browser, origin: string, pane
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
     await page.locator(".conn-live").waitFor();
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await setLens(page, "chat");
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.waitFor();
     assert.equal(await page.locator(".chat-view").evaluate((node) => getComputedStyle(node).overscrollBehaviorY), "contain",
@@ -103,7 +104,7 @@ export async function checkMobileViewport(browser: Browser, origin: string, pane
     await page.setViewportSize({ width: 390, height: 844 });
     await height(500);
 
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await setLens(page, "terminal");
     const terminal = page.locator(".xterm-helper-textarea");
     await terminal.focus();
     await shell(false, "", 844);
@@ -122,7 +123,7 @@ export async function checkMobileViewport(browser: Browser, origin: string, pane
     await blur();
     await shell(false, "", 844);
 
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await setLens(page, "chat");
     await composer.focus();
     await shell(true, "500px", 500);
     // Switching to a hardware pointer must clear sizing even when the text field keeps focus.

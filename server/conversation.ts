@@ -893,6 +893,49 @@ export async function paneConversation(paneId: string, codexHome?: string, page:
   return answer;
 }
 
+/**
+ * The pages of a transcript walked back to its start: a longer conversation is listed from its newest pages only.
+ * ponytail: the page cache holds 32, so past that each refresh re-parses the oldest pages; a per-file incremental scan if it ever hurts.
+ */
+const MAX_WHOLE_PAGES = 40;
+
+/**
+ * The pane's whole conversation, not the chat's newest page: its resolved transcript, the folder
+ * its agent works in, and a `signature` that changes whenever the file does. `read()` pages back
+ * from the newest turns with the cursors the chat uses, so a /clear, a pi branch or a Codex
+ * rollout chain bounds it exactly as it bounds the chat. Throws ConversationUnavailable.
+ */
+export async function paneWholeConversation(paneId: string, codexHome?: string): Promise<{
+  source: RecognizedConversation["source"]; path: string; cwd: string; signature: string; read: () => ConversationTurn[];
+}> {
+  const snapshot = await sessionSnapshot();
+  const pane = snapshot.panes.find((candidate) => candidate.pane_id === paneId);
+  if (pane === undefined) throw new ConversationUnavailable("pane_not_found");
+  if (typeof pane.cwd !== "string" || pane.cwd.length === 0) throw new ConversationUnavailable("no_recognized_transcript");
+  let resolved: Awaited<ReturnType<typeof resolveTranscript>>;
+  try {
+    resolved = await resolveTranscript(pane, pane.cwd, codexHome, snapshot.panes);
+  } catch (error) {
+    // a session its agent has not written yet has nothing to list either
+    throw error instanceof ConversationNotStarted ? new ConversationUnavailable("session_not_written") : error;
+  }
+  const { source, path } = resolved;
+  const home = resolved.codexHome ?? codexHome;
+  let stat;
+  try { stat = statSync(path); } catch { throw new ConversationUnavailable("transcript_missing"); }
+  const read = (): ConversationTurn[] => {
+    const pages: ConversationTurn[][] = [];
+    let page = transcriptPage(source, path, {}, home);
+    for (let count = 0; ; count++) {
+      pages.push(page.turns);
+      if (page.cursor === null || count >= MAX_WHOLE_PAGES) break;
+      page = transcriptPage(source, path, { before: page.cursor }, home);
+    }
+    return pages.reverse().flat();
+  };
+  return { source, path, cwd: pane.foreground_cwd ?? pane.cwd, signature: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`, read };
+}
+
 /** One page of a resolved transcript (paneConversation's `page`). */
 export function transcriptPage(source: RecognizedConversation["source"], path: string, page: ConversationPage = {}, codexHome?: string): RecognizedConversation {
   let stat: { dev: number; ino: number; size: number; mtimeMs: number; ctimeMs: number };

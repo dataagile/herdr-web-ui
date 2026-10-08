@@ -8,6 +8,7 @@ A single-choice switch: one `aria-pressed="true"` option highlighted on an eleva
 - `div.segmented` — inline-flex track, 2px padding and gap, `--bg-elevated` fill, `--border` edge, `--radius-md`.
 - `div.segmented > button` — option, `calc(--control-h - 6px)` tall, `--radius-sm`, `--fs-sm` medium label, optional 15px Lucide icon before the label.
 - Header variant: `.segmented.view-switch` with `MessageSquare` / `SquareTerminal` icons and labels wrapped in `span.header-desktop-only` (labels drop below 560px, icons stay).
+- Phone (`<=480px`): the header switch is hidden and `button.icon-button.view-toggle` stands in for it, one button whose icon is the current lens (`MessageSquare` or `SquareTerminal`) and whose title/`aria-label` names the other lens ("Switch to Terminal" / "Switch to Chat"). It is not a segmented control: it holds no `aria-pressed`.
 - Optional `span.pill.pill-soon` inside an option for a lens that is not available yet.
 
 ## States & variants

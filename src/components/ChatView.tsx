@@ -27,7 +27,7 @@ import { usePageVisible } from "../lib/visibility.ts";
 import { dismissKeyboardOn } from "../lib/keyboard.ts";
 import { useFacesArrived } from "../lib/fontFaces.ts";
 import { OpenFileContext } from "../lib/filePaths.ts";
-import { patchText } from "../../shared/patch.ts";
+import { patchSections, patchText } from "../../shared/patch.ts";
 import { toolVerb } from "../lib/toolVerbs.ts";
 import { machinePath } from "../../shared/machines.ts";
 import { fileUrl } from "../lib/api.ts";
@@ -90,7 +90,7 @@ interface ChatState {
 const EMPTY_STATE: ChatState = { source: "conversation", turns: [], messages: [], truncated: false };
 
 
-function formatTime(ts: string | null): string | null {
+export function formatTime(ts: string | null): string | null {
   if (ts === null) return null;
   const date = new Date(ts);
   return Number.isNaN(date.getTime()) ? null : date.toLocaleTimeString(currentLocale(), { hour: "2-digit", minute: "2-digit" });
@@ -158,7 +158,7 @@ function TodoList({ items }: { items: TodoItem[] }) {
   ))}</div>;
 }
 
-function ompEditLineClass(line: string): string | undefined {
+export function ompEditLineClass(line: string): string | undefined {
   if (line.startsWith("+-") || line.startsWith("-") || /^(CUT|REM)\b/.test(line)) return "chat-diff-del";
   if (line.startsWith("+")) return "chat-diff-add";
   if (/^(PUT|MV)/.test(line) || line.startsWith("[")) return "chat-diff-head";
@@ -174,29 +174,25 @@ function ToolFile({ path, suffix }: { path: string; suffix?: string }) {
 }
 
 /** An edit's old and new text as one diff: the unchanged lines once, the changes in place. */
-function EditDiff({ before, after }: { before: string; after: string }) {
+export function EditDiff({ before, after }: { before: string; after: string }) {
   const lines = lineDiff(before, after);
   return <pre className="chat-diff">{lines.map((line, index) =>
     <span key={index} className={line.kind === "add" ? "chat-diff-add" : line.kind === "del" ? "chat-diff-del" : undefined}>{line.kind === "add" ? "+ " : line.kind === "del" ? "- " : "  "}{line.text}{"\n"}</span>)}</pre>;
 }
 
-/** A Codex patch as a diff: each file it touches a header that opens it, then its lines coloured. */
-function PatchView({ patch }: { patch: string }) {
-  const sections: Array<{ file: string | null; action: string; lines: string[] }> = [];
-  for (const line of patch.split("\n")) {
-    const file = /^\*\*\* (Update|Add|Delete) File: (.+)$/.exec(line);
-    if (file !== null) { sections.push({ file: file[2]!.trim(), action: file[1]!, lines: [] }); continue; }
-    if (/^\*\*\* (Begin|End) Patch/.test(line)) continue;
-    if (sections.length === 0) sections.push({ file: null, action: "", lines: [] });
-    sections.at(-1)!.lines.push(line);
-  }
-  // the blank line a patch ends on is not part of any file
-  for (const section of sections) while (section.lines.at(-1)?.trim() === "") section.lines.pop();
+/** The lines of a Codex patch, coloured; one file's part of it, or all of it. */
+export function PatchLines({ lines }: { lines: string[] }) {
   const lineClass = (line: string): string | undefined =>
     line.startsWith("@@") || line.startsWith("*** Move to:") ? "chat-diff-head" : line.startsWith("+") ? "chat-diff-add" : line.startsWith("-") ? "chat-diff-del" : undefined;
+  return <pre className="chat-diff">{lines.map((line, at) => <span key={at} className={lineClass(line)}>{line}{"\n"}</span>)}</pre>;
+}
+
+/** A Codex patch as a diff: each file it touches a header that opens it, then its lines coloured. */
+function PatchView({ patch }: { patch: string }) {
+  const sections = patchSections(patch);
   return <div className="chat-tool-io">{sections.map((section, index) => <div key={index}>
     {section.file !== null && <ToolFile path={section.file} suffix={section.action === "Update" ? undefined : ` (${section.action.toLowerCase()})`} />}
-    {section.lines.length > 0 && <pre className="chat-diff">{section.lines.map((line, at) => <span key={at} className={lineClass(line)}>{line}{"\n"}</span>)}</pre>}
+    {section.lines.length > 0 && <PatchLines lines={section.lines} />}
   </div>)}</div>;
 }
 

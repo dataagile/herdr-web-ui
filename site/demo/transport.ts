@@ -248,6 +248,27 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
     const source = agent === "claude" ? "claude-transcript" : agent === "codex" ? "codex-transcript" : agent === "gjc" ? "gjc-transcript" : agent === "omo" ? "omo-transcript" : agent === "pi" ? "pi-transcript" : "omp-transcript";
     return json({ source, turns: chat.turns, metadata: chat.metadata, cursor: null });
   }
+  // a pane with a conversation has edited a few files in it: the modified-files panel has something to show
+  if (path === "/api/pane/changed-files") {
+    const edited = keyOfPane.has(paneId) && chats.has(keyOfPane.get(paneId)!);
+    return json({
+      session: edited ? [
+        { path: "/home/demo/app/src/App.tsx", rel: "src/App.tsx", exists: true, edits: 2, created: false, last_at: "2026-10-08T10:42:00.000Z", git: "M" },
+        { path: "/home/demo/app/src/lib/format.ts", rel: "src/lib/format.ts", exists: true, edits: 1, created: true, last_at: "2026-10-08T10:31:00.000Z", git: "?" },
+      ] : [],
+      git: edited ? [{ path: "/home/demo/app/package.json", rel: "package.json", exists: true, git: "M" }] : [],
+      repo: edited,
+    }, 200, { "cache-control": "no-store" });
+  }
+  if (path === "/api/pane/changed-files/diff") {
+    const file = query.get("path") ?? "";
+    if (file.endsWith("package.json")) return json({ kind: "git", path: file, diff: "diff --git a/package.json b/package.json\n@@ -1,3 +1,3 @@\n {\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"\n }\n", truncated: false });
+    if (file.endsWith("format.ts")) return json({ kind: "session", path: file, edits: [{ at: "2026-10-08T10:31:00.000Z", body: { kind: "write", content: "export const upper = (text: string) => text.toUpperCase();\n" } }] });
+    return json({ kind: "session", path: file, edits: [
+      { at: "2026-10-08T10:35:00.000Z", body: { kind: "replace", edits: [{ before: "const title = \"demo\";", after: "const title = \"herdr\";" }] } },
+      { at: "2026-10-08T10:42:00.000Z", body: { kind: "replace", edits: [{ before: "return null;", after: "return <App />;" }] } },
+    ] });
+  }
   if (path === "/api/pane/prompt") return json({ prompt: keyOfPane.get(paneId) === "web" && promptOpen ? { ...PROMPT, id: promptId } : null });
   if (path === "/api/pane/prompt/answer") {
     const body = await bodyOf(init, input);

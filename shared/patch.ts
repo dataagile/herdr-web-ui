@@ -30,3 +30,21 @@ export function patchFiles(patch: string): string[] {
   }
   return files;
 }
+
+/** One file's part of a patch: what it does to the file and the lines under its header. */
+export interface PatchSection { file: string | null; action: "Update" | "Add" | "Delete" | ""; lines: string[] }
+
+/** A patch split by file; lines before the first header (none, in a well-formed patch) share a section with no file. */
+export function patchSections(patch: string): PatchSection[] {
+  const sections: PatchSection[] = [];
+  for (const line of patch.split("\n")) {
+    const file = /^\*\*\* (Update|Add|Delete) File: (.+)$/.exec(line);
+    if (file !== null) { sections.push({ file: file[2]!.trim(), action: file[1] as PatchSection["action"], lines: [] }); continue; }
+    if (/^\*\*\* (Begin|End) Patch/.test(line)) continue;
+    if (sections.length === 0) sections.push({ file: null, action: "", lines: [] });
+    sections.at(-1)!.lines.push(line);
+  }
+  // the blank line a patch ends on is not part of any file
+  for (const section of sections) while (section.lines.at(-1)?.trim() === "") section.lines.pop();
+  return sections;
+}

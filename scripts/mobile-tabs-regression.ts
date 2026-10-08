@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { appFaces } from "./app-faces.ts";
 import { herdrRpc, tabCreate, tabRename, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+import { setLens } from "./lens.ts";
 
 type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
 type KeyboardQA = Window & { keyboardQA: (height: number | null) => void };
@@ -87,7 +88,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.goto(`${origin}/?pane=${encodeURIComponent(first)}`);
     await page.locator(".conn-live").waitFor();
     await page.locator(".tab-strip").waitFor();
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await setLens(page, "chat");
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.waitFor();
     await assertShell(page, "chat");
@@ -104,7 +105,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); (window as unknown as KeyboardQA).keyboardQA(null); });
     await page.waitForFunction(() => !document.documentElement.hasAttribute("data-keyboard"));
 
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await setLens(page, "terminal");
     await page.locator(".key-bar").waitFor();
     await assertShell(page, "terminal");
 

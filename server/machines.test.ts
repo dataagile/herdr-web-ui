@@ -69,7 +69,7 @@ describe("machine boundaries", () => {
   });
   it("proxies only pane/workspace data and never remote management credentials", () => {
     for (const path of ["auth", "push", "updates/install", "machines/setup", "bridge", "../auth", "pane/../../auth", "pane/prompt/answer/extra", "pane/swap", "pane/split/extra", "tab/move", "tab/close/extra"]) expect(MACHINE_PROXY_PATH.test(path)).toBe(false);
-    for (const path of ["session", "agents", "pane/files", "pane/image", "pane/prompt/answer", "pane/split", "pane/focus", "pane/seen", "pane/resize", "pane/zoom", "workspace/create", "tab/create", "tab/rename", "tab/close"]) expect(MACHINE_PROXY_PATH.test(path)).toBe(true);
+    for (const path of ["session", "agents", "pane/files", "pane/changed-files", "pane/changed-files/diff", "pane/image", "pane/prompt/answer", "pane/split", "pane/focus", "pane/seen", "pane/resize", "pane/zoom", "workspace/create", "tab/create", "tab/rename", "tab/close"]) expect(MACHINE_PROXY_PATH.test(path)).toBe(true);
   });
 });
 

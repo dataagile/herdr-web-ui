@@ -604,6 +604,22 @@ One set for both themes: the card is island black wherever it shows.
   copy button keep the room; the Chat/Terminal switch keeps its words down to 560px. Hovering a
   header icon shows its name (the `title`); the bell and Files never move into the drawer.
 - The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
+  At `<=480px` it is replaced by one `.view-toggle` icon button (`MessageSquare` / `SquareTerminal`)
+  that shows the lens the pane is in; its title says what a tap switches to ("Switch to Terminal" /
+  "Switch to Chat"). Two options plus the seven other `--touch-target` buttons do not fit 360px; one
+  button does, and `.view-switch` is `display: none` there.
+- **Modified files** (`.header-amod`, `ChangedFiles.css`) is the last control of the bar, after the
+  Chat/Terminal switch, at every width: an icon button (`FileDiff`) with a `.pill.header-amod-count`
+  over its top-right corner (`--accent` edge, `--accent-tint` fill, `--lh-base` line). It is not drawn
+  at 0 session files, nor for a PC whose bridge lacks `GET /api/pane/changed-files`. It opens the
+  Files dialog's modal (a bottom sheet up to `640px`) with two groups, **In this session** and **Other
+  changes in git** ("May include changes that are not from this agent."). A row is a `.dir-browser-item`
+  with the folder in `--text-dim`, the file name in `--text-strong` (mono `--fs-xs`), a pill ("edited
+  ×N" / "created"), the turn's time, and git's letter at the right: `A` and `?` in `--status-done`,
+  `D` in `--status-blocked`, `M` and `R` in `--text-dim`. A row opens the file viewer on a
+  `.changed-tabs` segmented control, "Changes in this session" (or "Changes in git") and "File":
+  the first is a column of `.changed-edit` sections, "Edit 2 of 3 · 10:35" over the chat's own diff
+  (`.chat-diff`, `--status-done` / `--status-blocked`), the second the viewer as it was.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows
   (title with an `OPEN NOW` mark in `--status-working`, then time and prompts in `--text-dim`). A click

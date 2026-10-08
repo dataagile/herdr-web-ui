@@ -826,6 +826,11 @@ button {
   }
 }
 
+/* the Chat/Terminal switch on a phone is one button (see max-width: 480px): hidden wider */
+.icon-button.view-toggle {
+  display: none;
+}
+
 /* the Alerts button: a dot on it while alerts are off on this device. Its title says it in words. */
 .header-bell {
   position: relative;
@@ -1550,6 +1555,15 @@ button {
   .conn {
     padding: 0 var(--space-1);
     background: transparent;
+  }
+
+  /* two lens options do not fit beside the other seven touch targets: one button, the lens it shows is the pane's */
+  .view-switch {
+    display: none;
+  }
+
+  .icon-button.view-toggle {
+    display: inline-flex;
   }
 
   .pill-version,

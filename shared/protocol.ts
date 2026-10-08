@@ -97,7 +97,8 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *         in its session, read from its whole transcript, and the other changes git sees in the pane's
  *         folder; a bridge that predates it answers 404 and the client hides the button)
  *  GET    /api/pane/changed-files/diff?pane_id=&path=  -> ChangedFileDiff (`path` as that list gave it:
- *         a session file's edits from the transcript, a git-only file's `git diff`; 404 otherwise)
+ *         a session file's edits from the transcript, a git-only file's `git diff`; 404 otherwise; a file read,
+ *         so a watch-only device gets 403)
  *  GET    /api/pane/prompt?pane_id=     -> { prompt: InteractivePrompt | null, suggestion: string | null }
  *         (the agent's TUI question/approval menu currently on screen, parsed from the visible pane
  *         text; with no menu, the next prompt Claude Code suggests, grey in its empty input box)
@@ -419,6 +420,9 @@ export interface ChangedFilesResponse {
   repo: boolean;
   /** git status had more output than is read: `git` is empty rather than a partial list */
   gitTruncated?: boolean;
+  /** the session was longer than the pages read: `session` lists the changes of its newest `sessionParts` parts only */
+  sessionTruncated?: boolean;
+  sessionParts?: number;
 }
 
 /** One change a session's call made to a file; `body` is what the chat draws for that call. */

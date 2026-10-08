@@ -34,7 +34,7 @@ import nodePath, { type PlatformPath } from "node:path";
 
 import type { ConversationMetadata, ConversationPart, ConversationTurn, HerdrPane, SessionSnapshot } from "../shared/protocol.ts";
 import { herdrRpc, sessionSnapshot } from "./herdr/client.ts";
-import { codexHistorySegments, createCodexTranscriptParser, codexOutputText, codexTranscriptPath, defaultCodexHome, paneCodexHome, parseCodexTranscript, readRange } from "./codex.ts";
+import { codexHistorySegments, createCodexTranscriptParser, codexOutputText, codexTranscriptPath, defaultCodexHome, paneCodexHome, codexSessionCwd, parseCodexTranscript, readRange } from "./codex.ts";
 import { CODEX_IMAGE_REF, codexTranscriptImage } from "./codex-images.ts";
 import { claudeProcessSession, claudeTranscriptFile, defaultClaudeConfigDir, forgetClaudeSessions, processClaudeConfigDir } from "./claude-store.ts";
 import { forgetGjcState, gjcPidUnderShell, gjcTranscriptForPane, isGjcProcess, storeRelative } from "./gjc-runtime.ts";
@@ -568,8 +568,8 @@ function newestPage(path: string, stream: TranscriptStream, source: RecognizedCo
   return start === undefined ? null : { start, starts };
 }
 
-function parseTurns(source: RecognizedConversation["source"], text: string, taskTitles?: Map<string, string>): ConversationTurn[] {
-  return source === "codex-transcript" ? parseCodexTranscript(text, Infinity)
+function parseTurns(source: RecognizedConversation["source"], text: string, taskTitles?: Map<string, string>, cwd?: string): ConversationTurn[] {
+  return source === "codex-transcript" ? parseCodexTranscript(text, Infinity, cwd)
     // only pi keeps a tool's images in the entry as base64; omp, omo and gjc are read the same
     // way but would carry image refs nothing can answer, so the option stays with pi alone
     : source === "claude-transcript" ? parseClaudeTranscript(text, Infinity)
@@ -895,20 +895,51 @@ export async function paneConversation(paneId: string, codexHome?: string, page:
   return answer;
 }
 
+/** The most pages of a transcript the whole-conversation read walks back (the newest ones); a longer session is cut. */
+export const MAX_WHOLE_PAGES = 40;
+
 /**
- * The pages of a transcript walked back to its start: a longer conversation is listed from its newest pages only.
- * ponytail: the page cache holds 32, so past that each refresh re-parses the oldest pages; a per-file incremental scan if it ever hurts.
+ * A transcript's turns from its newest page back to its start (at most `maxPages` pages), for a
+ * reader that wants the whole session. It pages with the chat's cursors (a /clear, a pi branch or
+ * a Codex rollout chain bound it as they bound the chat) but not through the chat's page cache,
+ * which it would evict, and it gives the event loop a turn between pages. Codex pages after the
+ * first have lost the records that name the session's folder, so it is read once from the start.
+ * `truncated`: the limit cut the session, with the oldest part left out.
  */
-const MAX_WHOLE_PAGES = 40;
+export async function wholeTranscript(source: RecognizedConversation["source"], path: string, codexHome: string | undefined, maxPages = MAX_WHOLE_PAGES): Promise<{ turns: ConversationTurn[]; truncated: boolean; pages: number }> {
+  let stat;
+  try { stat = statSync(path); } catch { throw new ConversationUnavailable("transcript_missing"); }
+  let stream: TranscriptStream;
+  try {
+    stream = transcriptStream(source, path, stat, codexHome ?? defaultCodexHome());
+    applyHistoryBoundary(path, stream, source);
+  } catch (error) {
+    if (error instanceof ConversationUnavailable) throw error;
+    throw new ConversationUnavailable("transcript_missing");
+  }
+  const cwd = source === "codex-transcript" ? codexSessionCwd(path) : undefined;
+  const pages: ConversationTurn[][] = [];
+  let to = stream.length;
+  let start = to;
+  while (pages.length < maxPages && to > stream.floor) {
+    const page = pageBefore(stream, source, to, { widen: true });
+    start = page.start;
+    pages.push(parseTurns(source, page.bytes.toString("utf8"), undefined, cwd));
+    // a page that did not move would walk forever
+    if (start >= to) { start = stream.floor; break; }
+    to = start;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  return { turns: pages.reverse().flat(), truncated: start > stream.floor, pages: pages.length };
+}
 
 /**
  * The pane's whole conversation, not the chat's newest page: its resolved transcript, the folder
- * its agent works in, and a `signature` that changes whenever the file does. `read()` pages back
- * from the newest turns with the cursors the chat uses, so a /clear, a pi branch or a Codex
- * rollout chain bounds it exactly as it bounds the chat. Throws ConversationUnavailable.
+ * its agent works in, and a `signature` that changes whenever the file does. `read()` is
+ * wholeTranscript. Throws ConversationUnavailable.
  */
 export async function paneWholeConversation(paneId: string, codexHome?: string, known?: Awaited<ReturnType<typeof sessionSnapshot>>): Promise<{
-  source: RecognizedConversation["source"]; path: string; cwd: string; signature: string; read: () => ConversationTurn[];
+  source: RecognizedConversation["source"]; path: string; cwd: string; signature: string; read: () => Promise<{ turns: ConversationTurn[]; truncated: boolean; pages: number }>;
 }> {
   const snapshot = known ?? await sessionSnapshot();
   const pane = snapshot.panes.find((candidate) => candidate.pane_id === paneId);
@@ -925,17 +956,7 @@ export async function paneWholeConversation(paneId: string, codexHome?: string, 
   const home = resolved.codexHome ?? codexHome;
   let stat;
   try { stat = statSync(path); } catch { throw new ConversationUnavailable("transcript_missing"); }
-  const read = (): ConversationTurn[] => {
-    const pages: ConversationTurn[][] = [];
-    let page = transcriptPage(source, path, {}, home);
-    for (let count = 0; ; count++) {
-      pages.push(page.turns);
-      if (page.cursor === null || count >= MAX_WHOLE_PAGES) break;
-      page = transcriptPage(source, path, { before: page.cursor }, home);
-    }
-    return pages.reverse().flat();
-  };
-  return { source, path, cwd: pane.foreground_cwd ?? pane.cwd, signature: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`, read };
+  return { source, path, cwd: pane.foreground_cwd ?? pane.cwd, signature: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`, read: () => wholeTranscript(source, path, home) };
 }
 
 /** One page of a resolved transcript (paneConversation's `page`). */

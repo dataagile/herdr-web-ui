@@ -5,7 +5,7 @@
  */
 
 import { patchSections, patchText } from "./patch.ts";
-import { toolVerbKind } from "./tool-verbs.ts";
+import { carriesPatch, toolVerbKind } from "./tool-verbs.ts";
 
 /** What one call did to one file, in the form the client draws. */
 export type ChangeBody =
@@ -44,7 +44,7 @@ function pair(item: Record<string, unknown>): { before: string; after: string } 
 export function fileChanges(name: string, input: string): FileChange[] {
   const kind = toolVerbKind(name, input);
   if (kind !== "edit" && kind !== "write") return [];
-  const patch = patchText(input);
+  const patch = carriesPatch(name) ? patchText(input) : null;
   if (patch !== null) {
     return patchSections(patch).flatMap((section): FileChange[] => {
       if (section.file === null) return [];

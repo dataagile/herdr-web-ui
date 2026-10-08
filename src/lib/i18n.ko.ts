@@ -878,6 +878,7 @@ export const KO: Record<string, string> = {
   "created": "생성됨",
   "edited ×{n}": "수정 ×{n}",
   "Too many changes in the repository to list": "저장소의 변경이 너무 많아 나열할 수 없습니다",
+  "Long session: showing the last {n} parts": "긴 세션: 최근 {n}개 구간만 표시합니다",
   "uncertain": "불확실",
   "The script failed; its patch may not have been applied": "스크립트가 실패했습니다. 패치가 적용되지 않았을 수 있습니다",
   "Git: modified": "Git: 수정됨",

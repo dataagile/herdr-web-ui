@@ -11,6 +11,7 @@ import { AgentMark } from "./AgentMark.tsx";
 import { Markdown } from "./Markdown.tsx";
 import { PromptCard } from "./PromptCard.tsx";
 import { RenderBoundary } from "./RenderBoundary.tsx";
+import { EditDiff, EditScript, formatTime, PatchLines } from "./diffLines.tsx";
 import { turnRevision } from "../lib/turnRevision.ts";
 import { useWholeOutput as useScopedOutput } from "../lib/useWholeOutput.ts";
 import { turnSkills } from "../lib/skillActivity.ts";
@@ -32,7 +33,6 @@ import { toolVerb } from "../lib/toolVerbs.ts";
 import { machinePath } from "../../shared/machines.ts";
 import { fileUrl } from "../lib/api.ts";
 import { useMachineId } from "../lib/machineContext.tsx";
-import { lineDiff } from "../lib/diff.ts";
 import { formatTokens } from "../lib/compose.ts";
 import { formatElapsed, taskCallItems, taskResultMarkdown } from "../lib/omoTasks.ts";
 
@@ -42,7 +42,7 @@ const ChatHistoryContext = createContext("");
 import type { TypedAnswer } from "../lib/promptAnswer.ts";
 import type { AgentStatus, ConversationMetadata, ConversationPart, ConversationTurn, InteractivePrompt, OmoTaskResult } from "../../shared/protocol.ts";
 import { chatIsBlank, type ChatRead } from "../lib/greeting.ts";
-import { currentLocale, useT } from "../lib/i18n.ts";
+import { useT } from "../lib/i18n.ts";
 
 const TRANSCRIPT_LINES = 400;
 const POLL_MS = 2000;
@@ -90,11 +90,6 @@ interface ChatState {
 const EMPTY_STATE: ChatState = { source: "conversation", turns: [], messages: [], truncated: false };
 
 
-export function formatTime(ts: string | null): string | null {
-  if (ts === null) return null;
-  const date = new Date(ts);
-  return Number.isNaN(date.getTime()) ? null : date.toLocaleTimeString(currentLocale(), { hour: "2-digit", minute: "2-digit" });
-}
 
 function plainText(markdown: string): string {
   return markdown
@@ -158,12 +153,6 @@ function TodoList({ items }: { items: TodoItem[] }) {
   ))}</div>;
 }
 
-export function ompEditLineClass(line: string): string | undefined {
-  if (line.startsWith("+-") || line.startsWith("-") || /^(CUT|REM)\b/.test(line)) return "chat-diff-del";
-  if (line.startsWith("+")) return "chat-diff-add";
-  if (/^(PUT|MV)/.test(line) || line.startsWith("[")) return "chat-diff-head";
-  return undefined;
-}
 
 /** A file a tool call names: it opens in the viewer where one can, and reads as text elsewhere. */
 function ToolFile({ path, suffix }: { path: string; suffix?: string }) {
@@ -171,20 +160,6 @@ function ToolFile({ path, suffix }: { path: string; suffix?: string }) {
   const open = useContext(OpenFileContext);
   if (open === null) return <p className="chat-tool-file">{path}{suffix}</p>;
   return <p className="chat-tool-file"><button type="button" className="chat-tool-file-link" title={t("Open {path}", { path })} onClick={() => open(path)}>{path}</button>{suffix}</p>;
-}
-
-/** An edit's old and new text as one diff: the unchanged lines once, the changes in place. */
-export function EditDiff({ before, after }: { before: string; after: string }) {
-  const lines = lineDiff(before, after);
-  return <pre className="chat-diff">{lines.map((line, index) =>
-    <span key={index} className={line.kind === "add" ? "chat-diff-add" : line.kind === "del" ? "chat-diff-del" : undefined}>{line.kind === "add" ? "+ " : line.kind === "del" ? "- " : "  "}{line.text}{"\n"}</span>)}</pre>;
-}
-
-/** The lines of a Codex patch, coloured; one file's part of it, or all of it. */
-export function PatchLines({ lines }: { lines: string[] }) {
-  const lineClass = (line: string): string | undefined =>
-    line.startsWith("@@") || line.startsWith("*** Move to:") ? "chat-diff-head" : line.startsWith("+") ? "chat-diff-add" : line.startsWith("-") ? "chat-diff-del" : undefined;
-  return <pre className="chat-diff">{lines.map((line, at) => <span key={at} className={lineClass(line)}>{line}{"\n"}</span>)}</pre>;
 }
 
 /** A Codex patch as a diff: each file it touches a header that opens it, then its lines coloured. */
@@ -225,7 +200,7 @@ function ToolInputView({ part }: { part: ToolPartType }) {
       <EditDiff key={index} before={typeof item["old_string"] === "string" ? item["old_string"] : ""} after={typeof item["new_string"] === "string" ? item["new_string"] : ""} />)}</div>;
   }
   const editScript = str("input");
-  if (editScript !== undefined) return <pre className="chat-tool-io chat-diff">{editScript.split("\n").map((line, index) => <span key={index} className={ompEditLineClass(line)}>{line}{"\n"}</span>)}</pre>;
+  if (editScript !== undefined) return <EditScript script={editScript} className="chat-tool-io chat-diff" />;
   const content = str("content");
   if (content !== undefined) return <div className="chat-tool-io">{(str("file_path") ?? str("path")) !== undefined && <ToolFile path={(str("file_path") ?? str("path"))!} />}<pre>{content}</pre></div>;
   const path = str("file_path") ?? str("path");

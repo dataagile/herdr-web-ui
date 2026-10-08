@@ -4,7 +4,7 @@ import { Download, ExternalLink, FileDiff, FileText, Pencil, X } from "lucide-re
 import "./FileViewer.css";
 import { DirectoryBrowser } from "./DirectoryBrowser.tsx";
 import { FileChanges } from "./FileChanges.tsx";
-import { formatTime } from "./ChatView.tsx";
+import { formatTime } from "./diffLines.tsx";
 
 import type { ChangedFile, FileInfo, SessionChangedFile } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";

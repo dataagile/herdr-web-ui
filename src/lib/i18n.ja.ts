@@ -880,6 +880,7 @@ export const JA: Record<string, string> = {
   "created": "作成",
   "edited ×{n}": "編集 ×{n}",
   "Too many changes in the repository to list": "リポジトリの変更が多すぎて一覧できません",
+  "Long session: showing the last {n} parts": "長いセッション: 最新の {n} 区間のみ表示しています",
   "uncertain": "不確実",
   "The script failed; its patch may not have been applied": "スクリプトが失敗しました。パッチは適用されていない可能性があります",
   "Git: modified": "Git: 変更",

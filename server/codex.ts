@@ -245,11 +245,28 @@ export function createCodexTranscriptParser(state: CodexParseState = { turns: []
   };
 }
 
-export function parseCodexTranscript(text: string, maxTurns = 100): ConversationTurn[] {
-  const parser = createCodexTranscriptParser();
+/**
+ * `cwd`: the folder the session started in, for a page that starts after the records that name it
+ * (see codexSessionCwd); the page's own turn_context still overrides it.
+ */
+export function parseCodexTranscript(text: string, maxTurns = 100, cwd?: string): ConversationTurn[] {
+  const parser = createCodexTranscriptParser({ turns: [], tools: new Map(), messages: [], ...(cwd === undefined ? {} : { cwd }) });
   parser.write(text);
   return parser.snapshot().slice(-maxTurns);
 }
+
+/** The folder the first session_meta / turn_context in the head of a rollout names, or undefined. */
+export function codexSessionCwd(path: string): string | undefined {
+  let head: string;
+  try { head = readRange(path, 0, SESSION_HEAD_BYTES); } catch { return undefined; }
+  for (const entry of entries(head)) {
+    const cwd = string(record(entry.payload).cwd);
+    if ((entry.type === "session_meta" || entry.type === "turn_context") && isAbsolute(cwd)) return cwd;
+  }
+  return undefined;
+}
+/** session_meta carries the agent's instructions, so it can be long; the line is parsed whole or not at all. */
+const SESSION_HEAD_BYTES = 1024 * 1024;
 
 export const defaultCodexHome = (): string => process.env["CODEX_HOME"] || join(homedir(), ".codex");
 

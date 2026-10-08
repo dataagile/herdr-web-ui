@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import "./ChangedFiles.css";
-import { EditDiff, formatTime, ompEditLineClass, PatchLines } from "./ChatView.tsx";
+import { EditDiff, EditScript, formatTime, PatchLines } from "./diffLines.tsx";
 import type { ChangeBody } from "../../shared/file-changes.ts";
 import type { ChangedFileDiff } from "../../shared/protocol.ts";
 import { formatBytes } from "../lib/bridgeProgress.ts";
@@ -14,14 +14,20 @@ function ChangeView({ body }: { body: ChangeBody }) {
     case "replace": return <div className="chat-tool-io is-whole">{body.edits.map((edit, index) => <EditDiff key={index} before={edit.before} after={edit.after} />)}</div>;
     case "write": return <div className="chat-tool-io is-whole"><EditDiff before="" after={body.content} /></div>;
     case "patch": return <div className="chat-tool-io is-whole"><PatchLines lines={body.lines} /></div>;
-    case "script": return <pre className="chat-tool-io is-whole chat-diff">{body.script.split("\n").map((line, index) => <span key={index} className={ompEditLineClass(line)}>{line}{"\n"}</span>)}</pre>;
+    case "script": return <EditScript script={body.script} className="chat-tool-io is-whole chat-diff" />;
     default: return <pre className="chat-tool-io is-whole">{body.text}</pre>;
   }
 }
 
-function gitLineClass(line: string): string | undefined {
-  if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("@@") || line.startsWith("diff ") || line.startsWith("index ")) return "chat-diff-head";
-  return line.startsWith("+") ? "chat-diff-add" : line.startsWith("-") ? "chat-diff-del" : undefined;
+/** git's unified diff: the lines before the first hunk are its headers (the `---` / `+++` names are not changes), the hunks are drawn as a patch's are. */
+function GitDiff({ diff }: { diff: string }) {
+  const lines = diff.replace(/\n$/, "").split("\n");
+  const hunk = lines.findIndex((line) => line.startsWith("@@"));
+  const head = hunk === -1 ? lines : lines.slice(0, hunk);
+  return <div className="chat-tool-io is-whole">
+    <pre className="chat-diff">{head.map((line, index) => <span key={index} className="chat-diff-head">{line}{"\n"}</span>)}</pre>
+    {hunk !== -1 && <PatchLines lines={lines.slice(hunk)} />}
+  </div>;
 }
 
 /** A file's changes: each edit of the session in order, or git's diff for a file the session did not edit. */
@@ -42,7 +48,7 @@ export function FileChanges({ paneId, path }: { paneId: string; path: string }) 
   if (diff.kind === "git") {
     return <div className="changed-edits">
       {diff.diff.length === 0 ? <p className="file-viewer-note">{t("Git shows no difference for this file.")}</p>
-        : <div className="chat-tool-io is-whole"><pre className="chat-diff">{diff.diff.split("\n").map((line, index) => <span key={index} className={gitLineClass(line)}>{line}{"\n"}</span>)}</pre></div>}
+        : <GitDiff diff={diff.diff} />}
       {diff.truncated && <p className="file-viewer-note">{t("Showing the first {shown} of the diff.", { shown: formatBytes(diff.diff.length) })}</p>}
     </div>;
   }

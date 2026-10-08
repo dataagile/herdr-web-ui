@@ -620,7 +620,7 @@ One set for both themes: the card is island black wherever it shows.
   `D` in `--status-blocked`, `M` and `R` in `--text-dim`. A row opens the file viewer on a
   `.changed-tabs` segmented control, "Changes in this session" (or "Changes in git") and "File":
   the first is a column of `.changed-edit` sections, "Edit 2 of 3 · 10:35" over the chat's own diff
-  (`.chat-diff`, `--status-done` / `--status-blocked`), the second the viewer as it was.
+  (`.chat-diff`, `--status-done` / `--status-blocked`), the second the viewer as it was. A watch-only device has no changes tab. A session longer than the server reads shows a `.changed-note`, "Long session: showing the last N parts", above the groups.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows
   (title with an `OPEN NOW` mark in `--status-working`, then time and prompts in `--text-dim`). A click

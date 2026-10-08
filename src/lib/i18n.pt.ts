@@ -859,6 +859,7 @@ export const PT: Record<string, string> = {
   "created": "criado",
   "edited ×{n}": "editado ×{n}",
   "Too many changes in the repository to list": "Repositório com alterações demais para listar",
+  "Long session: showing the last {n} parts": "Sessão longa: mostrando as últimas {n} partes",
   "uncertain": "incerto",
   "The script failed; its patch may not have been applied": "O script falhou; o patch pode não ter sido aplicado",
   "Git: modified": "Git: modificado",

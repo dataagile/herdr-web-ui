@@ -7,11 +7,12 @@
  * and no file's content is read except through `git diff` for a path the list itself named.
  */
 
-import { realpathSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import nodePath from "node:path";
 
 import { fileChanges, type ChangeBody } from "../shared/file-changes.ts";
 import { patchText } from "../shared/patch.ts";
+import { carriesPatch } from "../shared/tool-verbs.ts";
 import type { ChangedFile, ChangedFileDiff, ChangedFilesResponse, ConversationTurn, SessionChangedFile } from "../shared/protocol.ts";
 import { ConversationUnavailable, paneWholeConversation } from "./conversation.ts";
 import { HerdrError, sessionSnapshot } from "./herdr/client.ts";
@@ -40,7 +41,7 @@ export function sessionEdits(turns: readonly ConversationTurn[], cwd: string, pa
     if (turn.role !== "assistant") continue;
     for (const part of turn.parts) {
       if (part.kind !== "tool") continue;
-      const script = part.error === true && !/^(apply_patch|patch)$/i.test(part.name) && patchText(part.input) !== null && !/apply_patch verification failed/.test(part.output);
+      const script = part.error === true && !/^(apply_patch|patch)$/i.test(part.name) && carriesPatch(part.name) && patchText(part.input) !== null && !/apply_patch verification failed/.test(part.output);
       if (part.error && !script) continue;
       for (const change of fileChanges(part.name, part.input)) {
         const absolute = path.resolve(part.cwd ?? cwd, change.path);
@@ -88,8 +89,14 @@ const GIT_TIMEOUT_MS = 5_000;
 /** git status is a list of names; the repo with more changed files than this is not a list worth drawing. */
 const GIT_STATUS_MAX_BYTES = 1024 * 1024;
 export const DIFF_MAX_BYTES = 512 * 1024;
-/** Config git would otherwise run programs from (a filesystem monitor, a diff driver) stays off. */
-const GIT_SAFE = ["-c", "core.fsmonitor=false", "-c", "core.quotepath=off"];
+/** no external diff driver, no textconv program: only git's own diff reads the file */
+export const DIFF_FLAGS = ["--no-color", "--no-ext-diff", "--no-textconv"];
+/**
+ * core.fsmonitor can name a program to run on every status, so it is forced off, and the diffs run
+ * with --no-ext-diff / --no-textconv (DIFF_FLAGS). This is not a sandbox: clean filters and other
+ * config in the user's own repo can still run on status / diff, as they do whenever git runs there.
+ */
+export const GIT_SAFE = ["-c", "core.fsmonitor=false", "-c", "core.quotepath=off"];
 
 /** git, run without a shell, with a deadline and a cap on what is read; null when it cannot run or times out. */
 async function git(cwd: string, args: string[], maxBytes = GIT_STATUS_MAX_BYTES): Promise<{ code: number; out: string; truncated: boolean } | null> {
@@ -134,23 +141,33 @@ function realOrSelf(path: string): { path: string; exists: boolean } {
   try { return { path: realpathSync(path), exists: true }; } catch { return { path, exists: false }; }
 }
 
-function locate(path: string, cwd: string): { path: string; rel: string } {
-  const rel = nodePath.relative(cwd, path);
-  return { path, rel: rel.length > 0 && !rel.startsWith("..") && !nodePath.isAbsolute(rel) ? rel.split(nodePath.sep).join("/") : path };
+/** `path` relative to the first of the folders it is inside (the pane's folder as named, then as the disk has it), else itself. */
+function locate(path: string, ...folders: string[]): { path: string; rel: string } {
+  for (const folder of folders) {
+    const rel = nodePath.relative(folder, path);
+    if (rel.length > 0 && !rel.startsWith("..") && !nodePath.isAbsolute(rel)) return { path, rel: rel.split(nodePath.sep).join("/") };
+  }
+  return { path, rel: path };
 }
 
+/** What a transcript's calls added up to, and whether its session was cut at the page limit. */
+export interface SessionRead { files: Map<string, SessionFileEdits>; truncated: boolean; pages: number }
+
 /** Per transcript file and size: the turns of a long session are read once, not on every poll. */
-const sessionCache = new Map<string, { signature: string; cwd: string; files: Map<string, SessionFileEdits> }>();
+const sessionCache = new Map<string, { signature: string; cwd: string; result: Promise<SessionRead> }>();
 
 /** The session's edits for a transcript in this state; `read` parses the turns only when the file or the folder changed. */
-export function cachedSessionEdits(path: string, signature: string, cwd: string, read: () => ConversationTurn[]): Map<string, SessionFileEdits> {
+export function cachedSessionEdits(path: string, signature: string, cwd: string, read: () => Promise<{ turns: ConversationTurn[]; truncated: boolean; pages: number }>): Promise<SessionRead> {
   const cached = sessionCache.get(path);
-  if (cached !== undefined && cached.signature === signature && cached.cwd === cwd) return cached.files;
-  const files = sessionEdits(read(), cwd);
+  if (cached !== undefined && cached.signature === signature && cached.cwd === cwd) return cached.result;
+  const result = read().then((whole) => ({ files: sessionEdits(whole.turns, cwd), truncated: whole.truncated, pages: whole.pages }));
   sessionCache.delete(path);
-  sessionCache.set(path, { signature, cwd, files });
+  const entry = { signature, cwd, result };
+  sessionCache.set(path, entry);
+  // a read that failed is not kept: the next poll asks again
+  result.catch(() => { if (sessionCache.get(path) === entry) sessionCache.delete(path); });
   if (sessionCache.size > 16) sessionCache.delete(sessionCache.keys().next().value!);
-  return files;
+  return result;
 }
 
 export interface PaneChanges {
@@ -161,7 +178,9 @@ export interface PaneChanges {
 }
 
 /** The last report per pane, kept while neither its transcript, its folder nor git's status changed: a /diff asked right after the list does not rebuild it. */
-const reportCache = new Map<string, { key: string; changes: PaneChanges }>();
+const reportCache = new Map<string, { key: string; changes: PaneChanges; at: number }>();
+/** A /diff asked this soon after the list reuses it; the panel refreshes the list every 15 s. */
+const REPORT_REUSE_MS = 30_000;
 
 /** Forgets what was read from transcripts (tests). */
 export function forgetChangedFiles(): void { sessionCache.clear(); reportCache.clear(); }
@@ -172,21 +191,26 @@ export async function paneChanges(paneId: string, codexHome?: string): Promise<P
   // an unknown pane is an error, as it is for every pane route; a pane with no agent is an empty session
   let cwd = paneFolder(snapshot, paneId);
   let edits = new Map<string, SessionFileEdits>();
+  let session: SessionRead | null = null;
   let signature = "none";
   try {
     const whole = await paneWholeConversation(paneId, codexHome, snapshot);
     cwd = whole.cwd;
     signature = `${whole.path}:${whole.signature}`;
-    edits = cachedSessionEdits(whole.path, whole.signature, whole.cwd, whole.read);
+    session = await cachedSessionEdits(whole.path, whole.signature, whole.cwd, whole.read);
+    edits = session.files;
   } catch (error) {
     // a pane with no recognized agent has no session to list; its git changes still stand.
     // Anything else (a herdr timeout, a transcript that cannot be read) must not take the git list with it.
     if (!(error instanceof ConversationUnavailable)) console.error(`changed-files: session of pane ${paneId} not read: ${error instanceof Error ? error.message : String(error)}`);
   }
   const repo = await gitChanges(cwd);
-  const key = `${signature}\0${cwd}\0${repo?.root ?? ""}\0${repo?.fingerprint ?? ""}`;
+  // a file the session edited can appear or vanish without the transcript or git's status moving (an ignored file, a rm
+  // outside git): its mtime, or its absence, is part of the key, so `exists` is never older than the last poll
+  const onDisk = [...edits.keys()].map((path) => { try { return statSync(path).mtimeMs; } catch { return "-"; } }).join(",");
+  const key = `${signature}\0${cwd}\0${repo?.root ?? ""}\0${repo?.fingerprint ?? ""}\0${onDisk}`;
   const cached = reportCache.get(paneId);
-  if (cached !== undefined && cached.key === key) return cached.changes;
+  if (cached !== undefined && cached.key === key) { cached.at = Date.now(); return cached.changes; }
 
   // each path meets the disk once
   const real = new Map<string, { path: string; exists: boolean }>();
@@ -198,13 +222,15 @@ export async function paneChanges(paneId: string, codexHome?: string): Promise<P
   const letters = new Map<string, NonNullable<ChangedFile["git"]>>();
   for (const change of repo?.changes ?? []) letters.set(disk(change.path).path, change.status);
 
+  // the pane's folder may be a symlink: git names paths by the real one
+  const folders = [cwd, disk(cwd).path];
   const listed = new Set<string>();
-  const session: SessionChangedFile[] = [...edits.values()].map((file) => {
+  const sessionFiles: SessionChangedFile[] = [...edits.values()].map((file) => {
     const onDisk = disk(file.path);
     listed.add(onDisk.path);
     const letter = letters.get(onDisk.path);
     return {
-      ...locate(file.path, cwd), exists: onDisk.exists, edits: file.edits.length,
+      ...locate(file.path, ...folders), exists: onDisk.exists, edits: file.edits.length,
       // a whole-file write the transcript cannot place: git says whether the file is new
       created: file.created ?? (letter === "?" || letter === "A"), last_at: file.last_at,
       ...(file.uncertain === true ? { uncertain: true } : {}),
@@ -212,15 +238,18 @@ export async function paneChanges(paneId: string, codexHome?: string): Promise<P
     };
   });
   const git = (repo?.changes ?? []).filter((change) => !listed.has(disk(change.path).path)).map((change) => ({
-    ...locate(change.path, cwd), exists: change.status !== "D", git: change.status,
+    ...locate(change.path, ...folders), exists: change.status !== "D", git: change.status,
   }));
-  session.sort((left, right) => (right.last_at ?? "").localeCompare(left.last_at ?? ""));
+  sessionFiles.sort((left, right) => (right.last_at ?? "").localeCompare(left.last_at ?? ""));
   const changes: PaneChanges = {
-    report: { session, git, repo: repo !== null, ...(repo?.truncated ? { gitTruncated: true } : {}) },
+    report: {
+      session: sessionFiles, git, repo: repo !== null, ...(repo?.truncated ? { gitTruncated: true } : {}),
+      ...(session?.truncated ? { sessionTruncated: true, sessionParts: session.pages } : {}),
+    },
     edits, root: repo?.root ?? null,
   };
   reportCache.delete(paneId);
-  reportCache.set(paneId, { key, changes });
+  reportCache.set(paneId, { key, changes, at: Date.now() });
   if (reportCache.size > 32) reportCache.delete(reportCache.keys().next().value!);
   return changes;
 }
@@ -232,6 +261,19 @@ function paneFolder(snapshot: Awaited<ReturnType<typeof sessionSnapshot>>, paneI
   const cwd = pane.foreground_cwd ?? pane.cwd;
   if (!cwd) throw new HerdrError("cwd_not_found", `pane ${paneId} has no working directory`);
   return cwd;
+}
+
+/**
+ * One file's diff without rebuilding the report the list just built: the pane's cached report is
+ * used while it is recent. A path it does not name may be a change made since, so then (and only
+ * then) the report is built again before the path is refused.
+ */
+export async function paneFileDiff(paneId: string, path: string, codexHome?: string): Promise<ChangedFileDiff> {
+  const cached = reportCache.get(paneId);
+  if (cached !== undefined && Date.now() - cached.at < REPORT_REUSE_MS) {
+    try { return await changedFileDiff(cached.changes, path); } catch (error) { if (!(error instanceof ChangedFileNotListed)) throw error; }
+  }
+  return changedFileDiff(await paneChanges(paneId, codexHome), path);
 }
 
 export class ChangedFileNotListed extends Error {
@@ -250,7 +292,7 @@ export async function changedFileDiff(changes: PaneChanges, path: string): Promi
   const entry = changes.report.git.find((file) => file.path === path);
   if (entry === undefined || changes.root === null) throw new ChangedFileNotListed();
   const target = nodePath.relative(changes.root, path).split(nodePath.sep).join("/");
-  const flags = ["--no-color", "--no-ext-diff", "--no-textconv"];
+  const flags = DIFF_FLAGS;
   // git has no diff for a file it does not track: compare it with nothing (exit 1 means "differs")
   let out = entry.git === "?"
     ? await git(changes.root, ["diff", "--no-index", ...flags, "--", process.platform === "win32" ? "NUL" : "/dev/null", path], DIFF_MAX_BYTES)

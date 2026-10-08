@@ -6,10 +6,32 @@
 
 const BEGIN = "*** Begin Patch";
 
+/**
+ * The patch a shell call applies: Codex's `shell` / `local_shell` take `command: ["apply_patch", patch]`
+ * (or the same words inside `bash -lc`), `exec_command` a `cmd` with an `apply_patch <<'EOF'` heredoc.
+ */
+function shellPatch(input: string): string | null {
+  let args: unknown;
+  try { args = JSON.parse(input); } catch { return null; }
+  if (typeof args !== "object" || args === null) return null;
+  const record = args as Record<string, unknown>;
+  const command = record["cmd"] ?? record["command"];
+  const words = (Array.isArray(command) ? command : [command]).filter((word): word is string => typeof word === "string");
+  const at = words.findIndex((word) => /^(?:.*\/)?apply_?patch$/.test(word));
+  if (at >= 0 && words[at + 1]?.trimStart().startsWith(BEGIN)) return words[at + 1]!.trimStart();
+  for (const word of words) {
+    const heredoc = /\bapply_?patch\b[^\n]*<<-?\s*(['"]?)(\w+)\1[^\n]*\n([\s\S]*?)\n[ \t]*\2[ \t]*(?:\n|$)/.exec(word);
+    if (heredoc?.[3]?.trimStart().startsWith(BEGIN)) return heredoc[3].trimStart();
+  }
+  return null;
+}
+
 /** The patch an edit call carries, or null when the input is not one. */
 export function patchText(input: string): string | null {
   const trimmed = input.trimStart();
   if (trimmed.startsWith(BEGIN)) return trimmed;
+  const shell = shellPatch(input);
+  if (shell !== null) return shell;
   const call = /tools\.apply_patch\(\s*("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/s.exec(input);
   if (call === null) return null;
   const literal = call[1]!;

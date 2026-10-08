@@ -882,6 +882,7 @@ export const ZH: Record<string, string> = {
   "created": "已创建",
   "edited ×{n}": "已编辑 ×{n}",
   "Too many changes in the repository to list": "仓库中的更改过多，无法列出",
+  "Long session: showing the last {n} parts": "会话较长：仅显示最近 {n} 段",
   "uncertain": "不确定",
   "The script failed; its patch may not have been applied": "脚本失败；补丁可能未应用",
   "Git: modified": "Git：已修改",

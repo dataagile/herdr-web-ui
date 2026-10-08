@@ -265,7 +265,7 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
     if (file.endsWith("package.json")) return json({ kind: "git", path: file, diff: "diff --git a/package.json b/package.json\n@@ -1,3 +1,3 @@\n {\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"\n }\n", truncated: false });
     if (file.endsWith("format.ts")) return json({ kind: "session", path: file, edits: [{ at: "2026-10-08T10:31:00.000Z", body: { kind: "write", content: "export const upper = (text: string) => text.toUpperCase();\n" } }] });
     return json({ kind: "session", path: file, edits: [
-      { at: "2026-10-08T10:35:00.000Z", body: { kind: "replace", edits: [{ before: "const title = \"demo\";", after: "const title = \"herdr\";" }] } },
+      { at: "2026-10-08T10:35:00.000Z", body: { kind: "replace", edits: [{ before: "const title = \"demo\";", after: "const title = \"DevDA\";" }] } },
       { at: "2026-10-08T10:42:00.000Z", body: { kind: "replace", edits: [{ before: "return null;", after: "return <App />;" }] } },
     ] });
   }

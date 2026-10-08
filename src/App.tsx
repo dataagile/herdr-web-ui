@@ -1258,7 +1258,7 @@ export function App() {
       )}
       {viewing !== null && <MachineContext.Provider value={viewing.machineId}>
         <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={() => { setChangesFirst(null); closeFile(); }} onOpen={(path) => { setChangesFirst(null); openFile({ ...viewing, path }); }}
-          {...(changeOf(changed.files, viewing, selectedMachineId, selectedPaneId, changesFirst) ?? {})} />
+          {...(deviceRole === "watch" ? {} : changeOf(changed.files, viewing, selectedMachineId, selectedPaneId, changesFirst) ?? {})} />
       </MachineContext.Provider>}
       {paneMenu && (
         <SplitMenu

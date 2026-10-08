@@ -123,6 +123,12 @@ it("watch credentials cannot mutate HTTP state, read credential files, or elevat
     expect((await fetch(`${base}/api/fs/file?path=${encodeURIComponent(join(root, "devices.json"))}`, { headers })).status).toBe(403);
     // the History list quotes prompts: a watcher reads it no more than a file
     expect((await fetch(`${base}/api/workspace/history?cwd=%2Ftmp`, { headers })).status).toBe(403);
+    // the diff of a changed file is the file's content (an untracked file diffs whole), directly and through a PC
+    for (const path of ["pane/changed-files/diff", "machines/pc1/pane/changed-files/diff"]) {
+      const response = await fetch(`${base}/api/${path}?pane_id=1-1&path=%2Fetc%2Fhostname`, { headers });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ error: { code: "read_only" } });
+    }
     // a PC's file is read without the origin check (#448, Android's Open button): the watch refusal still comes first, for GET and HEAD alike
     for (const method of ["GET", "HEAD"]) {
       const response = await fetch(`${base}/api/machines/pc1/fs/file?path=%2Fetc%2Fhostname`, { method, headers: { ...headers, "sec-fetch-site": "cross-site" } });

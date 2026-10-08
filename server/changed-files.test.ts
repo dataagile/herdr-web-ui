@@ -1,13 +1,15 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { fileChanges } from "../shared/file-changes.ts";
 import type { ConversationTurn } from "../shared/protocol.ts";
-import { ChangedFileNotListed, cachedSessionEdits, changedFileDiff, forgetChangedFiles, gitChanges, parsePorcelain, sessionEdits, type PaneChanges } from "./changed-files.ts";
-import { parseClaudeTranscript } from "./conversation.ts";
-import { parseCodexTranscript } from "./codex.ts";
+import { ChangedFileNotListed, DIFF_FLAGS, GIT_SAFE, cachedSessionEdits, changedFileDiff, forgetChangedFiles, gitChanges, paneChanges, paneFileDiff, parsePorcelain, sessionEdits, type PaneChanges } from "./changed-files.ts";
+import * as conversationModule from "./conversation.ts";
+import { parseClaudeTranscript, wholeTranscript } from "./conversation.ts";
+import * as client from "./herdr/client.ts";
+import { codexSessionCwd, parseCodexTranscript } from "./codex.ts";
 import { parseOmpTranscript } from "./transcript-records.ts";
 
 const jsonl = (...records: unknown[]) => records.map((record) => JSON.stringify(record)).join("\n");
@@ -219,6 +221,111 @@ describe("changed files: classifier", () => {
     expect(fileChanges("Edit", "{}")).toEqual([]);
     expect(fileChanges("Grep", '{"path":"/x"}')).toEqual([]);
   });
+
+  const quoted = "*** Begin Patch\n*** Update File: /quoted.ts\n@@\n-1\n+2\n*** End Patch";
+  it("reads a JSON edit's own fields even when its text quotes a patch", () => {
+    const edit = JSON.stringify({ file_path: "/real.ts", old_string: `tools.apply_patch(${JSON.stringify(quoted)})`, new_string: quoted });
+    expect(fileChanges("Edit", edit).map((change) => change.path)).toEqual(["/real.ts"]);
+    expect(fileChanges("write", JSON.stringify({ path: "/w.ts", content: `tools.apply_patch(${JSON.stringify(quoted)})` })).map((change) => change.path)).toEqual(["/w.ts"]);
+  });
+
+  it("still reads a patch from the tools that carry one", () => {
+    expect(fileChanges("apply_patch", quoted).map((change) => change.path)).toEqual(["/quoted.ts"]);
+    expect(fileChanges("exec", `tools.apply_patch(${JSON.stringify(quoted)})`).map((change) => change.path)).toEqual(["/quoted.ts"]);
+  });
+
+  const heredoc = "*** Begin Patch\n*** Update File: src/h.ts\n@@\n-a\n+b\n*** Add File: src/n.ts\n+new\n*** End Patch";
+  it("recognizes a patch applied through a shell call: argv, bash -lc, or an exec_command heredoc", () => {
+    const inputs: [string, unknown][] = [
+      ["shell", { command: ["apply_patch", heredoc], workdir: "/w" }],
+      ["local_shell", { command: ["bash", "-lc", `apply_patch <<'EOF'\n${heredoc}\nEOF`] }],
+      ["exec_command", { cmd: `cd /w && apply_patch <<"PATCH"\n${heredoc}\nPATCH\necho done`, workdir: "/w" }],
+      ["shell", { command: ["/usr/bin/apply_patch", heredoc] }],
+    ];
+    for (const [name, args] of inputs) {
+      const changes = fileChanges(name, JSON.stringify(args, null, 2));
+      expect(changes.map((change) => change.path)).toEqual(["src/h.ts", "src/n.ts"]);
+      expect(changes[1]).toMatchObject({ created: true });
+    }
+  });
+
+  it("does not take an ordinary shell command or a Claude Bash for a patch", () => {
+    expect(fileChanges("exec_command", JSON.stringify({ cmd: "ls -la" }))).toEqual([]);
+    expect(fileChanges("shell", JSON.stringify({ command: ["echo", heredoc] }))).toEqual([]);
+    expect(fileChanges("Bash", JSON.stringify({ command: `apply_patch <<'EOF'\n${heredoc}\nEOF` }))).toEqual([]);
+  });
+
+  it("lists the files of a shell-applied patch from a Codex rollout", () => {
+    const item = (payload: unknown) => ({ type: "response_item", timestamp: T(1), payload });
+    const turns = parseCodexTranscript(jsonl(
+      { type: "session_meta", payload: { cwd: "/session" } },
+      item({ type: "message", role: "user", content: [{ type: "input_text", text: "go" }] }),
+      item({ type: "function_call", call_id: "s1", name: "shell", arguments: JSON.stringify({ command: ["apply_patch", heredoc] }) }),
+      item({ type: "function_call_output", call_id: "s1", output: "Done!" }),
+      item({ type: "function_call", call_id: "s2", name: "exec_command", arguments: JSON.stringify({ cmd: `apply_patch <<'EOF'\n${heredoc.replace("h.ts", "g.ts")}\nEOF`, workdir: "sub" }) }),
+      item({ type: "function_call_output", call_id: "s2", output: "Done!" }),
+    ), Infinity);
+    expect([...sessionEdits(turns, "/pane").keys()].sort()).toEqual(["/session/src/h.ts", "/session/src/n.ts", "/session/sub/src/g.ts", "/session/sub/src/n.ts"]);
+  });
+});
+
+describe("changed files: a Codex session's folder survives paging", () => {
+  const item = (payload: unknown) => ({ type: "response_item", timestamp: T(1), payload });
+  const patch = (file: string) => "*** Begin Patch\n*** Update File: " + file + "\n@@\n-1\n+2\n*** End Patch";
+  const turn = (n: number) => [
+    { type: "event_msg", timestamp: T(1), payload: { type: "task_started", turn_id: `t${n}` } },
+    { type: "event_msg", timestamp: T(1), payload: { type: "user_message", message: `prompt ${n}` } },
+    item({ type: "custom_tool_call", call_id: `c${n}`, name: "apply_patch", input: patch(`f${n}.ts`) }),
+    item({ type: "custom_tool_call_output", call_id: `c${n}`, output: "Success" }),
+    { type: "event_msg", timestamp: T(2), payload: { type: "task_complete" } },
+  ];
+
+  it("gives a page that starts mid-file the folder the parser was told, and a turn_context still wins", () => {
+    const page = jsonl(...turn(1), { type: "turn_context", payload: { cwd: "/moved" } }, ...turn(2));
+    const turns = parseCodexTranscript(page, Infinity, "/session");
+    const folders = turns.flatMap((t) => t.parts.flatMap((part) => part.kind === "tool" ? [part.cwd] : []));
+    expect(folders).toEqual(["/session", "/moved"]);
+  });
+
+  let dir: string;
+  beforeAll(() => { dir = mkdtempSync(join(tmpdir(), "herdr-whole-")); });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  // 120 turns: more than two pages (a page holds at most MAX_TURNS / 2 prompts); only the head has the session_meta
+  const rollout = () => {
+    const path = join(dir, "rollout-2026-10-08T10-00-00-aaaaaaaa-0000-0000-0000-000000000000.jsonl");
+    const lines: unknown[] = [{ type: "session_meta", payload: { id: "aaaaaaaa-0000-0000-0000-000000000000", cwd: "/session" } }];
+    for (let n = 1; n <= 120; n++) lines.push(...turn(n));
+    writeFileSync(path, jsonl(...lines) + "\n");
+    return path;
+  };
+
+  it("reads the folder once from the start of the file", () => {
+    expect(codexSessionCwd(rollout())).toBe("/session");
+  });
+
+  it("resolves a call's folder on every page and flags a session the limit cut", async () => {
+    const path = rollout();
+    const whole = await wholeTranscript("codex-transcript", path, dir);
+    expect(whole.truncated).toBe(false);
+    expect(whole.pages).toBeGreaterThan(1);
+    const files = sessionEdits(whole.turns, "/pane");
+    expect(files.size).toBe(120);
+    expect([...files.keys()].every((file) => file.startsWith("/session/"))).toBe(true);
+    // one page fewer than the session needs: the oldest turns are left out, and it says so
+    const cut = await wholeTranscript("codex-transcript", path, dir, whole.pages - 1);
+    expect(cut).toMatchObject({ truncated: true, pages: whole.pages - 1 });
+    expect(cut.turns.length).toBeLessThan(whole.turns.length);
+    const kept = sessionEdits(cut.turns, "/pane");
+    expect(kept.has("/session/f120.ts")).toBe(true);
+    expect(kept.has("/session/f1.ts")).toBe(false);
+  });
+
+  it("walks at most the page limit, not one more", async () => {
+    const one = await wholeTranscript("codex-transcript", rollout(), dir, 1);
+    expect(one.pages).toBe(1);
+    expect(one.truncated).toBe(true);
+  });
 });
 
 describe("changed files: git status", () => {
@@ -232,17 +339,25 @@ describe("changed files: git status", () => {
 });
 
 describe("changed files: cache", () => {
-  it("parses a transcript once per state of the file", () => {
+  it("parses a transcript once per state of the file", async () => {
     forgetChangedFiles();
     let reads = 0;
-    const read = (): ConversationTurn[] => { reads++; return []; };
-    cachedSessionEdits("/t.jsonl", "1:1:10:1", "/w", read);
-    cachedSessionEdits("/t.jsonl", "1:1:10:1", "/w", read);
+    const read = async () => { reads++; return { turns: [] as ConversationTurn[], truncated: false, pages: 1 }; };
+    await cachedSessionEdits("/t.jsonl", "1:1:10:1", "/w", read);
+    await cachedSessionEdits("/t.jsonl", "1:1:10:1", "/w", read);
     expect(reads).toBe(1);
-    cachedSessionEdits("/t.jsonl", "1:1:20:2", "/w", read);
+    await cachedSessionEdits("/t.jsonl", "1:1:20:2", "/w", read);
     expect(reads).toBe(2);
-    cachedSessionEdits("/t.jsonl", "1:1:20:2", "/other", read);
+    await cachedSessionEdits("/t.jsonl", "1:1:20:2", "/other", read);
     expect(reads).toBe(3);
+  });
+
+  it("does not keep a read that failed", async () => {
+    forgetChangedFiles();
+    let reads = 0;
+    const read = async () => { reads++; if (reads === 1) throw new Error("boom"); return { turns: [] as ConversationTurn[], truncated: true, pages: 2 }; };
+    await expect(cachedSessionEdits("/f.jsonl", "s", "/w", read)).rejects.toThrow("boom");
+    expect(await cachedSessionEdits("/f.jsonl", "s", "/w", read)).toMatchObject({ truncated: true, pages: 2 });
   });
 });
 
@@ -317,5 +432,140 @@ describe("changed files: a real repo", () => {
     for (const path of ["/etc/passwd", join(dir, "..", "..", "etc", "passwd"), join(dir, "tracked.txt", "..", "..", "x"), join(dir, "unchanged-or-unknown.txt"), ""]) {
       await expect(changedFileDiff(changes, path)).rejects.toBeInstanceOf(ChangedFileNotListed);
     }
+  });
+});
+
+describe("changed files: git runs none of the repo's programs it can do without", () => {
+  let dir: string;
+  // the programs and their marks live beside the repo, so git does not list them
+  let aux: string;
+  const run = (...args: string[]) => {
+    const done = Bun.spawnSync(["git", "-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { stdout: "pipe", stderr: "pipe" });
+    if (done.exitCode !== 0) throw new Error(done.stderr.toString());
+  };
+  const marks = () => ["ext", "textconv", "fsmonitor"].filter((name) => existsSync(join(aux, `.mark-${name}`)));
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "herdr-changed-progs-"));
+    aux = mkdtempSync(join(tmpdir(), "herdr-changed-aux-"));
+    const script = (name: string, body: string) => { writeFileSync(join(aux, `${name}.sh`), `#!/bin/sh\ntouch "${aux}/.mark-${name}"\n${body}\n`, { mode: 0o755 }); };
+    script("ext", "exit 0");
+    script("textconv", 'cat "$1"');
+    script("fsmonitor", "exit 0");
+    run("init", "-q");
+    writeFileSync(join(dir, ".gitattributes"), "*.txt diff=up\n");
+    writeFileSync(join(dir, "a.txt"), "one\n");
+    run("add", ".gitattributes", "a.txt"); run("commit", "-q", "-m", "init");
+    run("config", "diff.external", join(aux, "ext.sh"));
+    run("config", "diff.up.textconv", join(aux, "textconv.sh"));
+    run("config", "core.fsmonitor", join(aux, "fsmonitor.sh"));
+    writeFileSync(join(dir, "a.txt"), "two\n");
+    writeFileSync(join(dir, "b.txt"), "fresh\n");
+  });
+  afterAll(() => { rmSync(dir, { recursive: true, force: true }); rmSync(aux, { recursive: true, force: true }); });
+
+  it("asks git for no fsmonitor, no external diff and no textconv", () => {
+    expect(GIT_SAFE).toEqual(expect.arrayContaining(["-c", "core.fsmonitor=false"]));
+    expect(DIFF_FLAGS).toEqual(expect.arrayContaining(["--no-ext-diff", "--no-textconv"]));
+  });
+
+  it("lists and diffs a tracked and an untracked file without running the configured programs", async () => {
+    const found = (await gitChanges(dir))!;
+    expect(found.changes.map((change) => change.status).sort()).toEqual(["?", "M"]);
+    const changes: PaneChanges = {
+      root: found.root, edits: new Map(),
+      report: { repo: true, session: [], git: found.changes.map((change) => ({ path: change.path, rel: change.path, exists: true, git: change.status })) },
+    };
+    for (const file of changes.report.git) {
+      const diff = await changedFileDiff(changes, file.path);
+      expect(diff.kind === "git" && diff.diff).toMatch(/^\+(two|fresh)$/m);
+    }
+    expect(marks()).toEqual([]);
+  });
+});
+
+describe("changed files: a pane's report", () => {
+  let real: string;
+  let link: string;
+  const git = (...args: string[]) => {
+    const done = Bun.spawnSync(["git", "-C", real, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { stdout: "pipe", stderr: "pipe" });
+    if (done.exitCode !== 0) throw new Error(done.stderr.toString());
+  };
+  let whole = 0;
+  const spies: { mockRestore(): void }[] = [];
+  const statusRuns = () => spawn.mock.calls.filter((call: unknown[]) => (call[0] as string[]).includes("status")).length;
+  let spawn: ReturnType<typeof spyOn>;
+
+  beforeAll(() => {
+    real = realpathSync(mkdtempSync(join(tmpdir(), "herdr-changed-pane-")));
+    link = `${real}-link`;
+    symlinkSync(real, link);
+    git("init", "-q");
+    writeFileSync(join(real, ".gitignore"), "ignored.log\n");
+    writeFileSync(join(real, "tracked.txt"), "one\n");
+    git("add", "."); git("commit", "-q", "-m", "init");
+    writeFileSync(join(real, "tracked.txt"), "two\n");
+    writeFileSync(join(real, "fresh.txt"), "brand new\n");
+    const turns = parseClaudeTranscript(jsonl(
+      claudePrompt("go", 0),
+      claudeUse("a", "Edit", { file_path: join(link, "tracked.txt"), old_string: "one", new_string: "two" }, 1), claudeResult("a", 1),
+      claudeUse("b", "Write", { file_path: join(link, "ignored.log"), content: "log" }, 2), claudeResult("b", 2),
+    ));
+    spies.push(spyOn(client, "sessionSnapshot").mockImplementation((async () => ({ panes: [{ pane_id: "p1", cwd: link }] })) as never));
+    spies.push(spyOn(conversationModule, "paneWholeConversation").mockImplementation((async () => {
+      whole++;
+      return { source: "claude-transcript", path: join(real, "t.jsonl"), cwd: link, signature: "same", read: async () => ({ turns, truncated: true, pages: 40 }) };
+    }) as never));
+    spawn = spyOn(Bun, "spawn");
+  });
+  afterAll(() => {
+    spawn.mockRestore();
+    for (const spy of spies) spy.mockRestore();
+    unlinkSync(link);
+    rmSync(real, { recursive: true, force: true });
+  });
+
+  it("names paths relative to the pane's folder when that folder is a symlink, and says the session was cut", async () => {
+    forgetChangedFiles();
+    const { report } = await paneChanges("p1");
+    expect(report.session.map((file) => file.rel).sort()).toEqual(["ignored.log", "tracked.txt"]);
+    expect(report.git.map((file) => file.rel)).toEqual(["fresh.txt"]);
+    // the symlinked and the real name of one file are one entry
+    expect(report.session.find((file) => file.rel === "tracked.txt")).toMatchObject({ git: "M" });
+    expect(report).toMatchObject({ sessionTruncated: true, sessionParts: 40 });
+  });
+
+  it("sees a session file appear on disk although neither the transcript nor git's status moved", async () => {
+    forgetChangedFiles();
+    const exists = async () => (await paneChanges("p1")).report.session.find((file) => file.rel === "ignored.log")!.exists;
+    expect(await exists()).toBe(false);
+    writeFileSync(join(real, "ignored.log"), "log");
+    expect(await exists()).toBe(true);
+    unlinkSync(join(real, "ignored.log"));
+    expect(await exists()).toBe(false);
+  });
+
+  it("answers a /diff after the list from the list's report: no transcript lookup, no git status", async () => {
+    forgetChangedFiles();
+    const list = await paneChanges("p1");
+    const wholeBefore = whole;
+    const statusBefore = statusRuns();
+    const fresh = list.report.git[0]!.path;
+    const diff = await paneFileDiff("p1", fresh);
+    expect(diff.kind === "git" && diff.diff).toContain("+brand new");
+    const session = await paneFileDiff("p1", list.report.session.find((file) => file.rel === "tracked.txt")!.path);
+    expect(session.kind).toBe("session");
+    expect(whole).toBe(wholeBefore);
+    expect(statusRuns()).toBe(statusBefore);
+  });
+
+  it("rebuilds once for a path the cached report does not know, then refuses it", async () => {
+    forgetChangedFiles();
+    await paneChanges("p1");
+    writeFileSync(join(real, "later.txt"), "added after the list\n");
+    try {
+      const diff = await paneFileDiff("p1", join(real, "later.txt"));
+      expect(diff.kind === "git" && diff.diff).toContain("+added after the list");
+      await expect(paneFileDiff("p1", join(real, "never.txt"))).rejects.toBeInstanceOf(ChangedFileNotListed);
+    } finally { unlinkSync(join(real, "later.txt")); }
   });
 });

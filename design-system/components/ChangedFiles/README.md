@@ -14,6 +14,8 @@ The header's **modified files** button, its panel, and the changes tab of the fi
 
 ## States & variants
 - Loading / failed: `.file-viewer-note` ("Loading…", "The changes could not be loaded.", the latter `role="alert"`).
+- Session longer than the server reads (the newest 40 pages): `p.changed-note` "Long session: showing the last N parts" above the groups.
+- Watch-only device: the viewer has no changes tab (the diff route refuses it).
 - Git status too long to read: no git group, `p.changed-note` "Too many changes in the repository to list".
 - Opened from the panel, the viewer starts on the changes tab; opened any other way (Files, a path in the chat) it starts on "File" and still offers the tab.
 - Refresh: when the pane's status changes (the count) and every 15 s while the panel is open; a closed panel does not poll.

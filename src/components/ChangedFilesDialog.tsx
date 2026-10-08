@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { FileText, X } from "lucide-react";
 
 import "./ChangedFiles.css";
-import { formatTime } from "./ChatView.tsx";
+import { formatTime } from "./diffLines.tsx";
 import type { ChangedFile, ChangedFilesResponse, SessionChangedFile } from "../../shared/protocol.ts";
 import { useT } from "../lib/i18n.ts";
 
@@ -67,6 +67,7 @@ export function ChangedFilesDialog({ files, viewing, onOpenFile, onClose }: Chan
         <div className="modal-body">
           {files === null && <p className="changed-note">{t("Loading…")}</p>}
           {files !== null && session.length === 0 && other.length === 0 && files.gitTruncated !== true && <p className="changed-note">{t("No modified files")}</p>}
+          {files?.sessionTruncated === true && <p className="changed-note">{t("Long session: showing the last {n} parts", { n: files.sessionParts ?? 0 })}</p>}
           {session.length > 0 && <>
             <h3 className="menu-heading changed-heading">{t("In this session")} <span className="pill">{session.length}</span></h3>
             <div className="dir-browser"><ul className="dir-browser-list">{session.map((file) => <Row key={file.path} file={file} onOpenFile={onOpenFile} />)}</ul></div>

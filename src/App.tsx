@@ -368,8 +368,9 @@ export function App() {
     return () => { for (const event of events) window.removeEventListener(event, unlock, true); };
   }, [settings.alertSound]);
 
-  // One POST per pane per `done` episode (reset when the pane leaves done); a bridge that answers 404/403
-  // (no route, or a watch-role device) is not asked again. Silent to the user.
+  // One POST per pane per `done` episode (reset when the pane leaves done). A transient failure releases the
+  // key so the next user action retries; a bridge that answers 404/403 (no route, or a watch-role device) is
+  // not asked again until that PC reconnects (an upgraded bridge gets the route). Silent to the user.
   const seenSent = useRef(new Set<string>());
   const seenRefused = useRef(new Set<string>());
   const sendSeen = useCallback((machineId: string, paneId: string) => {
@@ -378,9 +379,15 @@ export function App() {
     seenSent.current.add(key);
     markPaneSeen(paneId, machineId).catch((err: unknown) => {
       if (err instanceof ApiError && (err.status === 404 || err.status === 403)) seenRefused.current.add(machineId);
+      else seenSent.current.delete(key);
       console.debug(`pane/seen on ${machineId} failed`, err);
     });
   }, []);
+
+  // a PC that is not connected (down, reconnecting, or updating its bridge) may come back with another bridge
+  useEffect(() => {
+    for (const machine of machines) if (machine.state !== "connected" || machine.updating) seenRefused.current.delete(machine.id);
+  }, [machines]);
 
   // One SSE subscription watches every PC, even when no terminal is selected.
   useEffect(() => {
@@ -410,8 +417,6 @@ export function App() {
         const previous = statusRef.current.get(key);
         statusRef.current.set(key, message.agent_status);
         if (message.agent_status !== "done") seenSent.current.delete(key);
-        // the pane in front finished while the page is in front too: seen
-        else if (document.visibilityState === "visible" && selectionRef.current.machineId === machine.id && selectionRef.current.paneId === message.pane_id) sendSeen(machine.id, message.pane_id);
         const pane = machine.snapshot?.panes.find((p) => p.pane_id === message.pane_id);
         const worked = trackTurn(turnStartRef.current, key, previous, message.agent_status, Date.now());
         if (worked !== null) lastTurnRef.current.set(key, worked);
@@ -448,7 +453,7 @@ export function App() {
       if (message.type === "session-changed" || message.type === "pane-exited") scheduleRefetch();
     };
     return () => events.close();
-  }, [locked, scheduleRefetch, dropIn, chime, sendSeen]);
+  }, [locked, scheduleRefetch, dropIn, chime]);
 
   const handleServerMessage = useCallback((message: ServerMessage) => {
     if (message.type === "error" && message.code === "output_stalled") setOutputStopped(true);
@@ -544,21 +549,15 @@ export function App() {
 
   const selectedMachineRef = useRef(selectedMachineId);
   selectedMachineRef.current = selectedMachineId;
-  // a done pane the user opens has been seen (herdr's focus does not move for a browser): once, errors ignored
+  // THE rule for "seen": only a user action marks a done pane seen: selecting it (selectTarget/selectPane: sidebar,
+  // Needs you, palette, tab strip, notification click) or returning to the page with it selected (visibilitychange).
+  // A done that arrives over SSE on a selected, visible pane, the initial load, the fallback auto-selection and
+  // `machines` reseeds are NOT actions: a visible tab nobody looks at must not cancel the phone's done push
+  // or hide the pane from Needs you. Once per `done` episode, errors ignored (herdr's focus does not move).
   const markSeenIfDone = useCallback((machineId: string, paneId: string | null) => {
     const pane = paneId === null ? undefined : machinesRef.current.find((m) => m.id === machineId)?.snapshot?.panes.find((p) => p.pane_id === paneId);
     if (paneId !== null && pane?.agent_status === "done") sendSeen(machineId, paneId);
   }, [sendSeen]);
-  // the pane in front when the page loaded was done already: nobody else is going to see it
-  const initialSeenChecked = useRef(false);
-  useEffect(() => {
-    if (initialSeenChecked.current) return;
-    const open = selectionRef.current;
-    const machine = machines.find((m) => m.id === open.machineId);
-    if (open.paneId === null || machine?.state !== "connected" || !machine.snapshot) return;
-    initialSeenChecked.current = true;
-    if (document.visibilityState === "visible") markSeenIfDone(open.machineId, open.paneId);
-  }, [machines, markSeenIfDone]);
   const selectTarget = useCallback((machineId: string, paneId: string | null) => {
     markSeenIfDone(machineId, paneId);
     // Only another PC mounts a new terminal (and socket), which reports its own state. A pane
@@ -598,7 +597,7 @@ export function App() {
     setDrawerOpen(false);
   }, [markSeenIfDone]);
 
-  // back in the tab with a done pane in front: seen
+  // the user is back in the tab with a done pane in front (a user action, see markSeenIfDone)
   useEffect(() => {
     const onVisible = (): void => {
       if (document.visibilityState === "visible") markSeenIfDone(selectionRef.current.machineId, selectionRef.current.paneId);

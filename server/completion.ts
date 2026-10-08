@@ -60,7 +60,7 @@ export class CompletionTracker {
   constructor(private readonly file: string | null = null, private readonly herdr: () => string | null = herdrSocketId) {
     if (file === null) return;
     try {
-      const state = JSON.parse(readFileSync(file, "utf8")) as { herdr?: unknown; finished?: unknown; finishedAgents?: unknown };
+      const state = JSON.parse(readFileSync(file, "utf8")) as { herdr?: unknown; finished?: unknown; finishedAgents?: unknown; acknowledged?: unknown };
       const current = herdr();
       if (current === null || state.herdr !== current) return;
       const agents = state.finishedAgents && typeof state.finishedAgents === "object" && !Array.isArray(state.finishedAgents)
@@ -68,6 +68,7 @@ export class CompletionTracker {
       for (const pane of Array.isArray(state.finished) ? state.finished : []) {
         if (typeof pane === "string") this.finished.set(pane, typeof agents[pane] === "string" ? agents[pane] as string : null);
       }
+      for (const pane of Array.isArray(state.acknowledged) ? state.acknowledged : []) if (typeof pane === "string") this.acknowledged.add(pane);
       this.saved = this.serialize(current);
     } catch { /* none yet, or unreadable: start empty */ }
   }
@@ -90,7 +91,7 @@ export class CompletionTracker {
   seen(paneId: string): boolean {
     const raw = this.raw.get(paneId);
     let rest: AgentStatus;
-    if (this.finished.delete(paneId)) rest = raw === undefined || raw === "done" ? "idle" : raw;
+    if (this.finished.delete(paneId)) rest = raw === undefined ? "idle" : raw;
     else if (raw === "done" && this.reported.get(paneId) === "done") { this.acknowledged.add(paneId); rest = "idle"; }
     else return false;
     this.record(paneId, rest, ++this.order);
@@ -135,6 +136,8 @@ export class CompletionTracker {
   replayed(paneId: string, status: AgentStatus, before: { before: AgentStatus; agent: string | null }): boolean {
     const busy = (value: AgentStatus): boolean => value === "working" || value === "blocked";
     const shown = this.reported.get(paneId);
+    // events were lost around this gap: what was acknowledged may have finished again since
+    this.acknowledged.delete(paneId);
     // never reported, or only from a snapshot taken after the work ended: the work it did is not known here yet
     const unseenWork = busy(before.before) && !busy(status) && !this.worked.has(paneId) && !this.finished.has(paneId) && (shown === undefined || !busy(shown));
     if (shown === undefined || unseenWork) {
@@ -153,6 +156,9 @@ export class CompletionTracker {
    * change the pane shows, long after it ended.
    */
   resync(panes: readonly { pane_id: string; agent_status: AgentStatus; agent?: string | null }[], newer: ReadonlySet<string>): void {
+    // events were lost: an acknowledged pane may have run a whole new turn, and a done shown again
+    // is better than a finish missed
+    this.acknowledged.clear();
     const live = new Set(panes.map((pane) => pane.pane_id));
     for (const pane of panes) {
       if (newer.has(pane.pane_id)) continue;
@@ -242,7 +248,7 @@ export class CompletionTracker {
   private serialize(herdr: string): string {
     const finished = [...this.finished.keys()].sort();
     const finishedAgents = Object.fromEntries(finished.filter((pane) => this.finished.get(pane) !== null).map((pane) => [pane, this.finished.get(pane)]));
-    return JSON.stringify({ herdr, finished, finishedAgents });
+    return JSON.stringify({ herdr, finished, finishedAgents, acknowledged: [...this.acknowledged].sort() });
   }
 
   /** Written whole, and only on a change: a crash mid-write must not leave half a file. */

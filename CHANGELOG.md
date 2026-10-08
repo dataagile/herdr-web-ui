@@ -13,9 +13,12 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges
   lack it, keep the old behaviour. A `done` that herdr reports itself (a Claude Code pane through the
   herdr integration) is cleared too: the server remembers it was seen and reads the pane at rest until
-  herdr reports anything but `done`, so the next finished turn shows DONE again. The pane also counts
-  as seen when it finishes, or is already done at load, while it is in front on a visible page; the app
-  sends at most one request per pane per done episode and stops asking a PC whose bridge refuses it.
+  herdr reports anything but `done` (kept across a server restart, dropped when status events were
+  lost), so the next finished turn shows DONE again. Only a user action marks a pane seen, never a
+  done that merely arrives on a visible selected pane or is open at load: a tab nobody is looking at
+  must not cancel the phone's done push. The app sends at most one request per pane per done episode
+  (a failed one is retried on the next action) and stops asking a PC whose bridge refuses it until
+  that PC reconnects.
 - A **History** section in the sidebar, under Agents, for the selected project (this PC only):
   the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
   transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since
@@ -92,8 +95,8 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   seen as well as blocked ones (badges INPUT and DONE; blocked first), shows the workspace as the
   row subtitle (the PC is the group around it) and is marked as the sidebar's attention block
   (`--accent-tint` fill, `--accent` bar, heading and count). It is absent for a PC with nothing
-  waiting and for an offline PC, and stays visible when its PC is folded. The screen-reader line counts both states
-  ("Panes waiting for you: {n}"). The design system bundle gains the missing
+  waiting and for an offline PC, and stays visible when its PC is folded. The screen-reader line counts only
+  blocked panes ("Panes waiting for input: {n}"), so done churn does not talk over a screen reader. The design system bundle gains the missing
   `.sidebar-section-header` rules.
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
   copy, `claude --resume <id> --fork-session`, so the running session is never driven by two

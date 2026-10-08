@@ -32,6 +32,8 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     const seenBodies: unknown[] = [];
     await context.route("**/api/pane/seen", async (route) => {
       seenBodies.push(route.request().postDataJSON());
+      // the first answer is a transient failure: the pane stays done, and the next user action retries
+      if (seenBodies.length === 1) return route.fulfill({ status: 502, json: { error: { code: "qa_bad_gateway", message: "Stand-in failure" } } });
       seen = true;
       await route.fulfill({ json: { ok: true, changed: true } });
     });
@@ -60,7 +62,7 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
       const before = (a: Element, b: Element | null) => b !== null && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
       return before(group.querySelector(".machine-header")!, el) && before(el, group.querySelector(".sidebar-section-header"));
     }), true);
-    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for you: 3");
+    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
     await remote.getByRole("button", { name: /Remote waiting/ }).click();
     await page.locator(".context .machine-context-name").filter({ hasText: "QA remote" }).waitFor();
     assert.equal(await remote.getByRole("button", { name: /Remote waiting/ }).getAttribute("aria-current"), "true");
@@ -97,12 +99,17 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await host.getByRole("button", { name: /Local finished/ }).click();
     await posted;
     assert.deepEqual(seenBodies, [{ pane_id: `${paneId}-done` }]);
+    // a 502 did not use up the one request: the user coming back to the page with the pane in front retries
+    const retried = page.waitForResponse("**/api/pane/seen");
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await retried;
+    assert.deepEqual(seenBodies, [{ pane_id: `${paneId}-done` }, { pane_id: `${paneId}-done` }]);
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await host.waitFor({ state: "detached" });
     offline = true;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await remote.waitFor({ state: "detached" });
-    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for you: 0");
+    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 0");
     assert.deepEqual(errors, []);
     console.log("PASS Needs you: one block per PC, blocked then done, same pane IDs, selection, folded PCs keep the block, resume, seen, offline and mobile drawer");
   } finally { await context.close(); }

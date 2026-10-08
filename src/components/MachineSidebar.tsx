@@ -35,7 +35,7 @@ export function MachineSidebar(props: Props) {
   // no top bar: a workspace starts from its PC's header; Add PC is in the footer, Settings → Remote PCs and the palette
   return <div className="sidebar-shell">
     <div className="machine-list" aria-label={t("PCs and projects")}>
-      <p className="visually-hidden" role="status">{t("Panes waiting for you: {n}", { n: waiting.reduce((sum, rows) => sum + rows.length, 0) })}</p>
+      <p className="visually-hidden" role="status">{t("Panes waiting for input: {n}", { n: waiting.reduce((sum, rows) => sum + rows.filter((row) => row.pane.agent_status === "blocked").length, 0) })}</p>
       {props.machines.map((machine, index) => <MachineGroup key={machine.id} {...props} machine={machine} waiting={waiting[index]!} />)}
       {!props.machines.length && <p className="tree-state" role="status">{t("Loading PCs…")}</p>}
     </div>

@@ -191,6 +191,34 @@ describe("CompletionTracker", () => {
     expect(tracker.current("c")).toBe("unknown");
   });
 
+  it("keeps a seen native done at rest across a restart while herdr still reports done", () => {
+    const dir = mkdtempSync(join(tmpdir(), "herdr-completion-ack-"));
+    try {
+      const file = join(dir, "completions.json");
+      const before = new CompletionTracker(file, () => "herdr-a");
+      before.observe("p", "working", "claude");
+      expect(before.observe("p", "done", "claude")).toBe("done");
+      expect(before.seen("p")).toBe(true);
+      const after = new CompletionTracker(file, () => "herdr-a");
+      expect(after.present(snapshot([{ id: "p", status: "done" }])).panes[0]!.agent_status).toBe("idle");
+      // herdr reports anything else: the acknowledgement is gone, the next done shows
+      after.observe("p", "working", "claude");
+      expect(after.observe("p", "done", "claude")).toBe("done");
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it("drops acknowledgements on a resync and on a replay gap: a done shown again beats a finish missed", () => {
+    const tracker = new CompletionTracker();
+    tracker.observe("p", "working", "claude");
+    tracker.observe("p", "done", "claude");
+    expect(tracker.seen("p")).toBe(true);
+    tracker.resync([{ pane_id: "p", agent_status: "done", agent: "claude" }], new Set());
+    expect(tracker.current("p")).toBe("done");
+    expect(tracker.seen("p")).toBe(true);
+    tracker.replayed("p", "done", { before: "done", agent: "claude" });
+    expect(tracker.observe("p", "done", "claude")).toBe("done");
+  });
+
   it("finishes the pane herdr has focused as done: nobody moved focus there to see it", () => {
     // live: the browser sent work to herdr's focused pane, which went working -> idle
     const tracker = new CompletionTracker();

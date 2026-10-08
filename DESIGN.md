@@ -395,7 +395,9 @@ One set for both themes: the card is island black wherever it shows.
   `--accent`; the row badges keep their own status colours. It is absent when the PC has no such
   pane or is offline, and stays visible when the PC is folded (the fold hides Projects and Agents only). A DONE row leaves the block once its pane has been
   opened in the browser (the app tells the server the pane was seen), not only when herdr's own
-  focus reaches it.
+  focus reaches it. Only a user action marks a pane seen (selecting it, or returning to the page with it
+  selected): a done that arrives while the pane is selected on a visible page, or is open at load, stays
+  DONE, so a tab nobody is looking at never hides it or cancels the phone's push.
 - Each PC group holds two foldable sections, as herdr's own sidebar: **Projects** above **Agents**,
   each headed by its name and count (Projects counts the workspaces that draw a row). Folds are
   remembered per PC; both start open.

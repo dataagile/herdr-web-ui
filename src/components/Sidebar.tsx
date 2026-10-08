@@ -20,6 +20,8 @@ import { rosterPanes } from "../lib/dagPane.ts";
 import { HistorySection } from "./HistorySection.tsx";
 import { historyFolders, projectFolder } from "../lib/history.ts";
 import { agentPanes, isAgentPane } from "../lib/agentPanes.ts";
+import { useStoredFold } from "../lib/storedFold.ts";
+import { FoldChevron } from "./FoldChevron.tsx";
 import { useSettings, type SidebarGrouping } from "../lib/settings.ts";
 
 const ERROR_NOTE_MS = 5000;
@@ -27,9 +29,6 @@ const ERROR_NOTE_MS = 5000;
 /** The Projects, Agents and History sections fold per PC; open unless stored as "1". */
 type Section = "spaces" | "agents" | "history";
 const sectionKey = (machineId: string, section: Section) => `herdr-web-ui:sidebar-section:${machineId}:${section}`;
-function storedSectionFolded(machineId: string, section: Section): boolean {
-  try { return localStorage.getItem(sectionKey(machineId, section)) === "1"; } catch { return false; }
-}
 
 /** Folder folds belong to a PC and full path (the group's key), not an individual workspace. */
 const collapsedKey = (machineId: string, groupKey: string) => `herdr-web-ui:directory-collapsed:${machineId}:${groupKey}`;
@@ -110,7 +109,7 @@ interface ConfirmState { title: string; body: string; action?: string; run: () =
 function SectionHeader({ section, label, count, folded, onToggle, action }: { section: Section; label: string; count?: number; folded: boolean; onToggle: (section: Section) => void; action?: ReactNode }) {
   const header = (
     <button type="button" className="sidebar-section-header" aria-expanded={!folded} onClick={() => onToggle(section)}>
-      {folded ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+      <FoldChevron folded={folded} />
       <span>{count === undefined ? label : `${label} · ${count}`}</span>
     </button>
   );
@@ -149,18 +148,11 @@ export function Sidebar({ snapshot, selectedPaneId, actions, machineName }: Side
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<InlineError | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => storedCollapsed(machineId, snapshot ? groupDirectories(snapshot.workspaces, snapshot.panes).map((group) => group.key) : []));
-  const [folded, setFolded] = useState<Record<Section, boolean>>(() => ({ spaces: storedSectionFolded(machineId, "spaces"), agents: storedSectionFolded(machineId, "agents"), history: storedSectionFolded(machineId, "history") }));
-  const toggleSection = (section: Section): void => {
-    setFolded((current) => {
-      const next = !current[section];
-      // idempotent, so a doubled updater call (StrictMode) writes the same value twice
-      try {
-        if (next) localStorage.setItem(sectionKey(machineId, section), "1");
-        else localStorage.removeItem(sectionKey(machineId, section));
-      } catch {}
-      return { ...current, [section]: next };
-    });
-  };
+  const [spacesFolded, toggleSpaces] = useStoredFold(sectionKey(machineId, "spaces"));
+  const [agentsFolded, toggleAgents] = useStoredFold(sectionKey(machineId, "agents"));
+  const [historyFolded, toggleHistory] = useStoredFold(sectionKey(machineId, "history"));
+  const folded: Record<Section, boolean> = { spaces: spacesFolded, agents: agentsFolded, history: historyFolded };
+  const toggleSection = (section: Section): void => ({ spaces: toggleSpaces, agents: toggleAgents, history: toggleHistory })[section]();
   const unfoldedFor = useRef<Partial<Record<SidebarGrouping, string>>>({});
   // the pane each workspace was last seen on: its row keeps showing and opening that one
   const lastViewed = useRef(new Map<string, string>());

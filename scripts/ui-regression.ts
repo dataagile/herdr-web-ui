@@ -89,6 +89,18 @@ async function checkAgentsSection(browser: Awaited<ReturnType<typeof chromium.la
     // an agent detected in the shell later shows up in the next snapshot, with no reload
     await herdrRpc("pane.report_agent", { pane_id: shellPane, source: "manual", agent: "codex", state: "idle" });
     await row(shellPane).waitFor();
+    // a folded Sidebar section stays folded across a reload, and unfolding it is remembered too
+    const agentsToggle = page.getByRole("button", { name: /^Agents/ });
+    await agentsToggle.click();
+    assert.equal(await agentsToggle.getAttribute("aria-expanded"), "false");
+    await page.reload();
+    await agentsToggle.waitFor();
+    assert.equal(await agentsToggle.getAttribute("aria-expanded"), "false", "a folded Agents section stays folded after a reload");
+    assert.equal(await row(agentPane).count(), 0, "and its rows stay hidden");
+    await agentsToggle.click();
+    await page.reload();
+    await row(agentPane).waitFor();
+    assert.equal(await agentsToggle.getAttribute("aria-expanded"), "true", "an unfolded Agents section stays open after a reload");
     console.log("PASS the Agents section lists agent panes, not shells, and picks up a new agent live");
   } finally { await page.context().close(); }
 }

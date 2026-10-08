@@ -90,6 +90,9 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Changed
+- The **+** for a new project moved from the PC's header to the end of its **Projects** header,
+  where it reads as "add a project here"; it keeps the label "New project on {PC}" and is out of
+  reach while the PC is offline. (by @tbc-joaovitor)
 - **Needs you** moved from the top of the sidebar into each PC group, under the PC's header row and
   above Projects, listing only that PC's panes. It now holds agents that are `done` and not yet
   seen as well as blocked ones (badges INPUT and DONE; blocked first), shows the workspace as the

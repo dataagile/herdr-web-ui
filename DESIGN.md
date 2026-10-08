@@ -385,7 +385,7 @@ One set for both themes: the card is island black wherever it shows.
 - Mono metadata at `--chip-h`. The **Needs you** count is one; offline is the one header pill and uses danger tokens.
 
 ### Sidebar roster row and footer
-- No top bar. The sidebar opens with the plan panel (when Settings puts it there) and the PC groups. A workspace starts from the `+` on its PC's header, or from the **New project**
+- No top bar. The sidebar opens with the plan panel (when Settings puts it there) and the PC groups. A workspace starts from the `+` at the end of its PC's **Projects** header, or from the **New project**
   button in the dashed **No projects yet** box of an empty PC. **Add PC** lives in the sidebar footer, Settings →
   Remote PCs and in the command palette. Search lives in the command palette, not the roster.
 - **Needs you** lives inside each PC group, under its header row and above Projects: the PC's panes
@@ -399,7 +399,7 @@ One set for both themes: the card is island black wherever it shows.
   selected): a done that arrives while the pane is selected on a visible page, is open at load, or is the
   neighbour a closed pane hands the selection to, stays DONE, so a tab nobody is looking at never hides it or cancels the phone's push.
 - Each PC group holds two foldable sections, as herdr's own sidebar: **Projects** above **Agents**,
-  each headed by its name and count (Projects counts the workspaces that draw a row). Folds are
+  each headed by its name and count (Projects counts the workspaces that draw a row); the Projects header ends in a `+` (`.sidebar-row-action`, New project on that PC, in the column of the rows' own `+`), beside the fold button and not inside it. Folds are
   remembered per PC; both start open.
 - **Projects** is one row per workspace. The row is titled with the workspace's label and opens its
   *current pane*: the selected pane when it is in the workspace, else the pane last viewed there,

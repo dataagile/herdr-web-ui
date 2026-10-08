@@ -489,6 +489,19 @@
   cursor: pointer;
 }
 
+/* the Projects header carries the + for a new project at the row's end, over the rows' ⋯ column */
+.sidebar-section-row {
+  display: flex;
+  align-items: center;
+  padding-right: var(--space-1);
+}
+
+.sidebar-section-row > .sidebar-section-header {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
 .sidebar-section-header:hover,
 .sidebar-section-header:focus-visible {
   color: var(--text-strong);

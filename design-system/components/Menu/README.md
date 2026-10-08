@@ -1,7 +1,7 @@
 A bordered popover list of actions: icon, ellipsized label and optional hint per row, with headings, hairlines and a danger item.
 
 ## When to use
-- The sidebar row's `⋯` menu (`.row-menu`), the header's More menu, the tab strip's pane picker, split menus.
+- The sidebar row's `⋯` menu (`.row-menu`), the tab strip's pane picker, split menus.
 - The same `.menu` surface backs completion lists (composer slash and @ menus) and the command palette's rows.
 - Not for choosing between 2-3 view modes (use the segmented control).
 

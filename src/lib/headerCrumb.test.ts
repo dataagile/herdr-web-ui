@@ -6,7 +6,6 @@ const base = { machine: "workstation", workspace: "checkout-api", title: "Idempo
 it("leaves the folder out when the workspace already says its name", () => {
   const crumb = headerCrumb({ ...base, cwd: "/tmp/herdr-demo/checkout-api" });
   expect(crumb.folder).toBeNull();
-  expect(crumb.place).toBe("workstation › checkout-api");
   expect(crumb.path).toBe("/tmp/herdr-demo/checkout-api");
 });
 

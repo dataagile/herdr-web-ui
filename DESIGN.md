@@ -288,10 +288,10 @@ One set for both themes: the card is island black wherever it shows.
 - The header is one line at every width. Anatomy, left to right: mobile drawer toggle / desktop
   sidebar toggle and the command palette (`.header-side`); the flexible context, agent mark and
   title then the PC › workspace › folder crumb; segmented Chat/Terminal switch; the connection
-  chip while the bridge is not live (herdr version in its tooltip), the offline pill, sign out and
-  the More menu (`⋯`). Theme lives in Settings and the palette; the herdr version is also read
+  chip while the bridge is not live (herdr version in its tooltip), the offline pill, and sign out.
+  **Files** (`FolderOpen`) and **Alerts** (the bell) sit before the switch. Theme lives in Settings and the palette; the herdr version is also read
   in Settings. Beside **New tab** sits **Split** (`.header-split`, a ghost button; icon only at
-  `<=480px`, where it is the More menu's second item, under the palette), which opens the split menu for the pane in front; while the tab is zoomed an
+  `<=1100px`, where the label goes), which opens the split menu for the pane in front; while the tab is zoomed an
   **Unzoom** button (`.header-unzoom`) joins the switch, and the crumb's last part reads
   "zoom n/N". With several panes side by side the **Chat** half of the switch is disabled
   (`opacity: 0.45`, `not-allowed` cursor, tooltip "Chat: zoom (⤢) a pane") and every pane shows
@@ -313,9 +313,17 @@ One set for both themes: the card is island black wherever it shows.
   from the left `24px` edge opens the drawer and a swipe to the left closes it (`56px` of travel).
 - The terminal stack contains a positioned terminal surface, then composer or key bar. The xterm
   mount stays alive under the chat lens; changing views never creates a second connection.
-- At `<=480px` the brand name, the offline pill, the Split button and desktop-only control labels go,
-  and the palette's button gives its room to the title: the palette is the More menu's first item
-  there and Split its second.
+- At `<=480px` the brand name, the offline pill, desktop-only control labels and the palette's button
+  go from the header, and so do the pane's title, agent mark and crumb: the bar is icons only (☰, copy path
+  as the title's `.context-copy.in-title`, New tab, Split, Files, the Alerts bell, the Chat/Terminal switch),
+  each with a `title` for hover and an `aria-label` naming it, and the tab strip below names the pane.
+  Files and the bell stay in the header at every width; New tab leaves it while the tab is zoomed, to keep
+  Unzoom in reach (it stays on the drawer's project row). Up to `768px` the drawer's first row
+  (`.drawer-rows`) is the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable,
+  breaking after a `/` or `\`, and wrapping a longer segment as a last resort) for a touch screen with
+  no tooltip; at `<=480px`, where the header's palette button is gone, `.drawer-palette` follows (it closes the drawer). The header's buttons, the lens switch's
+  included, keep `--touch-target` under `pointer: coarse`: no smaller size is drawn for the phone, and
+  at `<=480px` the bar drops its own gap and gutter to `--space-2` so seven targets fit 360px.
   Icons and selected context remain.
 
 ## 5. Components
@@ -466,7 +474,7 @@ One set for both themes: the card is island black wherever it shows.
 - Submit calls `POST /api/workspace/create`; the server performs `workspace.create` and, when an
   agent was chosen, `agent.start` in its root pane. Pending and partial agent-start failure are
   explicit before the created pane opens.
-- As **New tab** (from a Projects row's `+` or `⋯` menu, the header's New tab button or More menu, the right-click pane menu, the strip's `+` or the palette),
+- As **New tab** (from a Projects row's `+` or `⋯` menu, the header's New tab button, the right-click pane menu, the strip's `+` or the palette),
   the same dialog is titled `New tab · <workspace>`, shows the workspace's folder as a fact in a
   dashed box (`.new-session-folder`: a worktree's checkout, else the folder of the pane in front)
   instead of asking for one, and its name is the tab's (optional; the placeholder is the number
@@ -474,8 +482,13 @@ One set for both themes: the card is island black wherever it shows.
 
 ### Tab strip (`.tab-strip`)
 - herdr's tab row, over the pane: shown once the selected pane's workspace has more than one
-  pane (a second tab, or a tab split in the TUI), never for a lone pane. One `role="tab"` per tab
-  in herdr's order, named by its label, or **Tab n** while herdr still names it by its number;
+  pane (a second tab, or a tab split in the TUI), never for a lone pane — except on a phone (up to
+  480px), where it is always shown, a one-tab workspace included, because the header carries no
+  title and the strip is where the pane is named (never without a selected pane). One `role="tab"` per tab
+  in herdr's order, named by its label, or **Tab n** while herdr still names it by its number (on a
+  phone the open tab is always named by the pane in front (`displayPaneTitle`), whatever its own name,
+  and another such tab, when it holds one pane, by that pane's title instead; renaming still compares
+  with herdr's own name for the tab);
   a 7px dot before the name in the state's colour for working, blocked and done. The open tab
   (the selected pane's) is underlined 2px in `--accent` and in the strong colour; the others are
   dim. Arrow keys move between tabs. A tab opens the pane last viewed in it, else the one herdr
@@ -567,16 +580,20 @@ One set for both themes: the card is island black wherever it shows.
   when the title, the PC or the workspace does not already say it (`lib/headerCrumb.ts`). The
   title may shorten with an ellipsis; the crumb never does: when it does not fit whole beside the
   whole title it is not drawn, and the title has the row. The full path is in the context's
-  tooltip and at the top of the More menu. With no selection, the brand fills the context slot.
-- The More menu (`.header-more-button`, the `RowMenu` popover, a bottom sheet at `<=640px`) opens
-  with the location on two lines, "PC › workspace" then the full path in mono, and holds **New
-  tab** (the selected pane's workspace), **Browse files** and **Alerts**, each under the condition
-  its own button had; at `<=480px` **Command palette** is its first item. The Alerts item says
-  this device's state in words after its label ("On in the app", "On in this tab", "On, pushed to
-  this device", "Off on this device") and switches it: it is a `menuitemcheckbox` with
-  `aria-checked` in the popover and a button with `aria-pressed` in the sheet. While alerts are off on this device the
-  More button carries a `--dot-size` `--accent` dot and its name says "alerts are off": the dot
-  marks the state that needs a look, never "on".
+  tooltip and behind a small copy button (`.context-copy`, `Copy` icon, `--text-dim`, `--space-6`
+  square, capped at the context line so compact density does not clip it; `--touch-target` under `pointer: coarse`): at the end of the crumb, or - while the crumb
+  is wrapped out of sight (the context carries `.is-crumb-hidden`, set by a `ResizeObserver` in
+  `App.tsx`) - right after the title. Exactly one is shown; the crumb's keeps its room hidden. The
+  button turns into a check for 1.5 s once that pane's path is on the clipboard; where the clipboard
+  API is missing (plain HTTP) it opens the browser's prompt with the path ready to select. With no
+  selection, the brand fills the context slot.
+- **Alerts** is a bell button (`.header-bell`, `aria-pressed`, its title says this device's state in
+  words) that switches this device's alerts; shown as `BellOff` while off. While alerts are off the
+  button carries a `--dot-size` `--accent` dot: the dot marks the state that needs a look, never
+  "on". **Files** opens the file browser for the pane in front. At `<=1100px` the header's buttons
+  (New tab, Split, Unzoom, Files) drop their labels and keep only the icon, so the title and its
+  copy button keep the room; the Chat/Terminal switch keeps its words down to 560px. Hovering a
+  header icon shows its name (the `title`); the bell and Files never move into the drawer.
 - The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows

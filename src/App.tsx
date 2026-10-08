@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Bell, Columns2, Ellipsis, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Bell, BellOff, Check, Columns2, Copy, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
 import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
@@ -17,7 +17,7 @@ import { CommandPalette } from "./components/CommandPalette.tsx";
 import { MachineContext } from "./lib/machineContext.tsx";
 import { MachineActionBanner, MachineSidebar } from "./components/MachineSidebar.tsx";
 import { MachineDialog } from "./components/MachineDialog.tsx";
-import { RowMenu, type RowMenuItem } from "./components/RowMenu.tsx";
+import { copyText } from "./lib/clipboard.ts";
 import { focusWorkspaceListToggle } from "./lib/focus.ts";
 import { headerCrumb, showsChat } from "./lib/headerCrumb.ts";
 import { paneStorageId, type Machine, type MachineEvent } from "../shared/machines.ts";
@@ -141,7 +141,7 @@ export function App() {
   const alerts = useMemo(() => alertPrefs(settings), [settings.alertInput, settings.alertDone]);
   const alertsRef = useRef(alerts);
   alertsRef.current = alerts;
-  // the Alerts item's switch for this device (the header's More menu): off drops its push subscription and silences tab and in-app alerts
+  // the header's Alerts button: a switch for this device: off drops its push subscription and silences tab and in-app alerts
   const alertsOn = settings.alertsOn;
   const alertsOnRef = useRef(alertsOn);
   alertsOnRef.current = alertsOn;
@@ -203,19 +203,21 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [lens, setLens] = useState<{ key: string; view: PaneView }>({ key: "", view: "terminal" });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // the header's More menu: its button, and whether it opened on a phone-width screen
-  const [more, setMore] = useState<{ anchor: HTMLElement; phone: boolean } | null>(null);
-  const closeMore = useCallback(() => setMore(null), []);
-  const moreOpen = more !== null;
-  // a sheet stays up through a resize: its palette item follows the header's palette button,
-  // which the same breakpoint hides
-  useEffect(() => {
-    if (!moreOpen) return;
-    const media = window.matchMedia("(max-width: 480px)");
-    const onChange = (): void => setMore((open) => open && { ...open, phone: media.matches });
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, [moreOpen]);
+  // the header's copy-path button shows a check for a moment after it copies; the state is the
+  // pane and path it copied, so neither another pane (even in the same folder) nor another path shows one
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const copiedTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
+  const copyPath = async (path: string): Promise<void> => {
+    // no clipboard API on a plain-HTTP address: the browser's own box has the path selected
+    if (!(await copyText(path))) {
+      window.prompt(t("Copy path"), path);
+      return;
+    }
+    setCopiedKey(`${selectedPaneId}\0${path}`);
+    window.clearTimeout(copiedTimer.current);
+    copiedTimer.current = window.setTimeout(() => setCopiedKey(null), 1500);
+  };
   // the Files dialog, and the file open in the viewer (a path as the chat or the dialog gave it)
   const [filesOpen, setFilesOpen] = useState(false);
   const { viewing, openFile, closeFile } = useFileViewer();
@@ -614,9 +616,9 @@ export function App() {
     [selectedPaneId, selectedMachineId],
   );
 
-  // The Alerts item says what this device does, whatever the browser's permission: in-app alerts
+  // The Alerts button says what this device does, whatever the browser's permission: in-app alerts
   // need none, so they count as on. A device that has not answered the permission question is
-  // asked by the item; one that has answered gets a plain switch.
+  // asked by the button; one that has answered gets a plain switch.
   const bell: { state: string; title: string; on: boolean; run: () => Promise<unknown> } =
     !alertsOn
       ? { state: t("Off on this device"), title: t("Alerts off on this device — tap to turn them on"), on: false, run: enableNotifications }
@@ -639,12 +641,28 @@ export function App() {
             };
   // hidden only where it could do nothing: no system notifications and in-app alerts off
   const bellVisible = notifications === "default" || notifications === "granted" || settings.alertInApp;
-  // the menu's button carries a dot while alerts are off here: the one state of the menu worth a glance
+  // the bell carries a dot while alerts are off here
   const alertsOffDot = bellVisible && !bell.on;
   const connWord = t(connected ? "live" : outputStopped ? "disconnected" : "reconnecting");
   const crumb = selectedPane && selectedTitle !== null
     ? headerCrumb({ machine: selectedMachine?.name ?? selectedMachineId, workspace: selectedWorkspace?.label ?? selectedPane.workspace_id, title: selectedTitle, cwd: selectedPane.cwd })
     : null;
+
+  // the crumb that does not fit wraps to a second line the header clips (styles.css, .context):
+  // then the copy button moves from its end to the title
+  // the element is state, set by a callback ref: a header that remounts (lock, then unlock) is observed anew
+  const [context, setContext] = useState<HTMLDivElement | null>(null);
+  const [crumbHidden, setCrumbHidden] = useState(false);
+  useLayoutEffect(() => {
+    if (!context) return;
+    const title = context.querySelector<HTMLElement>(".context-title");
+    const sub = context.querySelector<HTMLElement>(".context-sub");
+    const measure = (): void => setCrumbHidden(!title || !sub || sub.offsetTop >= title.offsetTop + title.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const element of [context, title, sub]) if (element) observer.observe(element);
+    return () => observer.disconnect();
+  }, [context]);
 
   useEffect(() => {
     document.title = selectedTitle ? `${selectedTitle} · herdr` : APP_TITLE;
@@ -819,21 +837,21 @@ export function App() {
 
   useShortcuts(actions, locked === false);
 
-  // The header's More menu: what used to be three buttons of its own. Each item is there under
-  // the condition its button had. At phone width the palette's button gives its room to the
-  // pane's title, and the palette is the menu's first item.
-  const paletteItem: RowMenuItem = { id: "palette", label: t("Command palette"), icon: Search, run: () => setPaletteOpen(true) };
-  const moreItems: RowMenuItem[] = [
-    ...(selectedPane && selectedWorkspace
-      ? [{ id: "new-tab", label: t("New tab"), title: t("New tab in {workspace}", { workspace: selectedWorkspace.label }), icon: Plus, run: () => actions.openNewTab() }]
-      : []),
-    ...(selectedPane ? [{ id: "files", label: t("Browse files"), icon: FolderOpen, run: () => setFilesOpen(true) }] : []),
-    ...(bellVisible ? [{ id: "alerts", label: t("Alerts"), hint: bell.state, checked: bell.on, title: bell.title, icon: Bell, run: () => void bell.run() }] : []),
-  ];
-
   // the chat's surface is what the pane column shows: the header's pane zone and the tab strip
   // take it (from 769px). A pane herdr could not restore draws a placeholder, not the chat.
   // the Chat is for one pane at a time: with several side by side, each shows its terminal
+  // the copy button sits at the end of the crumb; beside the title while the crumb is wrapped out of sight
+  const copyPathButton = (place: "in-title" | "in-crumb") => {
+    if (crumb?.path == null) return null;
+    const pathCopied = copiedKey === `${selectedPaneId}\0${crumb.path}`;
+    const label = pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path });
+    return (
+      <button type="button" className={`icon-button context-copy ${place}`} aria-label={label} title={label} onClick={() => void copyPath(crumb.path ?? "")}>
+        {pathCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+      </button>
+    );
+  };
+
   const shownView: PaneView = splitting ? "terminal" : view;
   const chatShown = showsChat(selectedPane, shownView);
 
@@ -869,7 +887,7 @@ export function App() {
 
   return (
     <MachineContext.Provider value={selectedMachineId}><div className={`app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <header className={`app-header is-zoned${chatShown ? " is-chat" : ""}`}>
+      <header className={`app-header is-zoned${chatShown ? " is-chat" : ""}${selectedPane && zoomedPaneId !== null ? " has-unzoom" : ""}`}>
         {/* is-zoned tells this header from the connecting shell's, which has no zones to draw.
             .header-side is the sidebar's own top row from 769px (styles.css); below that its
             buttons sit in the bar */}
@@ -877,7 +895,8 @@ export function App() {
           <button
             type="button"
             className="icon-button drawer-toggle"
-            aria-label={t(drawerOpen ? "Close project list" : "Open project list")}
+            aria-label={drawerOpen ? t("Close project list") : t("Open project list")}
+            title={drawerOpen ? t("Close project list") : t("Open project list")}
             aria-expanded={drawerOpen}
             aria-controls="workspace-drawer"
             onClick={() => setDrawerOpen((open) => !open)}
@@ -899,10 +918,11 @@ export function App() {
           </button>
         </div>
         {selectedPane && crumb ? (
-          <div className="context" title={crumb.tooltip}>
+          <div className={`context${crumbHidden ? " is-crumb-hidden" : ""}`} ref={setContext} title={crumb.tooltip}>
             <div className="context-title">
               {selectedAgent && <AgentMark agent={selectedAgent} size={18} />}
               <span className="context-title-text">{selectedTitle}</span>
+              {copyPathButton("in-title")}
             </div>
             <div className="context-sub">
               <span className="machine-context-name">{crumb.machine}</span><span className="context-sep" aria-hidden="true">›</span>
@@ -919,19 +939,20 @@ export function App() {
                   <span>{t("zoom {n}/{total}", { n: zoomIndex, total: selectedLayout.panes.length })}</span>
                 </>
               )}
+              {copyPathButton("in-crumb")}
             </div>
           </div>
         ) : (
           <><Brand /><span className="machine-context-name">{selectedMachine?.name ?? selectedMachineId}</span></>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost" title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
+          <button type="button" className="btn btn-ghost header-new-tab" aria-label={t("New tab")} title={selectedWorkspace ? t("New tab in {workspace}", { workspace: selectedWorkspace.label }) : t("New tab")} onClick={() => actions.openNewTab()}>
             <Plus aria-hidden="true" />
             <span className="header-desktop-only">{t("New tab")}</span>
           </button>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost header-split" aria-haspopup="menu" aria-expanded={paneMenu?.whole === false} title={t("Split")} onClick={(event) => {
+          <button type="button" className="btn btn-ghost header-split" aria-haspopup="menu" aria-expanded={paneMenu?.whole === false} aria-label={t("Split")} title={t("Split")} onClick={(event) => {
             const anchor = event.currentTarget;
             setPaneMenu(paneMenu?.whole === false ? null : { anchor, paneId: selectedPane.pane_id, whole: false });
           }}>
@@ -940,18 +961,32 @@ export function App() {
           </button>
         )}
         {selectedPane && zoomedPaneId !== null && (
-          <button type="button" className="btn header-unzoom" title={t("Unzoom")} onClick={() => void zoomSplitPane(zoomedPaneId ?? selectedPane.pane_id, "off")}>
+          <button type="button" className="btn header-unzoom" aria-label={t("Unzoom")} title={t("Unzoom")} onClick={() => void zoomSplitPane(zoomedPaneId ?? selectedPane.pane_id, "off")}>
             <Minimize2 aria-hidden="true" />
             <span className="header-desktop-only">{t("Unzoom")}</span>
           </button>
         )}
         {selectedPane && (
+          <button type="button" className="btn btn-ghost header-files" aria-label={t("Files")} title={t("Browse files")} onClick={() => setFilesOpen(true)}>
+            <FolderOpen aria-hidden="true" />
+            <span className="header-desktop-only">{t("Files")}</span>
+          </button>
+        )}
+        {bellVisible && (
+          <span className="header-bell">
+            <button type="button" className="icon-button" aria-label={t("Alerts")} aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
+              {bell.on ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+            </button>
+            {alertsOffDot && <span className="header-bell-dot" aria-hidden="true" />}
+          </span>
+        )}
+        {selectedPane && (
           <div className="segmented view-switch" role="group" aria-label="Pane view">
-            <button type="button" aria-pressed={shownView === "chat"} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
+            <button type="button" aria-pressed={shownView === "chat"} aria-label={t("Chat")} disabled={splitting} onClick={() => setView("chat")} title={splitting ? t("Chat: zoom (⤢) a pane") : t("Chat transcript (⌘⇧J)")}>
               <MessageSquare />
               <span className="header-desktop-only">{t("Chat")}</span>
             </button>
-            <button type="button" aria-pressed={shownView === "terminal"} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
+            <button type="button" aria-pressed={shownView === "terminal"} aria-label={t("Terminal")} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
               <SquareTerminal />
               <span className="header-desktop-only">{t("Terminal")}</span>
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
@@ -975,43 +1010,20 @@ export function App() {
               <Lock />
             </button>
           )}
-          {/* with nothing of its own to offer it is still the phone's way to the palette */}
-          <span className={`header-more${moreItems.length === 0 ? " is-phone-only" : ""}`}>
-            <button
-              type="button"
-              className="icon-button header-more-button"
-              aria-label={alertsOffDot ? t("More · alerts are off") : t("More")}
-              title={alertsOffDot ? t("More · alerts are off") : t("More")}
-              aria-haspopup="menu"
-              aria-expanded={more !== null}
-              onClick={(event) => {
-                const anchor = event.currentTarget;
-                setMore((open) => (open ? null : { anchor, phone: window.matchMedia("(max-width: 480px)").matches }));
-              }}
-            >
-              <Ellipsis />
-            </button>
-            {alertsOffDot && <span className="header-more-dot" aria-hidden="true" />}
-          </span>
         </div>
-        {more && (
-          <RowMenu
-            anchor={more.anchor}
-            title={t("More")}
-            header={crumb ? (
-              <div className="header-more-crumb">
-                <span>{crumb.place}</span>
-                {crumb.path !== null && <span className="header-more-path">{crumb.path}</span>}
-              </div>
-            ) : undefined}
-            items={more.phone ? [paletteItem, ...(selectedPane ? [{ id: "split", label: t("Split"), icon: Columns2, run: () => setPaneMenu({ anchor: more.anchor, paneId: selectedPane.pane_id, whole: false }) }] : []), ...moreItems] : moreItems}
-            onClose={closeMore}
-          />
-        )}
       </header>
 
       <div className="app-body">
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
+          {/* up to 768px (styles.css) the pane's full path; the palette row only up to 480px, where the header's palette button is gone */}
+          <div className="drawer-rows">
+            {/* the full path, for a touch screen that has no tooltip; breaks after a "/" or "\\" */}
+            {crumb?.path != null && <p className="drawer-path">{crumb.path.split(/(?<=[\\/])/).map((part, index) => <span key={index}>{part}<wbr /></span>)}</p>}
+            <button type="button" className="btn btn-ghost drawer-palette" onClick={() => { setDrawerOpen(false); setPaletteOpen(true); }}>
+              <Search aria-hidden="true" />
+              <span>{t("Command palette")}</span>
+            </button>
+          </div>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}
           <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} onSelect={selectTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
         </aside>

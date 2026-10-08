@@ -315,15 +315,16 @@ One set for both themes: the card is island black wherever it shows.
   mount stays alive under the chat lens; changing views never creates a second connection.
 - At `<=480px` the brand name, the offline pill, desktop-only control labels and the palette's button
   go from the header, and so do the pane's title, agent mark and crumb: the bar is icons only (☰, copy path
-  as the title's `.context-copy.in-title`, New tab, Split, Files, the Alerts bell, the Chat/Terminal switch),
+  as the title's `.context-copy.in-title`, Split, Files, the Alerts bell, the Chat/Terminal toggle and the modified-files button),
   each with a `title` for hover and an `aria-label` naming it, and the tab strip below names the pane.
-  Files and the bell stay in the header at every width; New tab leaves it while the tab is zoomed, to keep
-  Unzoom in reach (it stays on the drawer's project row). Up to `768px` the drawer's first row
+  Files and the bell stay in the header at every width; New tab leaves the bar at `<=480px` (the tab
+  strip below is always there on a phone and ends in its own `+`, and the drawer's project row has one
+  too), which keeps every other button at `--touch-target` in 360px; zoomed, Unzoom takes its place. Up to `768px` the drawer's first row
   (`.drawer-rows`) is the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable,
   breaking after a `/` or `\`, and wrapping a longer segment as a last resort) for a touch screen with
   no tooltip; at `<=480px`, where the header's palette button is gone, `.drawer-palette` follows (it closes the drawer). The header's buttons, the lens switch's
   included, keep `--touch-target` under `pointer: coarse`: no smaller size is drawn for the phone, and
-  at `<=480px` the bar drops its own gap and gutter to `--space-2` so seven targets fit 360px.
+  at `<=480px` the bar drops its own gap and gutter to `--space-2` so the targets fit 360px.
   Icons and selected context remain.
 
 ## 5. Components

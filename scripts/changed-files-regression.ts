@@ -214,6 +214,8 @@ try {
     }
     const names = measured.controls.map((c) => c.name);
     assert.ok(names.some((n) => n.startsWith("Files modified in this session")), "the button is in the bar");
+    assert.ok(!names.includes("New tab"), "the bar's New tab is hidden on a phone (the strip's + has it)");
+    assert.equal(await small.locator(".tab-strip .tab-strip-add").isVisible(), true, "the strip's + is shown on a phone");
     await shot(small, `phone-header-${width}.png`);
     if (width === 390) {
       await small.locator(".header-amod button").click();

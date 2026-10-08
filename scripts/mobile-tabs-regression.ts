@@ -26,8 +26,8 @@ async function box(page: Page, selector: string): Promise<Box> {
 /** A phone's header is icons only: the strip right under it names the open tab, whatever the lens. */
 async function assertShell(page: Page, label: string): Promise<void> {
   const newTab = page.locator(".app-header").getByRole("button", { name: "New tab" });
-  assert.equal(await newTab.count(), 1, `${label}: the header has its own New tab button`);
-  assert.equal(await newTab.locator(".header-desktop-only").isVisible(), false, `${label}: the New tab button is icon-only on this width`);
+  assert.equal(await newTab.isVisible(), false, `${label}: the header's New tab button is hidden on a phone`);
+  assert.equal(await page.locator(".tab-strip .tab-strip-add").isVisible(), true, `${label}: the strip's + (New tab) is shown`);
   assert.equal(await page.locator(".app-header .header-more-button").count(), 0, `${label}: the header has no More menu`);
   assert.equal(await page.locator(".context-title-text").isVisible(), false, `${label}: the header draws no title text`);
   const openTab = (await page.locator(".tab-strip-item.is-active .tab-strip-tab").innerText()).trim();

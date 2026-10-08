@@ -896,8 +896,11 @@ export const KO: Record<string, string> = {
   "Redo": "다시 선택",
   "No file chosen": "선택한 파일 없음",
   "Include technical data in the ticket": "티켓에 기술 데이터 포함",
-  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "팀이 무슨 일이 있었는지 이해하는 데 도움이 됩니다. 기술 데이터의 비밀번호, 토큰, 문서 번호는 브라우저를 떠나기 전에 가려집니다. 스크린샷은 화면을 그대로 보여 주므로, 보내기 전에 민감한 정보가 보이지 않는지 확인하세요.",
+  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. Tokens, passwords and keys in the description are masked by the support system. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "팀이 무슨 일이 있었는지 이해하는 데 도움이 됩니다. 기술 데이터의 비밀번호, 토큰, 문서 번호는 브라우저를 떠나기 전에 가려집니다. 설명의 토큰, 비밀번호, 키는 지원 시스템에서 가려집니다. 스크린샷은 화면을 그대로 보여 주므로, 보내기 전에 민감한 정보가 보이지 않는지 확인하세요.",
   "See what will be sent": "전송될 내용 보기",
   "Could not capture the screen.": "화면을 캡처할 수 없습니다.",
+  "The support system took too long to answer; the ticket may have been created. Check before sending again.": "GLPI 응답이 지연되었습니다. 티켓이 생성되었을 수 있으니 다시 보내기 전에 확인하세요.",
+  "Send anyway": "그래도 보내기",
+  "The portal is busy; try again in {n} s.": "포털이 바쁩니다. {n}초 후에 다시 시도하세요.",
   "Image too large (max. 10 MB).": "이미지가 너무 큽니다(최대 10MB).",
 };

@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 import "./Feedback.css";
 
-import { CONVERSATION_SELECTOR, maskedText, type ElementContext } from "../lib/feedback.ts";
+import { PRIVATE_SELECTOR, maskedText, type ElementContext } from "../lib/feedback.ts";
 import { recentConsole } from "../lib/feedbackBuffer.ts";
 import { PICKER_ATTR } from "../lib/feedbackScreenshot.ts";
 import { isSensitiveKey, scrubText, scrubUrl } from "../lib/feedbackScrub.ts";
@@ -64,9 +64,8 @@ function dataAttrs(el: Element): Record<string, string> {
 
 export function buildElementContext(el: Element, modo: "elemento" | "area"): ElementContext {
   const raw = (el.textContent ?? "").replace(/\s+/g, " ").trim();
-  const text = raw.length > 200 ? `${raw.slice(0, 200)}…` : raw;
-  // a pane's content is the conversation (chat or terminal), or holds it: only its length leaves
-  const conversation = el.closest(CONVERSATION_SELECTOR) !== null || el.querySelector(CONVERSATION_SELECTOR) !== null;
+  // a private surface (conversation, prompt, file content), or an element holding one: only its length leaves
+  const isPrivate = el.closest(PRIVATE_SELECTOR) !== null || el.querySelector(PRIVATE_SELECTOR) !== null;
   const inside = el.tagName === "IFRAME" ? "iframe" : el.shadowRoot || el.getRootNode() instanceof ShadowRoot ? "shadow-dom" : undefined;
   return {
     url: scrubUrl(window.location.pathname + window.location.search),
@@ -75,7 +74,7 @@ export function buildElementContext(el: Element, modo: "elemento" | "area"): Ele
     tag: el.tagName.toLowerCase(),
     classes: Array.from(el.classList),
     data_attrs: dataAttrs(el),
-    texto_visivel: text ? maskedText(text, conversation) : null,
+    texto_visivel: raw ? maskedText(raw, isPrivate) : null,
     breadcrumb_dom: breadcrumb(el),
     console_errors: recentConsole().map((line) => line.message),
     modo,
@@ -92,13 +91,18 @@ export function ElementPicker({ capturing, onSelect, onCancel }: ElementPickerPr
   calls.current = { onSelect, onCancel, capturing };
 
   useEffect(() => {
-    let element: Element | null = null;
+    let element: HTMLElement | null = null;
     let down: Point | null = null;
     let pointerId: number | null = null;
     let dragging = false;
     let handled = false;
 
-    const under = (x: number, y: number): Element | null => document.elementsFromPoint(x, y).find((el) => el.closest(`[${PICKER_ATTR}]`) === null) ?? null;
+    // an svg (a lucide icon) or any non-HTML node resolves to the HTML element that holds it
+    const under = (x: number, y: number): HTMLElement | null => {
+      let node: Element | null = document.elementsFromPoint(x, y).find((el) => el.closest(`[${PICKER_ATTR}]`) === null) ?? null;
+      while (node && !(node instanceof HTMLElement)) node = node.parentElement;
+      return node;
+    };
 
     const swallowNextClick = (): void => {
       const swallow = (event: MouseEvent): void => { event.preventDefault(); event.stopPropagation(); };
@@ -146,7 +150,7 @@ export function ElementPicker({ capturing, onSelect, onCancel }: ElementPickerPr
           return;
         }
       }
-      if (element instanceof HTMLElement) calls.current.onSelect(buildElementContext(element, "elemento"), element.getBoundingClientRect());
+      if (element) calls.current.onSelect(buildElementContext(element, "elemento"), element.getBoundingClientRect());
       else handled = false;
     };
 

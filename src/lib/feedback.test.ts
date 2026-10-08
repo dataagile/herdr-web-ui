@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 
-import { buildFeedbackForm, buildTechContext, capElementContext, FeedbackError, MAX_TECH_BYTES, outgoingJson, submitFeedback, type ElementContext, type TechInput } from "./feedback.ts";
-import { recentConsole, recentRequests, recordConsole, recordRequest, resetFeedbackBuffer } from "./feedbackBuffer.ts";
+import { MAX_ROUTE, maskedText, buildFeedbackForm, buildTechContext, capElementContext, FeedbackError, MAX_TECH_BYTES, outgoingJson, submitFeedback, type ElementContext, type TechInput } from "./feedback.ts";
+import { describeValue, recentConsole, recentRequests, recordConsole, recordRequest, resetFeedbackBuffer } from "./feedbackBuffer.ts";
 
 const SECRET = "ghp_abcdefghijklmnopqrstuvwxyz0123456789";
 const base = (over: Partial<TechInput> = {}): TechInput => ({
@@ -121,5 +121,77 @@ describe("the ring buffer", () => {
     recordRequest("GET", "/api/portal/me", 404, 5);
     recordRequest("POST", "/api/portal/feedback", 429, 5);
     expect(recentRequests(10)).toEqual([{ method: "POST", path: "/api/pane/send?x=[Q]", status: 500 }]);
+  });
+});
+
+describe("maskedText: private surfaces and the rest", () => {
+  it("a private surface leaves only its length, of the whole text", () => {
+    expect(maskedText("é".repeat(5000), true)).toBe("[TEXTO OMITIDO 5000 chars]");
+  });
+
+  it("outside them the text is masked and kept to 200 chars", () => {
+    const text = `${"x".repeat(190)} token=zq9s7vwabcdef ${"y".repeat(500)}`;
+    const out = maskedText(text, false);
+    expect(out).not.toContain("zq9s7vw");
+    expect(out.length).toBeLessThanOrEqual(201);
+    expect(maskedText("hello joao@example.com", false)).toBe("hello [EMAIL]");
+  });
+
+  it("a secret across the 200th char is masked before the cut", () => {
+    const out = maskedText(`${"x".repeat(190)} ghp_abcdefghijklmnopqrstuvwxyz0123456789`, false);
+    expect(out).not.toContain("ghp_");
+  });
+});
+
+describe("the route", () => {
+  it("is cut to the portal's 2048 chars after masking", () => {
+    const form = buildFeedbackForm({ category: "erro", message: "m", route: `/p/${"a/".repeat(3000)}`, attachment: null, tech: null, element: null });
+    expect(String(form.get("route")).length).toBe(MAX_ROUTE);
+  });
+});
+
+describe("console text", () => {
+  beforeEach(resetFeedbackBuffer);
+
+  it("describeValue survives a huge or cyclic object", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(describeValue(cyclic)).toBe("[object Object]");
+    const big = Array.from({ length: 100_000 }, (_, at) => ({ at }));
+    expect(describeValue(big)).toBe("[object Array]");
+    expect(describeValue({ a: 1 })).toBe('{"a":1}');
+  });
+
+  it("a huge line is cut before the scrub and to 500 after", () => {
+    recordConsole(`${"x".repeat(3_000_000)} token=zq9s7vw`);
+    const [line] = recentConsole();
+    expect(line!.message.length).toBeLessThanOrEqual(501);
+  });
+});
+
+describe("submitFeedback errors", () => {
+  const form = new FormData();
+  const reply = (status: number, body: unknown): typeof fetch => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  const failure = async (request: typeof fetch): Promise<FeedbackError> => (await submitFeedback(form, request).catch((e: unknown) => e)) as FeedbackError;
+
+  it("reads error.code as an object and keys 504 on the status or glpi_timeout", async () => {
+    const timeout = { error: { code: "glpi_timeout", message: "x" }, ticket_status: "desconhecido" };
+    expect(await failure(reply(504, timeout))).toMatchObject({ status: 504, code: "glpi_timeout" });
+    expect(await failure(reply(502, timeout))).toMatchObject({ status: 504 });
+    expect(await failure(reply(502, { error: { code: "glpi_token", message: "x" } }))).toMatchObject({ status: 502, code: "glpi_token" });
+    expect(await failure(reply(429, { error: "rate" }))).toMatchObject({ status: 429, code: null });
+    expect(await failure(reply(413, null))).toMatchObject({ status: 413 });
+  });
+
+  it("carries Retry-After on a busy 503", async () => {
+    const busy = (async () => new Response(JSON.stringify({ error: { code: "busy", message: "x" } }), { status: 503, headers: { "retry-after": "7" } })) as unknown as typeof fetch;
+    expect(await failure(busy)).toMatchObject({ status: 503, code: "busy", retryAfter: 7 });
+    expect(await failure(reply(503, { error: { code: "glpi_not_configured" } }))).toMatchObject({ status: 503, retryAfter: null });
+  });
+
+  it("is not retried on its own", async () => {
+    let calls = 0;
+    await failure((async () => { calls++; return new Response("{}", { status: 504 }); }) as unknown as typeof fetch);
+    expect(calls).toBe(1);
   });
 });

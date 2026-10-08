@@ -211,7 +211,7 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen }: FileViewerP
           <a className="icon-button" href={fileUrl(info?.path ?? path, paneId, true)} download={info?.name ?? true} aria-label={t("Download")} title={t("Download")}><Download aria-hidden="true" /></a>
           <button type="button" className="icon-button" aria-label={t("Close file")} onClick={requestClose}><X aria-hidden="true" /></button>
         </header>
-        <div className="file-viewer-body">{body}</div>
+        <div className="file-viewer-body" data-feedback-private="">{body}</div>
       </section>
     </div>
   );

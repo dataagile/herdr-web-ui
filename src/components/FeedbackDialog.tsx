@@ -11,6 +11,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type For
 import "./Feedback.css";
 
 import { buildFeedbackForm, FeedbackError, IMAGE_TYPES, MAX_IMAGE_BYTES, outgoingJson, submitFeedback, type ElementContext, type FeedbackCategory, type FeedbackResult, type TechContext } from "../lib/feedback.ts";
+import { formatBytes } from "../lib/bridgeProgress.ts";
+import { scrubSecrets } from "../lib/feedbackScrub.ts";
 import { useT } from "../lib/i18n.ts";
 
 export interface FeedbackDraft {
@@ -38,10 +40,6 @@ interface Props {
   onClose: () => void;
 }
 
-function kilobytes(bytes: number): string {
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
 /** The ticket link comes from the portal; only a web address is ever made a link. */
 function safeLink(url: string): string | null {
   try {
@@ -58,7 +56,13 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
   const fileInput = useRef<HTMLInputElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const [sending, setSending] = useState(false);
+  // a failure from outside the form is shown once: the draft forgets it as soon as it is read
   const [error, setError] = useState<string | null>(draft.notice);
+  useEffect(() => { if (draft.notice !== null) onChange({ ...draft, notice: null }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 504: the ticket may exist; no automatic retry, and Send stops inviting one until the text changes
+  const [uncertain, setUncertain] = useState(false);
+  // 503 busy: Send waits out the portal's Retry-After, once; nothing is resent on its own
+  const [busyFor, setBusyFor] = useState(0);
   const [result, setResult] = useState<FeedbackResult | null>(null);
   const set = (patch: Partial<FeedbackDraft>): void => onChange({ ...draft, ...patch });
 
@@ -75,12 +79,21 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose, sending]);
+  useEffect(() => {
+    if (busyFor === 0) return;
+    const timer = window.setTimeout(() => setBusyFor(0), busyFor * 1000);
+    return () => window.clearTimeout(timer);
+  }, [busyFor]);
   useEffect(() => { if (result) closeButton.current?.focus(); }, [result]);
 
-  const tech = rich && draft.tech !== null;
-  const preview = useMemo(() => JSON.stringify(outgoingJson(tech && draft.includeTech ? draft.tech : null, draft.element), null, 2), [tech, draft.includeTech, draft.tech, draft.element]);
+  // unchecked, neither the technical data nor the element leaves: the preview and the send read the same two values
+  const share = rich && draft.includeTech;
+  const sentTech = share ? draft.tech : null;
+  const sentElement = share ? draft.element : null;
+  // the description as it will arrive: the portal masks its secrets (tokens, keys, passwords) and nothing else
+  const preview = useMemo(() => JSON.stringify({ description: scrubSecrets(draft.message.trim()), ...outgoingJson(sentTech, sentElement) }, null, 2), [draft.message, sentTech, sentElement]);
   const route = window.location.pathname + window.location.search;
-  const canSend = draft.message.trim() !== "" && !sending;
+  const canSend = draft.message.trim() !== "" && !sending && busyFor === 0;
 
   const chooseFile = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0] ?? null;
@@ -99,11 +112,16 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
     if (!canSend) return;
     setSending(true);
     setError(null);
+    setUncertain(false);
     try {
-      setResult(await submitFeedback(buildFeedbackForm({ category, message: draft.message.trim(), route, attachment: draft.file, tech: tech && draft.includeTech ? draft.tech : null, element: draft.element })));
+      setResult(await submitFeedback(buildFeedbackForm({ category, message: draft.message.trim(), route, attachment: draft.file, tech: sentTech, element: sentElement })));
     } catch (reason) {
       const status = reason instanceof FeedbackError ? reason.status : 0;
-      setError(status === 429 ? t("Too many submissions. Try again in a few minutes.") : status === 413 ? t("Image too large (max. 10 MB).") : status === 503 ? t("Feedback is unavailable right now.") : t("Could not open the ticket. Try again."));
+      const busy = reason instanceof FeedbackError && status === 503 && reason.code === "busy";
+      const wait = Math.min(Math.max(reason instanceof FeedbackError ? reason.retryAfter ?? 5 : 5, 1), 120);
+      if (status === 504) setUncertain(true);
+      if (busy) setBusyFor(wait);
+      setError(busy ? t("The portal is busy; try again in {n} s.", { n: wait }) : status === 504 ? t("The support system took too long to answer; the ticket may have been created. Check before sending again.") : status === 429 ? t("Too many submissions. Try again in a few minutes.") : status === 413 ? t("Image too large (max. 10 MB).") : status === 503 ? t("Feedback is unavailable right now.") : t("Could not open the ticket. Try again."));
     } finally {
       setSending(false);
     }
@@ -153,7 +171,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
           <p className="new-session-note">{t("Describe it in detail. The Data Agile team receives it as a ticket.")}</p>
           <div className="field">
             <label className="field-label" htmlFor={`${id}-message`}>{t("Description (required)")}</label>
-            <textarea id={`${id}-message`} className="input feedback-textarea" rows={5} autoFocus required disabled={sending} value={draft.message} placeholder={t("Describe the error, the suggestion or your feedback…")} onChange={(event) => set({ message: event.target.value })} />
+            <textarea id={`${id}-message`} className="input feedback-textarea" rows={5} autoFocus required disabled={sending} value={draft.message} placeholder={t("Describe the error, the suggestion or your feedback…")} onChange={(event) => { setUncertain(false); set({ message: event.target.value }); }} />
           </div>
           {attachments && (
             <div className="field">
@@ -168,7 +186,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
                 <figure className="feedback-thumb">
                   <img src={previewUrl} alt={t("Attachment preview")} />
                   <figcaption>
-                    <span className="field-hint">{draft.file.name} · {kilobytes(draft.file.size)}</span>
+                    <span className="field-hint">{draft.file.name} · {formatBytes(draft.file.size)}</span>
                     <span className="feedback-thumb-actions">
                       <button type="button" className="btn btn-ghost" disabled={sending} onClick={() => set({ file: null, picked: false, element: null })}><Trash2 aria-hidden="true" />{t("Remove")}</button>
                       {draft.picked && <button type="button" className="btn" disabled={sending} onClick={onPick}><Crosshair aria-hidden="true" />{t("Redo")}</button>}
@@ -180,13 +198,13 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
               )}
             </div>
           )}
-          {tech && (
+          {rich && (
             <div className="field feedback-tech">
               <label className="feedback-check">
                 <input type="checkbox" checked={draft.includeTech} disabled={sending} onChange={(event) => set({ includeTech: event.target.checked })} />
                 <span>{t("Include technical data in the ticket")}</span>
               </label>
-              <span className="field-hint">{t("They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.")}</span>
+              <span className="field-hint">{t("They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. Tokens, passwords and keys in the description are masked by the support system. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.")}</span>
               <details className="feedback-details">
                 <summary>{t("See what will be sent")}</summary>
                 <pre className="feedback-json" tabIndex={0}>{preview}</pre>
@@ -197,7 +215,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
         </div>
         <footer className="modal-footer">
           <button type="button" className="btn btn-ghost" disabled={sending} onClick={onClose}>{t("Cancel")}</button>
-          <button type="submit" className="btn btn-primary" disabled={!canSend}>{sending ? t("Sending…") : t("Send")}</button>
+          <button type="submit" className={uncertain ? "btn" : "btn btn-primary"} disabled={!canSend}>{sending ? t("Sending…") : uncertain ? t("Send anyway") : t("Send")}</button>
         </footer>
       </form>
     </div>

@@ -4736,10 +4736,6 @@ button, a, [role="button"] {
 /* ===== components/Feedback.css ===== */
 /* The feedback dialog (FeedbackDialog) and the picker (ElementPicker). Tokens only. */
 
-.feedback-modal {
-  width: min(100%, 560px);
-}
-
 .feedback-textarea {
   width: 100%;
   height: auto;
@@ -4773,7 +4769,7 @@ button, a, [role="button"] {
 .feedback-thumb img {
   display: block;
   width: 100%;
-  max-height: 160px;
+  max-height: calc(var(--row-h) * 3);
   object-fit: contain;
   border-radius: var(--radius-sm);
   background: var(--term-bg);
@@ -4803,8 +4799,8 @@ button, a, [role="button"] {
 
 .feedback-check input {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: var(--space-4);
+  height: var(--space-4);
   margin: 0;
   accent-color: var(--primary);
 }
@@ -4816,7 +4812,7 @@ button, a, [role="button"] {
 }
 
 .feedback-json {
-  max-height: 300px;
+  max-height: calc(var(--row-h) * 5);
   margin: var(--space-2) 0 0;
   padding: var(--space-2) var(--space-3);
   overflow: auto;
@@ -4880,12 +4876,11 @@ button, a, [role="button"] {
   position: absolute;
   inset: 0;
   background: var(--scrim);
-  opacity: 0.6;
 }
 
 .picker-target {
   position: absolute;
-  border: 2px solid var(--accent);
+  border: var(--ring);
   border-radius: var(--radius-md);
   background: var(--accent-tint);
   box-shadow: var(--shadow-pop);

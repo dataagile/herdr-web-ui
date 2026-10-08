@@ -14,6 +14,8 @@ export const TECH_CONTEXT_VERSION = 1;
 export const MAX_TECH_BYTES = 180_000;
 /** the portal drops an element_context above 16 KB whole */
 export const MAX_ELEMENT_BYTES = 15_000;
+/** the portal answers 422 to a longer route */
+export const MAX_ROUTE = 2048;
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
@@ -103,11 +105,21 @@ export function capElementContext(context: ElementContext, maxBytes = MAX_ELEMEN
   return next;
 }
 
-/** The page text of a pointed-at element: pane content (chat or terminal) is conversation and only its length leaves. */
-export const CONVERSATION_SELECTOR = ".terminal-host, .xterm";
+/**
+ * Every surface that shows conversation, prompt or file content (chat, composer, prompt cards,
+ * history rows, file viewer, terminal) carries this attribute; text inside or holding such a node
+ * leaves only as its length.
+ */
+export const PRIVATE_ATTR = "data-feedback-private";
+export const PRIVATE_SELECTOR = `[${PRIVATE_ATTR}]`;
+/** the text of an element outside the private surfaces is cut to this many characters */
+export const MAX_ELEMENT_TEXT = 200;
 
-export function maskedText(text: string, conversation: boolean): string {
-  return conversation ? scrubChatText(text) : scrubText(text);
+/** `text` is the whole visible text, whitespace already collapsed. Masked first, then cut, so a secret across the cut cannot survive half-masked. */
+export function maskedText(text: string, isPrivate: boolean): string {
+  if (isPrivate) return scrubChatText(text);
+  const masked = scrubText(text.slice(0, MAX_ELEMENT_TEXT * 10)); // a whole page's text is not scrubbed to keep 200 chars
+  return masked.length > MAX_ELEMENT_TEXT ? `${masked.slice(0, MAX_ELEMENT_TEXT)}…` : masked;
 }
 
 /** The JSON the dialog previews is the JSON that is sent: this is the one place that decides it. */
@@ -129,7 +141,7 @@ export function buildFeedbackForm(input: FeedbackInput): FormData {
   const form = new FormData();
   form.append("category", input.category);
   form.append("message", input.message);
-  form.append("route", scrubUrl(input.route));
+  form.append("route", scrubUrl(input.route).slice(0, MAX_ROUTE));
   const { tech_context, element_context } = outgoingJson(input.tech, input.element);
   if (element_context) form.append("element_context", JSON.stringify(element_context));
   if (tech_context) form.append("tech_context", JSON.stringify(tech_context));
@@ -145,7 +157,7 @@ export interface FeedbackResult {
 }
 
 export class FeedbackError extends Error {
-  constructor(readonly status: number) {
+  constructor(readonly status: number, readonly code: string | null = null, readonly retryAfter: number | null = null) {
     super(`feedback ${status}`);
   }
 }
@@ -157,7 +169,13 @@ export async function submitFeedback(form: FormData, request: typeof fetch = fet
   } catch {
     throw new FeedbackError(0);
   }
-  if (response.status !== 201) throw new FeedbackError(response.status);
+  if (response.status !== 201) {
+    // the portal's error body is `{ error: { code, message } }`; 504 `glpi_timeout` means the ticket may exist
+    const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+    const code = typeof body?.error === "object" && body.error !== null ? (body.error as { code?: unknown }).code : undefined;
+    const wait = Number(response.headers.get("retry-after"));
+    throw new FeedbackError(code === "glpi_timeout" ? 504 : response.status, typeof code === "string" ? code : null, Number.isFinite(wait) && wait > 0 ? Math.ceil(wait) : null);
+  }
   const body = (await response.json().catch(() => null)) as Partial<FeedbackResult> | null;
   if (typeof body?.ticket_id !== "number" || typeof body.ticket_url !== "string") throw new FeedbackError(502);
   return body as FeedbackResult;

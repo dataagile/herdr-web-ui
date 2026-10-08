@@ -34,7 +34,3 @@ export async function fetchPortalSession(request: typeof fetch = fetch): Promise
     return NO_PORTAL;
   }
 }
-
-export async function detectPortal(request: typeof fetch = fetch): Promise<boolean> {
-  return (await fetchPortalSession(request)).portal;
-}

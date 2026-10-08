@@ -898,8 +898,11 @@ export const JA: Record<string, string> = {
   "Redo": "やり直す",
   "No file chosen": "ファイルが選択されていません",
   "Include technical data in the ticket": "チケットに技術データを含める",
-  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "チームが状況を把握する助けになります。技術データ内のパスワード、トークン、書類番号はブラウザから出る前にマスクされます。スクリーンショットは画面をそのまま写すので、送信前に機密情報が写っていないか確認してください。",
+  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. Tokens, passwords and keys in the description are masked by the support system. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "チームが状況を把握する助けになります。技術データ内のパスワード、トークン、書類番号はブラウザから出る前にマスクされます。説明文内のトークン、パスワード、キーはサポート側でマスクされます。スクリーンショットは画面をそのまま写すので、送信前に機密情報が写っていないか確認してください。",
   "See what will be sent": "送信内容を見る",
   "Could not capture the screen.": "画面をキャプチャできませんでした。",
+  "The support system took too long to answer; the ticket may have been created. Check before sending again.": "GLPIの応答に時間がかかりました。チケットが作成された可能性があるため、再送信する前に確認してください。",
+  "Send anyway": "それでも送信",
+  "The portal is busy; try again in {n} s.": "ポータルが混み合っています。{n} 秒後にもう一度お試しください。",
   "Image too large (max. 10 MB).": "画像が大きすぎます（最大 10 MB）。",
 };

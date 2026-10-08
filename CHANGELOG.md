@@ -16,7 +16,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   area (drag) on the screen for a print, and attach technical data (version, viewport, console warnings
   and errors, failed requests, the pane's agent) behind a checkbox, with a preview of the exact JSON.
   Passwords, tokens, e-mails and documents are masked in the browser before anything is sent, and a
-  pane's text is never included, only its length. Adds the `html-to-image` dependency.
+  text of the chat, the composer, prompts, history, files and the terminal is never included, only its length; tokens, keys and passwords in the description are masked too, a ticket that may exist after a support timeout is never resent automatically, a busy portal makes Send wait its Retry-After, and unchecking the box sends no element or technical data. Adds the `html-to-image` dependency.
   by @tbc-joaovitor
 - A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the
   tab coming back with it in front) now counts as seen: it leaves Needs you and reads idle, without

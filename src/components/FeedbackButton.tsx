@@ -2,7 +2,7 @@
  * The header's feedback button (a megaphone, just before the bell): a menu of three categories,
  * each opening FeedbackDialog. It owns the draft so the picker can take the dialog down (the
  * print must not show it) and give it back, with what was typed, the print and the element that
- * was pointed at. Rendered only behind the portal and only when the portal says feedback is on;
+ * was pointed at. Rendered by App only behind the portal and only when the portal says feedback is on (the one gate);
  * the picker, the print and the technical data also need a window at least 1024px wide.
  */
 import { Bug, Lightbulb, Megaphone, MessageSquareText } from "lucide-react";
@@ -74,7 +74,7 @@ export function FeedbackButton({ availability, meta }: Props) {
     window.requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   }, []);
 
-  const cancelPicking = useCallback(() => setPicking(false), []);
+  const cancelPicking = useCallback(() => { setDraft((d) => ({ ...d, notice: null })); setPicking(false); }, []);
 
   const select = useCallback(async (context: ElementContext, rect: DOMRect) => {
     if (capturingRef.current) return;
@@ -95,8 +95,6 @@ export function FeedbackButton({ availability, meta }: Props) {
     }
   }, [snapshot, t]);
 
-  if (!availability.enabled) return null;
-
   const icons = { erro: Bug, melhoria: Lightbulb, feedback: MessageSquareText } as const;
   const items: RowMenuItem[] = (["erro", "melhoria", "feedback"] as const).map((id) => ({ id, label: labels[id], icon: icons[id], run: () => open(id) }));
 
@@ -115,7 +113,7 @@ export function FeedbackButton({ availability, meta }: Props) {
           attachments={availability.attachments}
           rich={rich}
           onChange={setDraft}
-          onPick={() => setPicking(true)}
+          onPick={() => { setDraft((d) => ({ ...d, notice: null })); setPicking(true); }}
           onClose={close}
         />,
         document.body,

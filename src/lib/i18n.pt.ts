@@ -877,8 +877,11 @@ export const PT: Record<string, string> = {
   "Redo": "Refazer",
   "No file chosen": "Nenhum arquivo escolhido",
   "Include technical data in the ticket": "Incluir dados técnicos no chamado",
-  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "Ajudam a equipe a entender o que aconteceu. Senhas, tokens e documentos nos dados técnicos são mascarados antes de sair do navegador. O print mostra a tela como está: confira se não há dado sensível visível antes de enviar.",
+  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. Tokens, passwords and keys in the description are masked by the support system. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "Ajudam a equipe a entender o que aconteceu. Senhas, tokens e documentos nos dados técnicos são mascarados antes de sair do navegador. Tokens, senhas e chaves na descrição são mascarados pelo suporte. O print mostra a tela como está: confira se não há dado sensível visível antes de enviar.",
   "See what will be sent": "Ver o que será enviado",
   "Could not capture the screen.": "Não foi possível gerar o print da tela.",
+  "The support system took too long to answer; the ticket may have been created. Check before sending again.": "O GLPI demorou para responder; o chamado pode ter sido criado — confira antes de reenviar.",
+  "Send anyway": "Enviar mesmo assim",
+  "The portal is busy; try again in {n} s.": "O portal está ocupado; tente de novo em {n} s.",
   "Image too large (max. 10 MB).": "Imagem grande demais (máx. 10 MB).",
 };

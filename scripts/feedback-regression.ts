@@ -65,7 +65,7 @@ try {
   try {
     const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/opt/google/chrome/chrome", headless: true, args: ["--no-sandbox"] });
     try {
-      interface Opened { page: Page; context: BrowserContext; errors: string[]; posts: Request[]; answer: { status: number; body?: unknown }; shot: (name: string) => Promise<void>; close: () => Promise<void> }
+      interface Opened { page: Page; context: BrowserContext; errors: string[]; posts: Request[]; answer: { status: number; body?: unknown; headers?: Record<string, string> }; shot: (name: string) => Promise<void>; close: () => Promise<void> }
       const open = async ({ width, height, touch = false, me = ME_ON, status = 200 }: { width: number; height: number; touch?: boolean; me?: Me; status?: number }): Promise<Opened> => {
         const context = await browser.newContext({ viewport: { width, height }, locale: "en-US", hasTouch: touch, isMobile: touch });
         await context.addInitScript(() => localStorage.setItem("herdr-web-ui:settings", JSON.stringify({ language: "en" })));
@@ -78,7 +78,7 @@ try {
         await page.route("**/api/portal/me", (route) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(me) }));
         await page.route("**/api/portal/feedback", (route) => {
           posts.push(route.request());
-          return route.fulfill({ status: answer.status, contentType: "application/json", body: JSON.stringify(answer.body ?? {}) });
+          return route.fulfill({ status: answer.status, contentType: "application/json", headers: answer.headers, body: JSON.stringify(answer.body ?? {}) });
         });
         await page.goto(url);
         await page.locator(".conn-live").waitFor({ state: "attached" });
@@ -245,7 +245,7 @@ try {
           await page.waitForFunction(() => document.activeElement?.classList.contains("header-feedback") === true, undefined, { timeout: 3000 }); // the focus goes back to the megaphone
 
           // the checkbox off: no technical data leaves; a 429 keeps the form and says so
-          answer.status = 429; answer.body = { error: "rate" };
+          answer.status = 429; answer.body = { error: { code: "rate_limited", message: "rate" } };
           await button(page).click();
           await page.getByRole("menuitem", { name: "General feedback" }).click();
           await modal.getByLabel("Description (required)").fill("Just a thought.");
@@ -263,12 +263,33 @@ try {
           answer.status = 413;
           await modal.getByRole("button", { name: "Send", exact: true }).click();
           await page.getByText("Image too large (max. 10 MB).").waitFor();
-          answer.status = 503;
+          answer.status = 503; answer.body = { error: { code: "glpi_not_configured", message: "x" } };
           await modal.getByRole("button", { name: "Send", exact: true }).click();
           await page.getByText("Feedback is unavailable right now.").waitFor();
           answer.status = 500;
           await modal.getByRole("button", { name: "Send", exact: true }).click();
           await page.getByText("Could not open the ticket. Try again.").waitFor();
+          // 503 busy: told how long, Send waits it out, a different 503 stays "unavailable"
+          answer.status = 503; answer.body = { error: { code: "busy", message: "busy" } }; answer.headers = { "retry-after": "2" };
+          await modal.getByRole("button", { name: "Send", exact: true }).click();
+          await page.getByText("The portal is busy; try again in 2 s.").waitFor();
+          const busyPosts = posts.length;
+          assert.equal(await modal.getByRole("button", { name: "Send", exact: true }).isDisabled(), true, "Send waits for Retry-After");
+          await page.waitForFunction(() => !(Array.from(document.querySelectorAll("button")).find((b) => b.textContent === "Send") as HTMLButtonElement | undefined)?.disabled, undefined, { timeout: 5000 });
+          assert.equal(posts.length, busyPosts, "nothing was resent on its own");
+          answer.headers = undefined;
+          // 504: the ticket may exist: said so, not retried, Send no longer the primary action
+          const before = posts.length;
+          answer.status = 504; answer.body = { error: { code: "glpi_timeout", message: "x" }, ticket_status: "desconhecido" };
+          await modal.getByRole("button", { name: "Send", exact: true }).click();
+          await page.getByText("The support system took too long to answer; the ticket may have been created. Check before sending again.").waitFor();
+          await page.waitForTimeout(500);
+          assert.equal(posts.length, before + 1, "504 is sent once, never retried by the app");
+          const again = modal.getByRole("button", { name: "Send anyway" });
+          assert.equal(await again.count(), 1);
+          assert.ok(!((await again.getAttribute("class")) ?? "").includes("btn-primary"), "Send is not the primary action after a 504");
+          await modal.getByLabel("Description (required)").fill("Just a thought, again.");
+          assert.equal(await modal.getByRole("button", { name: "Send", exact: true }).count(), 1, "editing the text brings Send back");
           answer.status = 201; answer.body = { ticket_id: 1234, ticket_url: "https://suporte.example/chamado/1234" };
           await modal.getByRole("button", { name: "Send", exact: true }).click();
           await page.getByText("Ticket #1234 opened").waitFor();
@@ -276,6 +297,75 @@ try {
         } finally { await close(); }
       }
       console.log("PASS menu, form, picker (click, drag, Escape), masked multipart send, success, 429/413/503/500 and the unchecked box");
+
+      // 2b. what the picker reads: an svg resolves to its button, private surfaces send only a length,
+      // and with the box unchecked the element and the technical data stay home
+      {
+        const { page, posts, errors, close } = await open({ width: 1440, height: 900 });
+        try {
+          const modal = dialog(page);
+          const pick = async (x: number, y: number, expectTag?: string): Promise<void> => {
+            await modal.getByRole("button", { name: /^(Select element on screen|Redo)$/ }).click();
+            await page.locator(".picker-layer").waitFor();
+            await page.mouse.move(x, y);
+            if (expectTag !== undefined) {
+              await page.locator(".picker-target-tag").waitFor();
+              assert.equal(await page.locator(".picker-target-tag").textContent(), expectTag);
+            }
+            await page.mouse.down();
+            await page.mouse.up();
+            await page.locator(".feedback-thumb img").waitFor();
+            await page.locator(".picker-layer").waitFor({ state: "detached" });
+          };
+          const centre = async (selector: string): Promise<[number, number]> => {
+            const box = await page.locator(selector).first().boundingBox();
+            assert.ok(box, `${selector} is on the screen`);
+            return [box.x + box.width / 2, box.y + box.height / 2];
+          };
+          const elementContext = async (): Promise<Record<string, unknown>> => (JSON.parse((await modal.locator(".feedback-json").textContent())!) as { element_context?: Record<string, unknown> }).element_context ?? {};
+          await button(page).click();
+          await page.getByRole("menuitem", { name: "Report a bug" }).click();
+          await modal.waitFor();
+          await modal.getByLabel("Description (required)").fill("Call me on 11987654321 about token=zq9s7vwabc");
+
+          // 1. an icon (svg) selects its button instead of nothing
+          const [ix, iy] = await centre(".header-files svg");
+          await pick(ix, iy, "button.btn");
+          assert.match((await modal.textContent()) ?? "", /Element selected: button\.btn/);
+
+          // 12. the preview shows the description as the portal will mask it (secrets only)
+          const preview = (await modal.locator(".feedback-json").textContent()) ?? "";
+          assert.ok(preview.includes('"description"') && !preview.includes("zq9s7vwabc") && preview.includes("11987654321"), `secrets masked, a phone kept:\n${preview}`);
+
+          // 3. private surfaces: the composer, a chat bubble, a history row, the terminal area
+          for (const selector of [".composer", ".chat-bubble", ".history-row", ".terminal-host"]) {
+            if ((await page.locator(selector).count()) === 0) { console.log(`note: no ${selector} on the demo screen`); continue; }
+            await page.locator(selector).first().scrollIntoViewIfNeeded();
+            const [x, y] = await centre(selector);
+            await pick(x, y);
+            const context = await elementContext();
+            const text = context["texto_visivel"];
+            assert.ok(text === null || /^\[TEXTO OMITIDO \d+ chars\]$/.test(String(text)), `${selector}: ${String(text)}`);
+            console.log(`ok private ${selector}: ${String(text)}`);
+          }
+          assert.ok(await page.locator(".composer").count() > 0 || await page.locator(".chat-bubble").count() > 0 || await page.locator(".history-row").count() > 0, "at least one private surface was exercised");
+
+          // 2. unchecked: no element_context and no tech_context, the image stays
+          await modal.getByLabel("Include technical data in the ticket").uncheck();
+          assert.equal((await modal.locator(".feedback-json").textContent())!.includes("element_context"), false, "the preview drops the element too");
+          assert.equal((await modal.locator(".feedback-json").textContent())!.includes("tech_context"), false);
+          await modal.getByRole("button", { name: "Send", exact: true }).click();
+          await page.getByText("Ticket #1234 opened").waitFor();
+          const form = await formOf(posts[0]!);
+          assert.equal(form.has("element_context"), false, "unchecked: no element_context");
+          assert.equal(form.has("tech_context"), false, "unchecked: no tech_context");
+          assert.ok(form.has("attachment"), "the print the user captured still goes");
+          assert.equal(form.get("category"), "erro");
+          assert.ok(String(form.get("route")).startsWith("/"));
+          assert.deepEqual(errors, []);
+        } finally { await close(); }
+      }
+      console.log("PASS the picker resolves an svg to its button, private surfaces send only a length, and unchecked sends no element or technical data");
 
       // 3. attachments off: a form without the image field or the technical data
       {
@@ -298,6 +388,15 @@ try {
         try {
           const trigger = button(page);
           await trigger.waitFor();
+          // the pane has a cwd: the copy-path button is still in the phone header, next to the megaphone's neighbours
+          const copy = await page.evaluate(() => {
+            const node = document.querySelector<HTMLElement>(".context-copy.in-title");
+            if (!node) return null;
+            const rect = node.getBoundingClientRect();
+            return { visibility: getComputedStyle(node).visibility, display: getComputedStyle(node).display, w: rect.width, h: rect.height, label: node.getAttribute("aria-label") };
+          });
+          console.log("phone copy-path:", JSON.stringify(copy));
+          assert.ok(copy && copy.visibility === "visible" && copy.display !== "none" && copy.w > 0 && /^Copy path: /.test(copy.label ?? ""), `the copy-path button is in the phone header: ${JSON.stringify(copy)}`);
           const fit = await page.evaluate(() => {
             const header = document.querySelector<HTMLElement>(".app-header")!;
             const feedback = document.querySelector<HTMLElement>(".header-feedback")!.getBoundingClientRect();

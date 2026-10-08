@@ -9,9 +9,10 @@
 const BEARER_RE = /\b(bearer)\s+[\w.~+/=-]+/gi;
 const AUTHORIZATION_RE = /(?<![A-Za-z0-9])(authorization)\s*[:=]\s*(?!\[|bearer \[token\])\S+(?: \S+)?/gi;
 const COOKIE_RE = /(?<![A-Za-z0-9])(cookie\s*:\s*)[^\r\n]+/gi;
-// Palavra sensível ancorada: `tokens:`/`keyboard:` não casam; `access_token`, `x-api-key` casam.
-const KV_RE =
-  /(?<![A-Za-z0-9])((?:token|password|passwd|senha|secret|api[_-]?key)(?![A-Za-z0-9_-])["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s&"']+)/gi;
+// chave=valor: a chave inteira (corrida de letras, dígitos, `_`, `.`, `-`) e o valor; quem decide é `isSensitiveKey`,
+// por palavra, então `access_token`, `x-api-key`, `accessToken`, `clientSecret` casam e `tokens:`/`keyboard:` não.
+// A corrida só começa no seu primeiro caractere (lookbehind), senão `a.a.a.…` seria quadrático.
+const KV_RE = /(?<![A-Za-z0-9_.-])([A-Za-z][A-Za-z0-9_.-]*)(["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s&"']+)/g;
 const PROVIDER_KEY_RE = /sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}/g;
 const CARD_RE = /(?<![0-9])\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{4}(?![0-9])/g;
 const CPF_RE = /(?<![0-9])\d{3}[. ]\d{3}[. ]\d{3}[-. ]\d{2}(?![0-9])/g;
@@ -62,17 +63,28 @@ function scrubEmails(t: string): string {
   return out + t.slice(last);
 }
 
-/** Texto livre (console, message): JWT, Bearer, chave=valor, provedores, e-mail, cartão, CPF/CNPJ, >=13 dígitos. */
-export function scrubText(text: string): string {
+const PRIVATE_KEY_RE = /-----BEGIN [A-Z ]{0,30}PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]{0,30}PRIVATE KEY-----|$)/g;
+
+/** Só segredos (a máscara estreita do portal para a descrição): JWT, Bearer, chave=valor sensível, chaves de provedor e chave privada. Números e texto comum ficam. */
+export function scrubSecrets(text: string): string {
   let t = scrubJwt(text.normalize("NFKC"));
+  t = t.replace(PRIVATE_KEY_RE, "[TOKEN]");
   t = t.replace(BEARER_RE, "$1 [TOKEN]");
   t = t.replace(AUTHORIZATION_RE, "$1: [TOKEN]");
   t = t.replace(COOKIE_RE, "$1[TOKEN]");
-  t = t.replace(KV_RE, (m, pre: string) => {
-    const q = m.charAt(pre.length);
-    return q === '"' || q === "'" ? `${pre}${q}[TOKEN]${q}` : `${pre}[TOKEN]`;
+  t = t.replace(KV_RE, (m, key: string, sep: string) => {
+    // `authorization`, `cpf` and `cnpj` have their own rules (Bearer, [DOC]): they are not masked here as a token
+    if (!isSensitiveKey(key.replace(/authorization|cpf|cnpj/gi, "_"))) return m;
+    const value = m.slice(key.length + sep.length);
+    const q = value.charAt(0);
+    return q === '"' || q === "'" ? `${key}${sep}${q}[TOKEN]${q}` : `${key}${sep}[TOKEN]`;
   });
-  t = t.replace(PROVIDER_KEY_RE, "[TOKEN]");
+  return t.replace(PROVIDER_KEY_RE, "[TOKEN]");
+}
+
+/** Texto livre (console, message): os segredos de `scrubSecrets` mais e-mail, cartão, CPF/CNPJ e >=13 dígitos. */
+export function scrubText(text: string): string {
+  let t = scrubSecrets(text);
   t = scrubEmails(t);
   t = t.replace(CARD_RE, "[NUM]");
   t = t.replace(CPF_RE, "[DOC]").replace(CNPJ_RE, "[DOC]");

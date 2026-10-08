@@ -137,7 +137,7 @@ export function HistorySection({ workspaceId, folders: openedFolders, panes, onS
           </button>
         ))}
       </div>
-      <input className="input history-search" type="search" value={query} placeholder={t("Search title or first prompt…")} aria-label={t("Search title or first prompt…")} autoComplete="off" spellCheck={false} onChange={(event) => setQuery(event.target.value)} />
+      <input className="input history-search" data-feedback-private="" type="search" value={query} placeholder={t("Search title or first prompt…")} aria-label={t("Search title or first prompt…")} autoComplete="off" spellCheck={false} onChange={(event) => setQuery(event.target.value)} />
       {expanded && (
         <label className="history-check">
           <input type="checkbox" checked={automated} onChange={(event) => { setAutomated(event.target.checked); remember(AUTOMATED_KEY, event.target.checked ? "1" : "0"); }} />
@@ -158,7 +158,7 @@ export function HistorySection({ workspaceId, folders: openedFolders, panes, onS
               const { openPaneId, fork } = rowAction(session.session_id, panes, started);
               const pending = starting === session.session_id;
               return (
-                <li key={session.session_id} className="history-row">
+                <li key={session.session_id} className="history-row" data-feedback-private="">
                   <button type="button" className="history-open" disabled={starting !== null && !pending} title={t(fork ? "Open a copy in a new tab" : "Resume in a new tab")} onClick={() => void act(session)}>
                     <span className="history-title">
                       <span className="history-title-text">{session.title || t("Untitled session")}</span>

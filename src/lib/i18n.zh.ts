@@ -900,8 +900,11 @@ export const ZH: Record<string, string> = {
   "Redo": "重新选择",
   "No file chosen": "未选择文件",
   "Include technical data in the ticket": "在工单中包含技术数据",
-  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "有助于团队了解发生了什么。技术数据中的密码、令牌和证件号码会在离开浏览器前被屏蔽。截图会原样显示屏幕，发送前请确认没有可见的敏感信息。",
+  "They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. Tokens, passwords and keys in the description are masked by the support system. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.": "有助于团队了解发生了什么。技术数据中的密码、令牌和证件号码会在离开浏览器前被屏蔽。描述中的令牌、密码和密钥由支持系统屏蔽。截图会原样显示屏幕，发送前请确认没有可见的敏感信息。",
   "See what will be sent": "查看将发送的内容",
   "Could not capture the screen.": "无法截取屏幕。",
+  "The support system took too long to answer; the ticket may have been created. Check before sending again.": "GLPI 响应超时；工单可能已创建，请在重新发送前先确认。",
+  "Send anyway": "仍然发送",
+  "The portal is busy; try again in {n} s.": "门户繁忙，请在 {n} 秒后重试。",
   "Image too large (max. 10 MB).": "图片过大（最大 10 MB）。",
 };

@@ -8,6 +8,10 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the
+  tab coming back with it in front) now counts as seen: it leaves Needs you and reads idle, without
+  moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges
+  lack it, keep the old behaviour.
 - A **History** section in the sidebar, under Agents, for the selected project (this PC only):
   the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
   transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since

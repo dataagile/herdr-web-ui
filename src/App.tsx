@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { Bell, Columns2, Ellipsis, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
-import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
+import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, markPaneSeen, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { PaneTerminal } from "./components/PaneTerminal.tsx";
@@ -526,7 +526,13 @@ export function App() {
 
   const selectedMachineRef = useRef(selectedMachineId);
   selectedMachineRef.current = selectedMachineId;
+  // a done pane the user opens has been seen (herdr's focus does not move for a browser): once, errors ignored
+  const markSeenIfDone = useCallback((machineId: string, paneId: string | null) => {
+    const pane = paneId === null ? undefined : machinesRef.current.find((m) => m.id === machineId)?.snapshot?.panes.find((p) => p.pane_id === paneId);
+    if (paneId !== null && pane?.agent_status === "done") void markPaneSeen(paneId, machineId).catch(() => { /* a bridge without the route */ });
+  }, []);
   const selectTarget = useCallback((machineId: string, paneId: string | null) => {
+    markSeenIfDone(machineId, paneId);
     // Only another PC mounts a new terminal (and socket), which reports its own state. A pane
     // on the same PC keeps the connected socket, which never reports again: resetting here
     // left the header on "reconnecting" after every pane switch.
@@ -534,7 +540,7 @@ export function App() {
     setSelectedMachineId(machineId); setSelectedPaneId(paneId); setAutoSelected(false); setDrawerOpen(false);
     setOutputStopped(false);
     storeSelection(machineId, paneId);
-  }, []);
+  }, [markSeenIfDone]);
   const selectTargetRef = useRef(selectTarget); selectTargetRef.current = selectTarget;
   useEffect(() => {
     // An offline PC's cached roster cannot invalidate a selection. Once connected,
@@ -558,10 +564,20 @@ export function App() {
   }, [selectedMachineId, selectedPaneId]);
 
   const selectPane = useCallback((paneId: string) => {
+    markSeenIfDone(selectedMachineRef.current, paneId);
     setSelectedPaneId(paneId);
     setAutoSelected(false);
     setDrawerOpen(false);
-  }, []);
+  }, [markSeenIfDone]);
+
+  // back in the tab with a done pane in front: seen
+  useEffect(() => {
+    const onVisible = (): void => {
+      if (document.visibilityState === "visible") markSeenIfDone(selectionRef.current.machineId, selectionRef.current.paneId);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [markSeenIfDone]);
 
   // a tapped notification focuses this window and names the pane (public/sw.js)
   useEffect(() => onNotificationTarget((target) => selectTargetRef.current(target.machine_id, target.pane_id)), []);

@@ -393,7 +393,9 @@ One set for both themes: the card is island black wherever it shows.
   order, with the workspace label as the subtitle. It is the one attention block of the sidebar:
   `--accent-tint` fill, a `--rail-w` bar in `--accent`, `--radius-md`, heading and count pill in
   `--accent`; the row badges keep their own status colours. It is absent when the PC has no such
-  pane or is offline, and folds with the PC.
+  pane or is offline, and folds with the PC. A DONE row leaves the block once its pane has been
+  opened in the browser (the app tells the server the pane was seen), not only when herdr's own
+  focus reaches it.
 - Each PC group holds two foldable sections, as herdr's own sidebar: **Projects** above **Agents**,
   each headed by its name and count (Projects counts the workspaces that draw a row). Folds are
   remembered per PC; both start open.

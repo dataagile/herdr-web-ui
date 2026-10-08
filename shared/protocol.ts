@@ -112,6 +112,8 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *         -> SplitResult (pane.split with focus on the new pane, in the target's folder unless cwd is
  *         given, then the same agent launch as a new tab; without agent the new pane is a shell)
  *  POST   /api/pane/focus { pane_id } -> { ok: true } (pane.focus)
+ *  POST   /api/pane/seen { pane_id } -> { ok: true, changed } (a `done` pane turns `idle` and the usual
+ *         pane-status and alert follow; herdr's focus does not move. Not done, or unknown: changed false)
  *  POST   /api/pane/resize { pane_id, direction: "left"|"right"|"up"|"down", amount } -> PaneResizeResult
  *         (pane.resize: the border of that pane on that side moves that way by `amount`, a fraction
  *         of its split, 0 < amount <= 0.5)

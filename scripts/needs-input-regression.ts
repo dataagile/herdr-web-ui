@@ -23,6 +23,13 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
       const remote = { ...local, id: "qa-remote", kind: "ssh", name: "QA remote", state: offline ? "disconnected" : "connected", snapshot: { ...local.snapshot, panes: [{ ...pane, label: "Remote waiting", agent: "codex", agent_status: "blocked" }] } };
       await route.fulfill({ json: { machines: [local, remote] } });
     });
+    // the server's answer to a done pane opened in the browser: it reads idle from then on
+    const seenBodies: unknown[] = [];
+    await context.route("**/api/pane/seen", async (route) => {
+      seenBodies.push(route.request().postDataJSON());
+      seen = true;
+      await route.fulfill({ json: { ok: true, changed: true } });
+    });
     await context.route("**/api/machines/qa-remote/**", (route) => route.fulfill({ status: 503, json: { error: { code: "qa_remote", message: "Stand-in PC" } } }));
     const page = await context.newPage();
     const errors: string[] = [];
@@ -72,7 +79,12 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await host.getByRole("button", { name: /Local waiting/ }).waitFor({ state: "detached" });
     assert.equal(await host.getByRole("button", { name: /Local finished/ }).count(), 1);
-    seen = true;
+    // opening a done pane in the web marks it seen, once, without herdr's focus moving; it leaves the block
+    assert.deepEqual(seenBodies, []);
+    const posted = page.waitForRequest("**/api/pane/seen");
+    await host.getByRole("button", { name: /Local finished/ }).click();
+    await posted;
+    assert.deepEqual(seenBodies, [{ pane_id: `${paneId}-done` }]);
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await host.waitFor({ state: "detached" });
     offline = true;

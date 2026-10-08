@@ -581,8 +581,9 @@ One set for both themes: the card is island black wherever it shows.
 - **Alerts** is a bell button (`.header-bell`, `aria-pressed`, its title says this device's state in
   words) that switches this device's alerts; shown as `BellOff` while off. While alerts are off the
   button carries a `--dot-size` `--accent` dot: the dot marks the state that needs a look, never
-  "on". **Files** opens the file browser for the pane in front; its label goes at `<=1100px` so the
-  title keeps the room.
+  "on". **Files** opens the file browser for the pane in front. At `<=1100px` the header's buttons
+  (New tab, Split, Unzoom, Files) drop their labels and keep only the icon, so the title and its
+  copy button keep the room; the Chat/Terminal switch keeps its words down to 560px.
 - The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows

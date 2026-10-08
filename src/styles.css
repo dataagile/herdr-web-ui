@@ -1569,9 +1569,10 @@ button {
   }
 }
 
-/* below a wide desktop the Files label goes too: the pane's title and its copy button keep the room */
+/* below a wide desktop the header's button labels go (New tab, Split, Unzoom, Files): the pane's
+   title and its copy button keep the room; the lens switch keeps its words down to 560px */
 @media (max-width: 1100px) {
-  .header-files .header-desktop-only { display: none; }
+  .app-header > .btn .header-desktop-only { display: none; }
 }
 
 /* just above phone width the lens labels would squeeze the pane title to a glyph: icons only */

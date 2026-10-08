@@ -115,7 +115,7 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
   const hasChoices = prompt.options.some((_, index) => index !== prompt.custom_option_index);
 
   return (
-    <section className="prompt-card" ref={cardRef} role="region" aria-label={t("Agent is asking")} aria-busy={pending}
+    <section className="prompt-card" data-feedback-private="" ref={cardRef} role="region" aria-label={t("Agent is asking")} aria-busy={pending}
       onKeyDown={(event) => { down.current = null; keyed.current = event.key === "Enter" || event.key === " " ? event.target : null; }}
       onPointerDown={(event) => {
         keyed.current = null;

@@ -359,6 +359,21 @@ One set for both themes: the card is island black wherever it shows.
   with the refusal's words above it. Closing a repository workspace over open worktrees says so
   and closes the group, as herdr's `--group` does.
 
+### Feedback (`.feedback-*`, `.picker-*`)
+- The header's megaphone `.icon-button` sits just before the bell at every width and opens a RowMenu
+  (a sheet on a phone) with Report a bug, Suggest an improvement and General feedback. It exists only
+  behind the portal and only when `/api/portal/me` says `feedback.enabled`.
+- `.feedback-modal` is a `.modal` (its 560px, full height at `<=640px`): subtitle, a textarea
+  (`.feedback-textarea`), an image field with a `.feedback-thumb` (Remove, Redo), from 1024px with
+  attachments on a Select-element button and the technical-data checkbox (`.feedback-check`) with
+  `.feedback-json`, the exact JSON that is sent (the description with its secrets masked as the portal does, the technical data, the element); unchecked, neither technical data nor element is sent. Success (`.feedback-success`) leaves only Close.
+- The picker (`.picker-layer`: `.picker-dim` at `--scrim`, `.picker-target` in `--accent` over
+  `--accent-tint`, `.picker-hint`) is fixed over the app, takes the pointer itself and is left out of
+  the print. The hint ends with an on-screen Cancel (`.picker-cancel`, a ghost button) next to Esc; the layer
+  sets `touch-action: none`, a `pointercancel` drops the press, and a drag needs both sides at 6px or
+  more to be an area (a thin one picks the element). The dialog says the print shows the screen exactly
+  as it is, terminal and chat included. A 201 without a ticket number reads "Ticket opened", with no link.
+
 ### Field (`.field`, `.input`, `.select`)
 - Stacked uppercase label, optional hint and `--bg-input` field. Desktop fields use `--fs-sm`;
   small-screen fields retain `--fs-input` to avoid focus zoom.

@@ -38,7 +38,9 @@ import {
   showPaneStatusNotification,
   type NotificationState,
 } from "./lib/notifications.ts";
-import { detectPortal } from "./lib/portal.ts";
+import { fetchPortalSession, type PortalSession } from "./lib/portal.ts";
+import { FeedbackButton } from "./components/FeedbackButton.tsx";
+import { installFeedbackBuffer } from "./lib/feedbackBuffer.ts";
 import { ensurePushSubscription, pushSupported, removePushSubscription } from "./lib/push.ts";
 import { onNotificationTarget } from "./lib/notificationTarget.ts";
 import { useUpdates } from "./lib/updates.ts";
@@ -183,8 +185,15 @@ export function App() {
   const [pairCode] = useState(() => takePairCode());
   const [auth, setAuth] = useState<HealthAuth | null>(null);
   // behind the portal its Sign out is the one offered: this app's own would only end the app's cookie
-  const [portal, setPortal] = useState(false);
-  useEffect(() => { void detectPortal().then(setPortal); }, []);
+  const [portalSession, setPortalSession] = useState<PortalSession | null>(null);
+  useEffect(() => {
+    void fetchPortalSession().then((session) => {
+      setPortalSession(session);
+      // the feedback's technical data (console, failed requests) is recorded only for a portal that takes feedback
+      if (session.portal && session.feedback.enabled) installFeedbackBuffer();
+    });
+  }, []);
+  const portal = portalSession?.portal === true;
   const canSignOut = !portal && auth?.authenticated === true && (auth.via === "token" || auth.via === "device");
   // a device that is in only because nothing is paired yet still pairs from the QR code's address
   const pairedFromAddress = useRef(false);
@@ -1056,6 +1065,9 @@ export function App() {
             <span className="header-desktop-only">{t("Files")}</span>
           </button>
         )}
+        {portalSession?.portal && portalSession.feedback.enabled && (
+          <FeedbackButton availability={portalSession.feedback} meta={{ herdrVersion: targetHerdr?.version ?? null, machine: selectedMachine?.name ?? null, paneAgent: selectedAgent }} />
+        )}
         {bellVisible && (
           <span className="header-bell">
             <button type="button" className="icon-button" aria-label={t("Alerts")} aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
@@ -1125,6 +1137,7 @@ export function App() {
         )}
         <main
           className="terminal-host"
+          data-feedback-private=""
           onContextMenu={selectedPaneId !== null ? (event) => {
             event.preventDefault();
             const paneId = paneUnder(event.target);

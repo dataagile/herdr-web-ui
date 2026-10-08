@@ -8,6 +8,16 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- An in-app **feedback** button (a megaphone just before the bell) behind the Data Agile portal, when
+  the portal's `/api/portal/me` says `feedback.enabled`: Report a bug, Suggest an improvement or General
+  feedback open a form that the portal turns into a support ticket (`POST /api/portal/feedback`; the
+  herdr server neither proxies nor implements it). The form takes a description and an image of up to
+  10 MB. From 1024px, when the portal allows attachments, it can also point at an element (click) or an
+  area (drag) on the screen for a print, and attach technical data (version, viewport, console warnings
+  and errors, failed requests, the pane's agent) behind a checkbox, with a preview of the exact JSON.
+  Passwords, tokens, e-mails and documents are masked in the browser before anything is sent, and a
+  text of the chat, the composer, prompts, history, files and the terminal is never included, only its length; tokens, keys and passwords in the description are masked too, a ticket that may exist after a support timeout is never resent automatically (that guard, and the busy wait, survive the picker); a ticket answered without a number reads "Ticket opened"; the print is the screen as it is, terminal and chat included, and the form says so; the picker has an on-screen Cancel and ignores a cancelled pointer or a thin drag as an area, a busy portal makes Send wait its Retry-After, and unchecking the box sends no element or technical data. Adds the `html-to-image` dependency.
+  ([#15](https://github.com/dataagile/herdr-web-ui/pull/15) by @tbc-joaovitor)
 - **Needs you** can be folded: its heading is a button with a chevron (like the Projects header) that hides
   the rows and keeps the count. The choice is remembered per PC and a new waiting pane does not reopen it. ([#14](https://github.com/dataagile/herdr-web-ui/pull/14) by @tbc-joaovitor)
 - A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the

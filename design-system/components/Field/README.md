@@ -11,6 +11,8 @@ A stacked form field: a dim uppercase label, an `--bg-input` input or select, an
 - `.select` — same box for a custom select trigger: the agent picker is `button.select.agent-picker-trigger` with the shell glyph or agent mark, `.agent-picker-label` and a `ChevronDown` (`.agent-picker-chevron`).
 - `.field-hint` — `--fs-xs`, `--text-dim`, below the control.
 - Compound rows from the dialogs: `.new-session-cwd` (input + Browse `.btn`), `.new-session-folder` (a folder shown as a fact in a dashed box, New tab).
+- Textarea: `textarea.input.feedback-textarea` — `height: auto`, at least three controls tall, `--space-2`/`--space-3` padding, `--lh-base`, vertical resize, `--text-dim` placeholder (the feedback description).
+- Checkbox: `label.feedback-check` — a 16px native checkbox (`accent-color: --primary`) with its text in `--fs-sm`, the hint under it in a `.field-hint`; the whole label is the click target.
 - Error: `p.field-hint.new-session-error[role="alert"]` (or `.machine-error[role="alert"]`) in `--status-blocked`, wrapping anywhere.
 
 ## States & variants

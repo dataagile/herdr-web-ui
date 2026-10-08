@@ -113,7 +113,7 @@ export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }
   }, [text]);
   const rows = Math.min(MAX_ROWS, Math.max(wrappedRows, text.split("\n").length));
   return (
-    <div className={`terminal-input${dictation.shown ? " has-voice" : ""}`}>
+    <div className={`terminal-input${dictation.shown ? " has-voice" : ""}`} data-feedback-private="">
       <textarea
         ref={box}
         className="terminal-input-text"

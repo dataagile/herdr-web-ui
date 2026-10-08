@@ -15,6 +15,8 @@ A centered dialog column with a header, a scrollable body and a footer of action
 ## States & variants
 - Pending: fields and buttons disabled, primary label changes (Start → Starting…), a `role="status"` note.
 - Error: a `role="alert"` line in `--status-blocked` inside the body.
+- Subtitle: a `p.new-session-note` (`--fs-sm`, `--text-dim`) first in the body says what the dialog is for (feedback).
+- Success: the body is replaced by a `role="status"` result (`.feedback-success`) and the footer keeps one primary Close; see FeedbackDialog.
 - New tab variant: title `New tab · <workspace>`, the folder shown in a dashed `.new-session-folder` box.
 - `<=640px`: bottom sheet, top `--radius-xl` corners, safe-area padding; with the keyboard up (`[data-keyboard]`) the scrim is `--app-height` tall.
 

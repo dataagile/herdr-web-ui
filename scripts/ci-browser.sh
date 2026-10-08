@@ -18,3 +18,4 @@ bun scripts/held-rows-demo-regression.ts
 bun scripts/prompt-dock-demo-regression.ts
 bun scripts/voice-server-regression.ts
 bun scripts/machine-dialog-regression.ts
+bun scripts/feedback-regression.ts

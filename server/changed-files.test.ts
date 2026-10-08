@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { appendFileSync, existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, truncateSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { fileChanges } from "../shared/file-changes.ts";
 import type { ConversationTurn } from "../shared/protocol.ts";
 import { ChangedFileNotListed, DIFF_FLAGS, GIT_SAFE, cachedSessionEdits, changedFileDiff, forgetChangedFiles, gitChanges, paneChanges, paneFileDiff, parsePorcelain, sessionEdits, type PaneChanges } from "./changed-files.ts";
 import * as conversationModule from "./conversation.ts";
-import { parseClaudeTranscript, wholeTranscript } from "./conversation.ts";
+import { forgetTranscriptState, parseClaudeTranscript, wholeTranscript, wholeTranscriptSince } from "./conversation.ts";
 import * as client from "./herdr/client.ts";
 import { codexSessionCwd, parseCodexTranscript } from "./codex.ts";
 import { parseOmpTranscript } from "./transcript-records.ts";
@@ -338,11 +338,15 @@ describe("changed files: git status", () => {
   });
 });
 
+const whole0 = (truncated: boolean, pages: number) => ({
+  settled: [] as ConversationTurn[], live: [] as ConversationTurn[], truncated, pages, incremental: false, resume: { id: "x", offset: 0, tail: "" },
+});
+
 describe("changed files: cache", () => {
   it("parses a transcript once per state of the file", async () => {
     forgetChangedFiles();
     let reads = 0;
-    const read = async () => { reads++; return { turns: [] as ConversationTurn[], truncated: false, pages: 1 }; };
+    const read = async () => { reads++; return whole0(false, 1); };
     await cachedSessionEdits("/t.jsonl", "1:1:10:1", "/w", read);
     await cachedSessionEdits("/t.jsonl", "1:1:10:1", "/w", read);
     expect(reads).toBe(1);
@@ -355,9 +359,107 @@ describe("changed files: cache", () => {
   it("does not keep a read that failed", async () => {
     forgetChangedFiles();
     let reads = 0;
-    const read = async () => { reads++; if (reads === 1) throw new Error("boom"); return { turns: [] as ConversationTurn[], truncated: true, pages: 2 }; };
+    const read = async () => { reads++; if (reads === 1) throw new Error("boom"); return whole0(true, 2); };
     await expect(cachedSessionEdits("/f.jsonl", "s", "/w", read)).rejects.toThrow("boom");
     expect(await cachedSessionEdits("/f.jsonl", "s", "/w", read)).toMatchObject({ truncated: true, pages: 2 });
+  });
+});
+
+describe("changed files: a transcript that grew is read from its last turn on", () => {
+  let dir: string;
+  beforeAll(() => { dir = mkdtempSync(join(tmpdir(), "herdr-grow-")); });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const edit = (id: string, file: string, minute: number) => [
+    claudeUse(id, "Write", { file_path: file, content: id }, minute), claudeResult(id, minute, false, "File created successfully at: " + file),
+  ];
+  const lines = (...records: unknown[]) => jsonl(...records) + "\n";
+
+  it("parses only the tail on growth, and reads the whole file again on truncation", async () => {
+    forgetChangedFiles(); forgetTranscriptState();
+    const path = join(dir, "grow.jsonl");
+    writeFileSync(path, lines(claudePrompt("one", 0), ...edit("a", "/w/a.ts", 1), claudePrompt("mid", 1), ...edit("m", "/w/m.ts", 1), claudePrompt("two", 2), ...edit("b", "/w/b.ts", 3)));
+    const sizes: { turns: number; incremental: boolean }[] = [];
+    const read = async (since: Parameters<typeof wholeTranscriptSince>[3]) => {
+      const got = await wholeTranscriptSince("claude-transcript", path, undefined, since);
+      sizes.push({ turns: got.settled.length + got.live.length, incremental: got.incremental });
+      return got;
+    };
+    const first = await cachedSessionEdits(path, "s1", "/w", read);
+    expect([...first.files.keys()]).toEqual(["/w/a.ts", "/w/m.ts", "/w/b.ts"]);
+    expect(sizes[0]!.incremental).toBe(false);
+
+    appendFileSync(path, lines(claudePrompt("three", 4), ...edit("c", "/w/c.ts", 5)));
+    const grown = await cachedSessionEdits(path, "s2", "/w", read);
+    expect([...grown.files.keys()]).toEqual(["/w/a.ts", "/w/m.ts", "/w/b.ts", "/w/c.ts"]);
+    // the tail is the last turn ("two") and what came after it, not the whole file
+    expect(sizes[1]).toMatchObject({ incremental: true });
+    expect(sizes[1]!.turns).toBeLessThan(sizes[0]!.turns);
+    const all = sessionEdits((await wholeTranscript("claude-transcript", path, undefined)).turns, "/w");
+    expect(JSON.stringify([...grown.files])).toBe(JSON.stringify([...all]));
+
+    // the last turn gains an edit to a file already listed
+    appendFileSync(path, lines(...edit("d", "/w/c.ts", 6)));
+    const again = await cachedSessionEdits(path, "s3", "/w", read);
+    expect(sizes[2]).toMatchObject({ incremental: true });
+    expect(again.files.get("/w/c.ts")!.edits).toHaveLength(2);
+    expect(again.files.get("/w/c.ts")!.created).toBe(true);
+
+    // the file shrinks and is written anew: nothing of the old read is trusted
+    truncateSync(path, 10);
+    writeFileSync(path, lines(claudePrompt("fresh", 0), ...edit("e", "/w/e.ts", 1)));
+    const reset = await cachedSessionEdits(path, "s4", "/w", read);
+    expect(sizes[3]).toMatchObject({ incremental: false });
+    expect([...reset.files.keys()]).toEqual(["/w/e.ts"]);
+  });
+});
+
+describe("changed files: a repo with no commit yet", () => {
+  it("shows a staged new file's content", async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "herdr-nocommit-")));
+    try {
+      const run = (...args: string[]) => { const done = Bun.spawnSync(["git", "-C", dir, ...args], { stdout: "pipe", stderr: "pipe" }); if (done.exitCode !== 0) throw new Error(done.stderr.toString()); };
+      run("init", "-q");
+      writeFileSync(join(dir, "staged.txt"), "staged line\n");
+      writeFileSync(join(dir, "loose.txt"), "loose line\n");
+      run("add", "staged.txt");
+      const found = (await gitChanges(dir))!;
+      const changes: PaneChanges = { root: found.root, edits: new Map(), report: { repo: true, session: [], git: found.changes.map((change) => ({ path: change.path, rel: change.path, exists: true, git: change.status })) } };
+      const staged = await changedFileDiff(changes, join(dir, "staged.txt"));
+      expect(staged).toMatchObject({ kind: "git", diff: expect.stringContaining("+staged line") });
+      expect(staged.kind === "git" && staged.failed).toBeFalsy();
+      expect(await changedFileDiff(changes, join(dir, "loose.txt"))).toMatchObject({ diff: expect.stringContaining("+loose line") });
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe("changed files: git that is slow or fails", () => {
+  it("says a timeout instead of an empty list", async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "herdr-slow-")));
+    const spawn = Bun.spawn;
+    const spawning = spyOn(Bun, "spawn").mockImplementation(((_cmd: string[], options: never) => spawn(["sleep", "30"], options)) as never);
+    const later = globalThis.setTimeout;
+    // the 5 s deadline fires at once
+    const timers = spyOn(globalThis, "setTimeout").mockImplementation(((fn: () => void, ms?: number) => later(fn, ms === 5_000 ? 0 : ms)) as never);
+    try {
+      expect(await gitChanges(dir)).toMatchObject({ timedOut: true, truncated: true, changes: [] });
+    } finally { timers.mockRestore(); spawning.mockRestore(); rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it("fails an untracked file's diff when --no-index errors (exit above 1)", async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "herdr-noindex-")));
+    try {
+      Bun.spawnSync(["git", "-C", dir, "init", "-q"]);
+      const missing = join(dir, "gone.txt");
+      const changes: PaneChanges = { root: dir, edits: new Map(), report: { repo: true, session: [], git: [{ path: missing, rel: "gone.txt", exists: true, git: "?" }] } };
+      expect(await changedFileDiff(changes, missing)).toMatchObject({ kind: "git", failed: true, diff: "" });
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe("changed files: ~/ is the pane user's home", () => {
+  it("expands it before resolving", () => {
+    const turns = parseClaudeTranscript(jsonl(claudePrompt("go", 0), claudeUse("a", "Write", { file_path: "~/notes/x.txt", content: "x" }, 1), claudeResult("a", 1)));
+    expect([...sessionEdits(turns, "/pane").keys()]).toEqual([join(homedir(), "notes/x.txt")]);
   });
 });
 
@@ -513,7 +615,7 @@ describe("changed files: a pane's report", () => {
     spies.push(spyOn(client, "sessionSnapshot").mockImplementation((async () => ({ panes: [{ pane_id: "p1", cwd: link }] })) as never));
     spies.push(spyOn(conversationModule, "paneWholeConversation").mockImplementation((async () => {
       whole++;
-      return { source: "claude-transcript", path: join(real, "t.jsonl"), cwd: link, signature: "same", read: async () => ({ turns, truncated: true, pages: 40 }) };
+      return { source: "claude-transcript", path: join(real, "t.jsonl"), cwd: link, signature: "same", read: async () => ({ ...whole0(true, 40), settled: turns }) };
     }) as never));
     spawn = spyOn(Bun, "spawn");
   });
@@ -532,6 +634,20 @@ describe("changed files: a pane's report", () => {
     // the symlinked and the real name of one file are one entry
     expect(report.session.find((file) => file.rel === "tracked.txt")).toMatchObject({ git: "M" });
     expect(report).toMatchObject({ sessionTruncated: true, sessionParts: 40 });
+  });
+
+  it("matches a deleted session file under a symlinked folder with git's deletion", async () => {
+    forgetChangedFiles();
+    writeFileSync(join(real, "doomed.txt"), "x\n");
+    git("add", "doomed.txt"); git("commit", "-q", "-m", "doomed");
+    unlinkSync(join(real, "doomed.txt"));
+    const turns = parseClaudeTranscript(jsonl(claudePrompt("rm", 0), claudeUse("z", "Write", { file_path: join(link, "doomed.txt"), content: "x" }, 1), claudeResult("z", 1)));
+    (conversationModule.paneWholeConversation as unknown as { mockImplementationOnce(fn: unknown): void }).mockImplementationOnce((async () => ({ source: "claude-transcript", path: join(real, "d.jsonl"), cwd: link, signature: "deleted", read: async () => ({ ...whole0(false, 1), settled: turns }) })) as never);
+    const { report } = await paneChanges("p1");
+    expect(report.session.find((file) => file.rel === "doomed.txt")).toMatchObject({ exists: false, git: "D" });
+    expect(report.git.map((file) => file.rel)).not.toContain("doomed.txt");
+    // leave the repo as the other tests expect it
+    git("rm", "-q", "--cached", "doomed.txt"); git("commit", "-q", "-m", "rm doomed");
   });
 
   it("sees a session file appear on disk although neither the transcript nor git's status moved", async () => {

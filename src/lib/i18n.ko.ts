@@ -895,6 +895,8 @@ export const KO: Record<string, string> = {
   "Edit {n} of {total}": "수정 {n}/{total}",
   "The changes could not be loaded.": "변경 내용을 불러올 수 없습니다.",
   "Git shows no difference for this file.": "git에서 이 파일의 차이를 찾을 수 없습니다.",
+  "Git took too long to respond": "git이 응답하는 데 너무 오래 걸렸습니다",
+  "Git could not read the changes of this file.": "git이 이 파일의 변경 사항을 읽지 못했습니다.",
   "Showing the first {shown} of the diff.": "diff의 처음 {shown}만 표시합니다.",
   "Switch to Terminal": "터미널로 전환",
   "Switch to Chat": "채팅으로 전환",

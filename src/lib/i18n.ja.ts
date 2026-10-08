@@ -897,6 +897,8 @@ export const JA: Record<string, string> = {
   "Edit {n} of {total}": "編集 {n}/{total}",
   "The changes could not be loaded.": "変更を読み込めませんでした。",
   "Git shows no difference for this file.": "git ではこのファイルに差分がありません。",
+  "Git took too long to respond": "git の応答に時間がかかりすぎました",
+  "Git could not read the changes of this file.": "git がこのファイルの変更を読み取れませんでした。",
   "Showing the first {shown} of the diff.": "diff の先頭 {shown} のみ表示しています。",
   "Switch to Terminal": "ターミナルに切り替え",
   "Switch to Chat": "チャットに切り替え",

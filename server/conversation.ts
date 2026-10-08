@@ -907,6 +907,27 @@ export const MAX_WHOLE_PAGES = 40;
  * `truncated`: the limit cut the session, with the oldest part left out.
  */
 export async function wholeTranscript(source: RecognizedConversation["source"], path: string, codexHome: string | undefined, maxPages = MAX_WHOLE_PAGES): Promise<{ turns: ConversationTurn[]; truncated: boolean; pages: number }> {
+  const read = await wholeTranscriptSince(source, path, codexHome, null, maxPages);
+  return { turns: [...read.settled, ...read.live], truncated: read.truncated, pages: read.pages };
+}
+
+/**
+ * Where an incremental read of a transcript can pick up: the start of its last turn. Everything
+ * before is final (a later append cannot change a turn another has followed); the last turn is
+ * read again. `tail` is the bytes just before `offset`: a file rewritten rather than appended to
+ * no longer has them.
+ */
+export interface TranscriptResume { id: string; offset: number; tail: string }
+
+/**
+ * wholeTranscript that can resume. With `since` valid (same file, only grown), only the bytes from
+ * `since.offset` are read: `settled` is then just the turns that became final since, `live` the last
+ * turn, and `incremental` is true. Otherwise (first read, truncation, rotation, a /clear) the whole
+ * session is read and `settled` is all of it but the last turn.
+ */
+export async function wholeTranscriptSince(source: RecognizedConversation["source"], path: string, codexHome: string | undefined, since: TranscriptResume | null, maxPages = MAX_WHOLE_PAGES): Promise<{
+  settled: ConversationTurn[]; live: ConversationTurn[]; truncated: boolean; pages: number; resume: TranscriptResume; incremental: boolean;
+}> {
   let stat;
   try { stat = statSync(path); } catch { throw new ConversationUnavailable("transcript_missing"); }
   let stream: TranscriptStream;
@@ -918,19 +939,39 @@ export async function wholeTranscript(source: RecognizedConversation["source"], 
     throw new ConversationUnavailable("transcript_missing");
   }
   const cwd = source === "codex-transcript" ? codexSessionCwd(path) : undefined;
+  const resumeAt = (offset: number): TranscriptResume => ({ id: stream.id, offset, tail: bytesBefore(stream, offset) });
+  /** a chunk that starts on a turn start, split before its last turn: [final turns, the live one] */
+  const parseSplit = (start: number, bytes: Buffer): { settled: ConversationTurn[]; live: ConversationTurn[]; last: number } => {
+    const starts = turnStarts(bytes, source);
+    const last = starts.length > 0 ? starts[starts.length - 1]! : 0;
+    return {
+      settled: last > 0 ? parseTurns(source, bytes.subarray(0, last).toString("utf8"), undefined, cwd) : [],
+      live: parseTurns(source, bytes.subarray(last).toString("utf8"), undefined, cwd),
+      last: start + last,
+    };
+  };
+  if (since !== null && since.id === stream.id && since.offset >= stream.floor && since.offset <= stream.length && bytesBefore(stream, since.offset) === since.tail) {
+    const chunk = parseSplit(since.offset, readStream(stream, since.offset, stream.length));
+    return { settled: chunk.settled, live: chunk.live, truncated: false, pages: 0, resume: resumeAt(chunk.last), incremental: true };
+  }
   const pages: ConversationTurn[][] = [];
   let to = stream.length;
   let start = to;
+  let newest: { settled: ConversationTurn[]; live: ConversationTurn[]; last: number } | null = null;
   while (pages.length < maxPages && to > stream.floor) {
     const page = pageBefore(stream, source, to, { widen: true });
     start = page.start;
-    pages.push(parseTurns(source, page.bytes.toString("utf8"), undefined, cwd));
+    if (newest === null) { newest = parseSplit(page.start, page.bytes); pages.push(newest.settled); }
+    else pages.push(parseTurns(source, page.bytes.toString("utf8"), undefined, cwd));
     // a page that did not move would walk forever
     if (start >= to) { start = stream.floor; break; }
     to = start;
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
-  return { turns: pages.reverse().flat(), truncated: start > stream.floor, pages: pages.length };
+  return {
+    settled: pages.reverse().flat(), live: newest?.live ?? [], truncated: start > stream.floor, pages: pages.length,
+    resume: resumeAt(newest?.last ?? stream.length), incremental: false,
+  };
 }
 
 /**
@@ -939,7 +980,7 @@ export async function wholeTranscript(source: RecognizedConversation["source"], 
  * wholeTranscript. Throws ConversationUnavailable.
  */
 export async function paneWholeConversation(paneId: string, codexHome?: string, known?: Awaited<ReturnType<typeof sessionSnapshot>>): Promise<{
-  source: RecognizedConversation["source"]; path: string; cwd: string; signature: string; read: () => Promise<{ turns: ConversationTurn[]; truncated: boolean; pages: number }>;
+  source: RecognizedConversation["source"]; path: string; cwd: string; signature: string; read: (since: TranscriptResume | null) => ReturnType<typeof wholeTranscriptSince>;
 }> {
   const snapshot = known ?? await sessionSnapshot();
   const pane = snapshot.panes.find((candidate) => candidate.pane_id === paneId);
@@ -956,7 +997,7 @@ export async function paneWholeConversation(paneId: string, codexHome?: string, 
   const home = resolved.codexHome ?? codexHome;
   let stat;
   try { stat = statSync(path); } catch { throw new ConversationUnavailable("transcript_missing"); }
-  return { source, path, cwd: pane.foreground_cwd ?? pane.cwd, signature: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`, read: () => wholeTranscript(source, path, home) };
+  return { source, path, cwd: pane.foreground_cwd ?? pane.cwd, signature: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`, read: (since) => wholeTranscriptSince(source, path, home, since) };
 }
 
 /** One page of a resolved transcript (paneConversation's `page`). */

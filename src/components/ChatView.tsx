@@ -28,7 +28,8 @@ import { usePageVisible } from "../lib/visibility.ts";
 import { dismissKeyboardOn } from "../lib/keyboard.ts";
 import { useFacesArrived } from "../lib/fontFaces.ts";
 import { OpenFileContext } from "../lib/filePaths.ts";
-import { patchSections, patchText } from "../../shared/patch.ts";
+import { patchSections } from "../../shared/patch.ts";
+import { toolPatch } from "../../shared/tool-verbs.ts";
 import { toolVerb } from "../lib/toolVerbs.ts";
 import { machinePath } from "../../shared/machines.ts";
 import { fileUrl } from "../lib/api.ts";
@@ -175,7 +176,7 @@ function ToolInputView({ part }: { part: ToolPartType }) {
   // a todo call shows the list as it stood after it, when the agent answered with it
   const after = isTodoTool(part.name) ? parseTodoAnswer(part.output) : null;
   if (after !== null && after.length > 0) return <TodoList items={after} />;
-  const patch = patchText(part.input);
+  const patch = toolPatch(part.name, part.input);
   if (patch !== null) return <PatchView patch={patch} />;
   let parsed: Record<string, unknown>;
   try { parsed = JSON.parse(part.input) as Record<string, unknown>; }

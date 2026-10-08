@@ -134,10 +134,12 @@ try {
   assert.match(await viewer.locator(".changed-tabs-note").textContent() ?? "", /1 edit · last /);
   await shot(page, "desktop-viewer-changes.png");
   await viewer.getByRole("button", { name: "File", exact: true }).click();
-  await viewer.getByText("alpha", { exact: false }).waitFor();
-  assert.equal(await viewer.locator(".chat-diff").count(), 0);
+  await viewer.locator(".file-viewer-text").waitFor();
+  assert.match(await viewer.locator(".file-viewer-text").textContent() ?? "", /alpha/);
+  // the changes stay mounted under the File tab, but hidden
+  assert.equal(await viewer.locator(".chat-diff:visible").count(), 0);
   await viewer.getByRole("button", { name: "Changes in this session", exact: true }).click();
-  await viewer.locator(".chat-diff").waitFor();
+  await viewer.locator(".chat-diff").first().waitFor();
   await viewer.getByRole("button", { name: "Close file", exact: true }).click();
   await viewer.waitFor({ state: "hidden" });
   console.log("PASS the file opens on 'Changes in this session' and the File tab shows the file");

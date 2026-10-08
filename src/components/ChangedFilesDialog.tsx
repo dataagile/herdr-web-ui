@@ -66,12 +66,13 @@ export function ChangedFilesDialog({ files, viewing, onOpenFile, onClose }: Chan
         </header>
         <div className="modal-body">
           {files === null && <p className="changed-note">{t("Loading…")}</p>}
-          {files !== null && session.length === 0 && other.length === 0 && files.gitTruncated !== true && <p className="changed-note">{t("No modified files")}</p>}
+          {files !== null && session.length === 0 && other.length === 0 && files.gitTruncated !== true && files.gitTimedOut !== true && <p className="changed-note">{t("No modified files")}</p>}
           {files?.sessionTruncated === true && <p className="changed-note">{t("Long session: showing the last {n} parts", { n: files.sessionParts ?? 0 })}</p>}
           {session.length > 0 && <>
             <h3 className="menu-heading changed-heading">{t("In this session")} <span className="pill">{session.length}</span></h3>
             <div className="dir-browser"><ul className="dir-browser-list">{session.map((file) => <Row key={file.path} file={file} onOpenFile={onOpenFile} />)}</ul></div>
           </>}
+          {files?.gitTimedOut === true && <p className="changed-note" role="alert">{t("Git took too long to respond")}</p>}
           {files?.gitTruncated === true && <p className="changed-note">{t("Too many changes in the repository to list")}</p>}
           {other.length > 0 && <>
             <h3 className={`menu-heading changed-heading${session.length > 0 ? " changed-gap" : ""}`}>{t("Other changes in git")} <span className="pill">{other.length}</span></h3>

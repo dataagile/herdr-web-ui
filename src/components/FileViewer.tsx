@@ -40,6 +40,10 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
   const t = useT();
   const [tab, setTab] = useState<"changes" | "file">(changes?.first ? "changes" : "file");
   const showChanges = changes !== undefined && paneId !== null && tab === "changes";
+  // the changes stay mounted once opened, and a text file's content is read only once the File tab has been shown
+  const [changesSeen, setChangesSeen] = useState(tab === "changes");
+  const [fileSeen, setFileSeen] = useState(tab === "file");
+  useEffect(() => { if (tab === "changes") setChangesSeen(true); else setFileSeen(true); }, [tab]);
   const { fetchFileInfo, fileUrl, fetchDirectories, writeFile } = useMachineApi();
   // a remote PC's bridge reads a relative folder from the pane's folder only from its next bundle
   // on; until then it would list the bridge's own folder, so only an absolute or ~/ one is listed there
@@ -68,11 +72,6 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
       if (cancelled) return;
       if ("candidates" in next) { setCandidates(next.candidates); return; }
       setInfo(next);
-      if (next.kind !== "text") return;
-      // only the first part of a text file travels: a range, whatever the file's size
-      const response = await fetch(fileUrl(next.path, paneId), { headers: { range: `bytes=0-${TEXT_PREVIEW_BYTES - 1}` } });
-      const body = await response.text();
-      if (!cancelled) { setText(body); setTruncated(next.size > TEXT_PREVIEW_BYTES); }
     }).catch(async (reason: unknown) => {
       if (cancelled) return;
       // a folder is listed from the pane's folder, as a file is found from it
@@ -88,6 +87,17 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
     });
     return () => { cancelled = true; };
   }, [path, paneId, fetchFileInfo, fileUrl, fetchDirectories, remote]);
+
+  useEffect(() => {
+    if (info === null || info.kind !== "text" || !fileSeen || text !== null) return;
+    let cancelled = false;
+    // only the first part of a text file travels: a range, whatever the file's size
+    fetch(fileUrl(info.path, paneId), { headers: { range: `bytes=0-${TEXT_PREVIEW_BYTES - 1}` } })
+      .then((response) => response.text())
+      .then((body) => { if (!cancelled) { setText(body); setTruncated(info.size > TEXT_PREVIEW_BYTES); } })
+      .catch(() => { if (!cancelled) setError(t("The file could not be opened.")); });
+    return () => { cancelled = true; };
+  }, [info, fileSeen, text, paneId, fileUrl, t]);
 
   const session = changes !== undefined && "edits" in changes.file ? changes.file : null;
   const dirty = editing && draft !== (text ?? "");
@@ -225,7 +235,10 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
           </div>
           {session !== null && <span className="changed-tabs-note">{t(session.edits === 1 ? "{n} edit · last {time}" : "{n} edits · last {time}", { n: session.edits, time: formatTime(session.last_at) ?? "–" })}</span>}
         </div>}
-        <div className="file-viewer-body">{showChanges ? <FileChanges paneId={paneId} path={changes.file.path} /> : body}</div>
+        <div className="file-viewer-body">
+          {changesSeen && changes !== undefined && paneId !== null && <div className="file-viewer-changes" hidden={!showChanges}><FileChanges paneId={paneId} path={changes.file.path} /></div>}
+          {!showChanges && body}
+        </div>
       </section>
     </div>
   );

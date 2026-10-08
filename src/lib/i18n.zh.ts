@@ -899,6 +899,8 @@ export const ZH: Record<string, string> = {
   "Edit {n} of {total}": "第 {n} 次编辑，共 {total} 次",
   "The changes could not be loaded.": "无法加载更改。",
   "Git shows no difference for this file.": "git 显示此文件没有差异。",
+  "Git took too long to respond": "git 响应时间过长",
+  "Git could not read the changes of this file.": "git 无法读取此文件的更改。",
   "Showing the first {shown} of the diff.": "仅显示 diff 的前 {shown}。",
   "Switch to Terminal": "切换到终端",
   "Switch to Chat": "切换到聊天",

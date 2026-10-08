@@ -420,6 +420,8 @@ export interface ChangedFilesResponse {
   repo: boolean;
   /** git status had more output than is read: `git` is empty rather than a partial list */
   gitTruncated?: boolean;
+  /** git did not answer in time: `git` is empty because nothing was read, not because nothing changed */
+  gitTimedOut?: boolean;
   /** the session was longer than the pages read: `session` lists the changes of its newest `sessionParts` parts only */
   sessionTruncated?: boolean;
   sessionParts?: number;
@@ -435,7 +437,7 @@ export interface ChangedFileEdit {
 /** GET /api/pane/changed-files/diff */
 export type ChangedFileDiff =
   | { kind: "session"; path: string; edits: ChangedFileEdit[] }
-  | { kind: "git"; path: string; diff: string; truncated: boolean };
+  | { kind: "git"; path: string; diff: string; truncated: boolean; /** git did not answer in time */ timedOut?: boolean; /** git failed: `diff` is empty because of that, not because nothing differs */ failed?: boolean };
 
 /** GET /api/pane/conversation: native conversation with settings, or scrollback fallback. */
 export interface ConversationResponse {

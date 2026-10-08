@@ -21,6 +21,11 @@ export function carriesPatch(name: string): boolean {
   return /^(?:apply_patch|patch|exec|exec_command|shell|shell_command|local_shell)$/i.test(name);
 }
 
+/** The patch a tool call carries: only from the tools that can (`carriesPatch`), so the chat and the changed-files list agree. */
+export function toolPatch(name: string, input: string): string | null {
+  return carriesPatch(name) ? patchText(input) : null;
+}
+
 /** The kind of verb a tool id reads as, or null for a tool the table does not know. */
 export function toolVerbKind(name: string, input = ""): ToolVerbKind | null {
   const key = name.toLowerCase();

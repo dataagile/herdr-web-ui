@@ -876,6 +876,8 @@ export const PT: Record<string, string> = {
   "Edit {n} of {total}": "Edição {n} de {total}",
   "The changes could not be loaded.": "Não foi possível carregar as alterações.",
   "Git shows no difference for this file.": "O git não mostra diferença neste arquivo.",
+  "Git took too long to respond": "Git demorou para responder",
+  "Git could not read the changes of this file.": "O git não conseguiu ler as alterações deste arquivo.",
   "Showing the first {shown} of the diff.": "Mostrando os primeiros {shown} do diff.",
   "Switch to Terminal": "Mudar para o Terminal",
   "Switch to Chat": "Mudar para o Chat",

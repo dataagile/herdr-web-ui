@@ -46,6 +46,8 @@ export function FileChanges({ paneId, path }: { paneId: string; path: string }) 
   if (failed) return <p className="file-viewer-note" role="alert">{t("The changes could not be loaded.")}</p>;
   if (diff === null) return <p className="file-viewer-note">{t("Loading…")}</p>;
   if (diff.kind === "git") {
+    if (diff.timedOut === true) return <p className="file-viewer-note" role="alert">{t("Git took too long to respond")}</p>;
+    if (diff.failed === true) return <p className="file-viewer-note" role="alert">{t("Git could not read the changes of this file.")}</p>;
     return <div className="changed-edits">
       {diff.diff.length === 0 ? <p className="file-viewer-note">{t("Git shows no difference for this file.")}</p>
         : <GitDiff diff={diff.diff} />}

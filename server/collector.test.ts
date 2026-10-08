@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { HerdrPane } from "../shared/protocol.ts";
 import { HerdrError, type EventFrame } from "./herdr/client.ts";
 import { parseFocusFrame, parseStatusFrame, parseStructureFrame, startStatusCollector, type StatusCollectorDeps, type StatusCollectorHandlers } from "./collector.ts";
+import { CompletionTracker } from "./completion.ts";
 
 /**
  * Frame shapes are the live wire format observed against herdr protocol 22 (see
@@ -193,6 +194,35 @@ describe("startStatusCollector recovery", () => {
     herdr.answerAll();
     await tick();
     expect(log.statuses).toEqual(["w1:p1:idle (was working)", "w1:p1:working"]);
+    collector.stop();
+  });
+
+  it("shows a seen done again when a subscription reopens: a done->working->done in the gap changes no raw status", async () => {
+    const tracker = new CompletionTracker();
+    const told: string[] = [];
+    const herdr = fakeHerdr([paneOf("w1:p1", "done")]);
+    const { handlers } = recorder();
+    // wired as index.ts does
+    handlers.onGap = () => { for (const id of tracker.unacknowledgeAll()) told.push(`${id}:done`); };
+    handlers.onStatus = (paneId, raw, agent, replay) => {
+      if (replay && !tracker.replayed(paneId, raw, replay)) return;
+      tracker.observe(paneId, raw, agent);
+    };
+    const collector = startStatusCollector(handlers, herdr.deps);
+    await tick();
+    herdr.status()!.start();
+    await tick(20);
+    tracker.observe("w1:p1", "done", "claude");
+    expect(tracker.seen("w1:p1")).toBe(true);
+    expect(tracker.current("w1:p1")).toBe("idle");
+    // another pane opens: the subscription is reopened with both; p1 ran a whole turn meanwhile, and herdr still says done
+    herdr.setPanes([paneOf("w1:p1", "done"), paneOf("w2:p1", "idle")]);
+    herdr.lifecycle().emit({ event: "pane_created", data: { type: "pane_created", pane_id: "w2:p1" } });
+    await tick(20);
+    herdr.status()!.start();
+    await tick(20);
+    expect(tracker.current("w1:p1")).toBe("done");
+    expect(told).toEqual(["w1:p1:done"]);
     collector.stop();
   });
 

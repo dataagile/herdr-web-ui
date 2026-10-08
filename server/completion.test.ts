@@ -243,6 +243,16 @@ describe("CompletionTracker", () => {
     expect(tracker.observe("p", "done", "claude")).toBe("done");
   });
 
+  it("unacknowledgeAll shows every seen native done again and names the panes", () => {
+    const tracker = new CompletionTracker();
+    for (const id of ["a", "b"]) { tracker.observe(id, "done", "claude"); tracker.seen(id); }
+    tracker.observe("c", "done", "claude");
+    expect(tracker.current("a")).toBe("idle");
+    expect(tracker.unacknowledgeAll().sort()).toEqual(["a", "b"]);
+    expect(tracker.current("a")).toBe("done");
+    expect(tracker.unacknowledgeAll()).toEqual([]);
+  });
+
   it("finishes the pane herdr has focused as done: nobody moved focus there to see it", () => {
     // live: the browser sent work to herdr's focused pane, which went working -> idle
     const tracker = new CompletionTracker();

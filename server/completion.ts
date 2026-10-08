@@ -154,6 +154,19 @@ export class CompletionTracker {
   }
 
   /**
+   * Events may have been lost (a status subscription reopens): an acknowledged pane may have finished again
+   * in the gap, and the collector's replay only sees panes whose raw status changed (done -> working -> done
+   * changed nothing it can see). So every acknowledgement is dropped and those panes read `done` again;
+   * the ids are returned for the caller to broadcast, so clients agree. A done shown again is acceptable.
+   */
+  unacknowledgeAll(): string[] {
+    const panes = [...this.acknowledged];
+    this.acknowledged.clear();
+    for (const paneId of panes) this.record(paneId, "done", ++this.order);
+    return panes;
+  }
+
+  /**
    * Status events were lost for a stretch of unknown length and this snapshot is the truth
    * now (the collector's resync), but for the `newer` panes, which had an event since. Each
    * pane is settled against it without telling anyone, as the alerts are corrected without

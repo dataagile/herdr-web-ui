@@ -18,7 +18,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   done that merely arrives on a visible selected pane or is open at load: a tab nobody is looking at
   must not cancel the phone's done push. The app sends at most one request per pane per done episode
   (a failed one is retried on the next action) and stops asking a PC whose bridge refuses it until
-  that PC reconnects.
+  that PC reconnects (a 403 is also forgotten when the device's role changes). A notification tap that opens the app cold counts as an action; keyboard stepping between panes does not. On a PC that refuses it, Needs you lists only the INPUT rows (DONE still shows as the badge in Projects). A seen native done also reads DONE again after a server restart or whenever a status subscription reopens (herdr has no API to acknowledge a done).
 - A **History** section in the sidebar, under Agents, for the selected project (this PC only):
   the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
   transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since

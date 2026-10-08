@@ -37,3 +37,7 @@ it("drops resumed or seen, offline and missing-roster panes", () => {
   const missing = machine("missing"); missing.snapshot = null;
   for (const m of [online, missing, machine("offline", "disconnected"), machine("reconnecting", "reconnecting")]) expect(panesNeedingYou(m)).toEqual([]);
 });
+
+it("lists only blocked panes on a PC whose bridge refuses pane/seen", () => {
+  expect(panesNeedingYou(machine("old"), true).map(({ pane }) => pane.pane_id)).toEqual(["waiting", "same-id"]);
+});

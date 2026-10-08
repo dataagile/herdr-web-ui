@@ -397,7 +397,7 @@ One set for both themes: the card is island black wherever it shows.
   opened in the browser (the app tells the server the pane was seen), not only when herdr's own
   focus reaches it. Only a user action marks a pane seen (selecting it, or returning to the page with it
   selected): a done that arrives while the pane is selected on a visible page, is open at load, or is the
-  neighbour a closed pane hands the selection to, stays DONE, so a tab nobody is looking at never hides it or cancels the phone's push.
+  neighbour a closed pane hands the selection to, stays DONE, so a tab nobody is looking at never hides it or cancels the phone's push. A tap on a notification is one (also when it opens the app cold); stepping with the keyboard (Mod+Shift+arrow) is not. On a PC whose bridge refuses the call (an old bridge: 404; a watch-role device: 403) this device could never clear a DONE row, so Needs you lists only that PC's INPUT rows there; DONE still shows as the badge in Projects.
 - Each PC group holds two foldable sections, as herdr's own sidebar: **Projects** above **Agents**,
   each headed by its name and count (Projects counts the workspaces that draw a row); the Projects header ends in a `+` (`.sidebar-row-action`, New project on that PC, over the rows' `⋯` column), beside the fold button and not inside it. Folds are
   remembered per PC; both start open.

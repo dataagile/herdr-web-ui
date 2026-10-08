@@ -999,6 +999,10 @@ export function createServer(
     // a finish reported as done, now in front at herdr's terminal: seen, idle again
     onFocus: (paneId) => { paneSeen(paneId, true); },
     onBaseline: (panes) => push.seed(panes),
+    // events may be lost while a subscription reopens: seen native dones read DONE again, and clients are told
+    onGap: () => {
+      for (const paneId of completions.unacknowledgeAll()) broadcastAll({ type: "pane-status", pane_id: paneId, agent_status: "done" });
+    },
     // the tracker first: what it makes of each pane (a finish after work is done, not idle) is
     // what the alerts are measured against from here, or the next event would alert of it
     onResync: (panes, newer) => {

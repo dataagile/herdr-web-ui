@@ -74,6 +74,13 @@ function paneFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("pane");
 }
 
+/** The pane a notification tap opened this load on (`via=notification`, added by public/sw.js): that tap is a user action. */
+function notificationOpenTarget(): { machineId: string; paneId: string } | null {
+  const query = new URLSearchParams(window.location.search);
+  const paneId = query.get("pane");
+  return paneId !== null && query.get("via") === "notification" ? { machineId: query.get("machine") ?? "local", paneId } : null;
+}
+
 const SELECTION_KEY = "herdr-web-ui:selection";
 type StoredSelection = { machine_id?: string; pane_id?: string | null };
 
@@ -372,22 +379,44 @@ export function App() {
   // key so the next user action retries; a bridge that answers 404/403 (no route, or a watch-role device) is
   // not asked again until that PC reconnects (an upgraded bridge gets the route). Silent to the user.
   const seenSent = useRef(new Set<string>());
-  const seenRefused = useRef(new Set<string>());
+  // PC -> the status that refused it. The ids are state too: Needs you lists only INPUT rows for such a PC
+  // (a DONE row there could never be cleared from this device)
+  const seenRefused = useRef(new Map<string, number>());
+  const [seenRefusedIds, setSeenRefusedIds] = useState<ReadonlySet<string>>(new Set());
+  const forgetRefusals = useCallback((drop: (machineId: string, status: number) => boolean) => {
+    let changed = false;
+    for (const [id, status] of seenRefused.current) if (drop(id, status)) { seenRefused.current.delete(id); changed = true; }
+    if (changed) setSeenRefusedIds(new Set(seenRefused.current.keys()));
+  }, []);
   const sendSeen = useCallback((machineId: string, paneId: string) => {
     const key = paneStorageId(machineId, paneId);
     if (seenSent.current.has(key) || seenRefused.current.has(machineId)) return;
     seenSent.current.add(key);
-    markPaneSeen(paneId, machineId).catch((err: unknown) => {
-      if (err instanceof ApiError && (err.status === 404 || err.status === 403)) seenRefused.current.add(machineId);
-      else seenSent.current.delete(key);
+    markPaneSeen(paneId, machineId).then((result) => {
+      // the server says it was not done: nothing to remember
+      if (!result.changed) seenSent.current.delete(key);
+    }).catch((err: unknown) => {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
+        seenRefused.current.set(machineId, err.status);
+        setSeenRefusedIds(new Set(seenRefused.current.keys()));
+      } else seenSent.current.delete(key);
       console.debug(`pane/seen on ${machineId} failed`, err);
     });
   }, []);
 
   // a PC that is not connected (down, reconnecting, or updating its bridge) may come back with another bridge
   useEffect(() => {
-    for (const machine of machines) if (machine.state !== "connected" || machine.updating) seenRefused.current.delete(machine.id);
-  }, [machines]);
+    const away = new Set(machines.filter((machine) => machine.state !== "connected" || machine.updating).map((machine) => machine.id));
+    if (away.size > 0) forgetRefusals((id) => away.has(id));
+    // every roster source (SSE, reseed, poll) lands here: a pane that is not done starts a new episode
+    for (const machine of machines) for (const pane of machine.snapshot?.panes ?? []) {
+      if (pane.agent_status !== "done") seenSent.current.delete(paneStorageId(machine.id, pane.pane_id));
+    }
+  }, [machines, forgetRefusals]);
+
+  // a 403 is the device's role: another role (the owner changed it) may be allowed. A 404 is the bridge's, and waits for a reconnect
+  const deviceRole = auth?.role;
+  useEffect(() => forgetRefusals((_id, status) => status === 403), [deviceRole, forgetRefusals]);
 
   // One SSE subscription watches every PC, even when no terminal is selected.
   useEffect(() => {
@@ -610,10 +639,20 @@ export function App() {
   // a tapped notification focuses this window and names the pane (public/sw.js)
   useEffect(() => onNotificationTarget((target) => pickTargetRef.current(target.machine_id, target.pane_id)), []);
 
-  // the ?pane= a notification opened us with has done its job once it selected the pane
+  // the ?pane= a notification opened us with has done its job once it selected the pane (and so has `via`)
   useEffect(() => {
     if (paneFromUrl() !== null) window.history.replaceState(window.history.state, "", window.location.pathname);
   }, []);
+  // a tap that opened the app cold is a user action: once the roster shows that pane done, it is seen (once)
+  const coldTap = useRef(notificationOpenTarget());
+  useEffect(() => {
+    const target = coldTap.current;
+    if (target === null) return;
+    const pane = machines.find((m) => m.id === target.machineId && m.state === "connected")?.snapshot?.panes.find((p) => p.pane_id === target.paneId);
+    if (!pane) return;
+    coldTap.current = null;
+    markSeenIfDone(target.machineId, target.paneId);
+  }, [machines, markSeenIfDone]);
 
   const selectedPane = snapshot?.panes.find((pane) => pane.pane_id === selectedPaneId) ?? null;
   useScreenWakeLock(settings.keepScreenOn && locked === false && selectedPane !== null);
@@ -805,7 +844,8 @@ export function App() {
         if (panes.length === 0) return;
         const index = panes.findIndex((pane) => pane.pane_id === selectedPaneId);
         const next = panes[(index + direction + panes.length) % panes.length];
-        if (next) pickPane(next.pane_id);
+        // stepping with the keyboard passes over panes: it is no reading of a done, so it does not mark seen
+        if (next) selectPane(next.pane_id);
       },
       setView,
       // side by side every pane shows its terminal: there is no lens to switch
@@ -858,7 +898,7 @@ export function App() {
       refresh: () => void load(),
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
     }),
-    [pickPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, portal, portalSignOut, bellVisible, bell.run, enableNotifications, load],
+    [pickPane, selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, portal, portalSignOut, bellVisible, bell.run, enableNotifications, load],
   );
 
   useShortcuts(actions, locked === false);
@@ -1057,7 +1097,7 @@ export function App() {
       <div className="app-body">
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}
-          <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} onSelect={pickTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
+          <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} seenRefused={seenRefusedIds} onSelect={pickTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
         </aside>
 
         {drawerOpen && <div className="scrim" aria-hidden="true" onClick={() => setDrawerOpen(false)} />}

@@ -24,14 +24,14 @@ export const STATE_WORD: Readonly<Record<MachineState, string>> = {
   error: "Connection error",
 };
 
-interface Props { herdrVersion: string | null; machines: Machine[]; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup(machine: Machine, update?: boolean): void }
+interface Props { herdrVersion: string | null; machines: Machine[]; /** PCs whose bridge refuses `pane/seen`: this device could never clear a DONE row there */ seenRefused: ReadonlySet<string>; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup(machine: Machine, update?: boolean): void }
 export function MachineSidebar(props: Props) {
   const t = useT();
   const { canInstall, installed, install, help } = useInstallPrompt();
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const build = currentBuild();
   // once per PC per render: the Needs you block and the status line below read the same rows
-  const waiting = props.machines.map((machine) => panesNeedingYou(machine));
+  const waiting = props.machines.map((machine) => panesNeedingYou(machine, props.seenRefused.has(machine.id)));
   // no top bar: a workspace starts from its PC's header; Add PC is in the footer, Settings → Remote PCs and the palette
   return <div className="sidebar-shell">
     <div className="machine-list" aria-label={t("PCs and projects")}>

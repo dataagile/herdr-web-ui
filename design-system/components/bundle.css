@@ -5297,10 +5297,6 @@ button, a, [role="button"] {
   background: var(--accent-tint);
 }
 
-.needs-input .needs-input-heading {
-  color: var(--accent);
-}
-
 .needs-input .pill {
   color: var(--accent);
   border-color: var(--accent);
@@ -5312,7 +5308,7 @@ button, a, [role="button"] {
   gap: var(--space-2);
   margin: 0;
   padding: var(--space-2);
-  color: var(--text-strong);
+  color: var(--accent);
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
 }

@@ -14,36 +14,16 @@
 
 .needs-input-heading {
   margin: 0;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
 }
 
-.needs-input-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-2);
-  border: 0;
-  background: transparent;
+/* the Projects header's look and fold behaviour, in the accent */
+.needs-input .needs-input-toggle {
   color: var(--accent);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
-.needs-input-toggle > svg {
-  flex: 0 0 auto;
-  width: var(--icon-size);
-  height: var(--icon-size);
-}
-
-.needs-input-toggle:focus-visible {
-  background: var(--bg-hover);
-}
-
-.needs-input .pane-list[hidden] {
-  display: none;
+.needs-input .needs-input-toggle:hover,
+.needs-input .needs-input-toggle:focus-visible {
+  color: var(--text-strong);
 }
 
 .needs-input-select {

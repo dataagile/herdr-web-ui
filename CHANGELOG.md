@@ -81,13 +81,14 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ### Changed
 - On a phone (up to 480px) the tab strip is always shown, even for a workspace with one tab and
   one pane: the header no longer carries the pane's title, so the strip is where the pane is named.
-  Wider windows keep it away for a lone pane. ([#12](https://github.com/dataagile/herdr-web-ui/pull/12))
+  Wider windows keep it away for a lone pane. The open tab there always carries the name of the
+  pane in front, whatever its own name. ([#12](https://github.com/dataagile/herdr-web-ui/pull/12) by @tbc-joaovitor)
 - The header's **More** menu (`⋯`) is gone. **Files** and **Alerts** (a bell, with its dot while
   alerts are off) are buttons of their own, New tab was already one, and a small copy button after
   the pane's folder copies its full path (at the end of the crumb, or after the title when the
   crumb does not fit). Files and the bell stay in the header at every width (hover shows their name), and Split stays
   too (icon only). On a phone (up to 480px) the bar is icons only: no pane title, mark or crumb (the tab strip names the pane),
-  every button touch-sized. Up to 768px (the ☰ drawer's width) the path and the command palette are the first rows of the drawer.
+  every button touch-sized. Up to 768px (the ☰ drawer's width) the pane's path is the first row of the drawer, and up to 480px the command palette follows.
   ([#12](https://github.com/dataagile/herdr-web-ui/pull/12) by @tbc-joaovitor)
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
   copy, `claude --resume <id> --fork-session`, so the running session is never driven by two

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { appFaces } from "./app-faces.ts";
-import { herdrRpc, tabCreate, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+import { herdrRpc, tabCreate, tabRename, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
 
 type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
 type KeyboardQA = Window & { keyboardQA: (height: number | null) => void };
@@ -117,7 +117,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
 
     await page.goto(`${origin}/?pane=${encodeURIComponent(last)}`);
     await page.locator(".conn-live").waitFor();
-    await page.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "docs" }).waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll(".tab-strip-item")].at(-1)?.classList.contains("is-active"));
     await activeTabInView(page, "a pane opened from outside the strip");
     await assertShell(page, "the last tab");
     await screenshot("last-tab");
@@ -149,6 +149,11 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
       assert.notEqual(loneName, "Tab 1", "a lone tab on a phone is not named by its number");
       assert.equal(loneName, (await loneTab.getAttribute("title"))?.trim(), "a lone tab on a phone: the strip names its pane");
       await assertShell(page, "a lone tab on a phone");
+      // the open tab on a phone is named by the pane in front even when the tab has a name of its own
+      await tabRename(lone.tab.tab_id, "renamed-lone-tab");
+      await page.waitForFunction((name) => document.querySelector(".tab-strip-item.is-active .tab-strip-label")?.textContent?.trim() === name, loneName);
+      await page.waitForTimeout(500);
+      assert.equal((await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim(), loneName, "a renamed one-pane tab on a phone still shows the pane's title");
       await activeTabInView(page, "a lone tab on a phone");
       await screenshot("lone-tab");
       await page.setViewportSize({ width: 800, height: 844 });
@@ -184,7 +189,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
         try {
           await late.goto(`${origin}/?pane=${encodeURIComponent(last)}`);
           await late.locator(".conn-live").waitFor();
-          await late.locator('.tab-strip [role="tab"][aria-selected="true"]', { hasText: "docs" }).waitFor();
+          await late.waitForFunction(() => [...document.querySelectorAll(".tab-strip-item")].at(-1)?.classList.contains("is-active"));
           assert.equal(await late.evaluate(() => [...document.fonts].filter((face) => face.family.replace(/["']/g, "") === "Pretendard Variable" && face.status === "loaded").length), 0, "the strip is first drawn before its face comes");
           await activeTabInView(late, "the last tab, before the faces came");
           if (scrolled) {

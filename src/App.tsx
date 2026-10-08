@@ -650,11 +650,10 @@ export function App() {
 
   // the crumb that does not fit wraps to a second line the header clips (styles.css, .context):
   // then the copy button moves from its end to the title
-  const contextRef = useRef<HTMLDivElement>(null);
+  // the element is state, set by a callback ref: a header that remounts (lock, then unlock) is observed anew
+  const [context, setContext] = useState<HTMLDivElement | null>(null);
   const [crumbHidden, setCrumbHidden] = useState(false);
-  const hasContext = crumb !== null;
   useLayoutEffect(() => {
-    const context = contextRef.current;
     if (!context) return;
     const title = context.querySelector<HTMLElement>(".context-title");
     const sub = context.querySelector<HTMLElement>(".context-sub");
@@ -663,7 +662,7 @@ export function App() {
     const observer = new ResizeObserver(measure);
     for (const element of [context, title, sub]) if (element) observer.observe(element);
     return () => observer.disconnect();
-  }, [hasContext]);
+  }, [context]);
 
   useEffect(() => {
     document.title = selectedTitle ? `${selectedTitle} · herdr` : APP_TITLE;
@@ -893,19 +892,17 @@ export function App() {
             .header-side is the sidebar's own top row from 769px (styles.css); below that its
             buttons sit in the bar */}
         <div className="header-side">
-          <span className="drawer-toggle-wrap">
-            <button
-              type="button"
-              className="icon-button drawer-toggle"
-              aria-label={drawerOpen ? t("Close project list") : t("Open project list")}
-              title={drawerOpen ? t("Close project list") : t("Open project list")}
-              aria-expanded={drawerOpen}
-              aria-controls="workspace-drawer"
-              onClick={() => setDrawerOpen((open) => !open)}
-            >
-              {drawerOpen ? <X /> : <Menu />}
-            </button>
-          </span>
+          <button
+            type="button"
+            className="icon-button drawer-toggle"
+            aria-label={drawerOpen ? t("Close project list") : t("Open project list")}
+            title={drawerOpen ? t("Close project list") : t("Open project list")}
+            aria-expanded={drawerOpen}
+            aria-controls="workspace-drawer"
+            onClick={() => setDrawerOpen((open) => !open)}
+          >
+            {drawerOpen ? <X /> : <Menu />}
+          </button>
           <button
             type="button"
             className="icon-button header-desktop-only sidebar-toggle"
@@ -921,7 +918,7 @@ export function App() {
           </button>
         </div>
         {selectedPane && crumb ? (
-          <div className={`context${crumbHidden ? " is-crumb-hidden" : ""}`} ref={contextRef} title={crumb.tooltip}>
+          <div className={`context${crumbHidden ? " is-crumb-hidden" : ""}`} ref={setContext} title={crumb.tooltip}>
             <div className="context-title">
               {selectedAgent && <AgentMark agent={selectedAgent} size={18} />}
               <span className="context-title-text">{selectedTitle}</span>
@@ -1018,7 +1015,7 @@ export function App() {
 
       <div className="app-body">
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
-          {/* up to 768px (styles.css): the pane's full path and, up to 480px, the palette's header button */}
+          {/* up to 768px (styles.css) the pane's full path; the palette row only up to 480px, where the header's palette button is gone */}
           <div className="drawer-rows">
             {/* the full path, for a touch screen that has no tooltip; breaks after a "/" or "\\" */}
             {crumb?.path != null && <p className="drawer-path">{crumb.path.split(/(?<=[\\/])/).map((part, index) => <span key={index}>{part}<wbr /></span>)}</p>}

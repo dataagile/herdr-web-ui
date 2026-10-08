@@ -1,7 +1,7 @@
 A top-offset search dialog that finds panes and actions, with recent panes first and one keyboard-active row.
 
 ## When to use
-- `Mod+Shift+K`, the header's search button or, on a phone, the `.drawer-palette` row at the top of the sidebar drawer (`<=768px`, under the pane's full path), to jump to any pane across workspaces or run a global action.
+- `Mod+Shift+K`, the header's search button or, on a phone, the `.drawer-palette` row at the top of the sidebar drawer (`<=480px`, under the pane's full path), to jump to any pane across workspaces or run a global action.
 - Not a general search over files or chat history.
 
 ## Anatomy

@@ -407,13 +407,14 @@ button {
 }
 
 /* one copy button at a time: the crumb's, or - while the crumb is wrapped out of sight - the title's.
-   The crumb's keeps its room hidden, so showing the title's cannot unwrap the crumb and flip back. */
+   Each keeps its room while hidden (visibility, so it is not focusable either), so showing one
+   never changes the widths the crumb is measured against: whether it fits does not depend on resize history. */
 .context-copy.in-title {
-  display: none;
+  visibility: hidden;
 }
 
 .context.is-crumb-hidden .context-copy.in-title {
-  display: inline-flex;
+  visibility: visible;
 }
 
 .context.is-crumb-hidden .context-copy.in-crumb {
@@ -425,7 +426,7 @@ button {
   height: var(--fs-md);
 }
 
-/* the rows at the top of the drawer (path, palette), shown up to 768px */
+/* the rows at the top of the drawer (path up to 768px; the palette only up to 480px), shown up to 768px */
 .drawer-rows {
   display: none;
   flex-direction: column;
@@ -447,9 +448,8 @@ button {
   justify-content: flex-start;
 }
 
-/* wraps the drawer toggle, shown up to 768px */
-.drawer-toggle-wrap {
-  position: relative;
+/* the palette row: only where the header's palette button is gone (480px and below) */
+.drawer-rows .drawer-palette {
   display: none;
 }
 
@@ -1045,10 +1045,6 @@ button {
     margin: var(--space-2);
   }
 
-  .drawer-toggle-wrap {
-    display: inline-flex;
-  }
-
   .drawer-toggle {
     display: inline-flex;
   }
@@ -1127,6 +1123,10 @@ button {
   }
 
   .context-copy.in-title {
+    visibility: visible;
+  }
+
+  .drawer-rows .drawer-palette {
     display: inline-flex;
   }
 

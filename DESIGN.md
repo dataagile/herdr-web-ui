@@ -318,10 +318,10 @@ One set for both themes: the card is island black wherever it shows.
   as the title's `.context-copy.in-title`, New tab, Split, Files, the Alerts bell, the Chat/Terminal switch),
   each with a `title` for hover and an `aria-label` naming it, and the tab strip below names the pane.
   Files and the bell stay in the header at every width; New tab leaves it while the tab is zoomed, to keep
-  Unzoom in reach (it stays on the drawer's project row). Up to `768px` the drawer's first rows
-  (`.drawer-rows`) are the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable,
+  Unzoom in reach (it stays on the drawer's project row). Up to `768px` the drawer's first row
+  (`.drawer-rows`) is the pane's full path as a `--text-dim` mono line (`.drawer-path`, selectable,
   breaking after a `/` or `\`, and wrapping a longer segment as a last resort) for a touch screen with
-  no tooltip, then `.drawer-palette` (it closes the drawer). The header's buttons, the lens switch's
+  no tooltip; at `<=480px`, where the header's palette button is gone, `.drawer-palette` follows (it closes the drawer). The header's buttons, the lens switch's
   included, keep `--touch-target` under `pointer: coarse`: no smaller size is drawn for the phone, and
   at `<=480px` the bar drops its own gap and gutter to `--space-2` so seven targets fit 360px.
   Icons and selected context remain.
@@ -486,7 +486,9 @@ One set for both themes: the card is island black wherever it shows.
   480px), where it is always shown, a one-tab workspace included, because the header carries no
   title and the strip is where the pane is named (never without a selected pane). One `role="tab"` per tab
   in herdr's order, named by its label, or **Tab n** while herdr still names it by its number (on a
-  phone such a tab, when it holds one pane, is named by that pane's title instead);
+  phone the open tab is always named by the pane in front (`displayPaneTitle`), whatever its own name,
+  and another such tab, when it holds one pane, by that pane's title instead; renaming still compares
+  with herdr's own name for the tab);
   a 7px dot before the name in the state's colour for working, blocked and done. The open tab
   (the selected pane's) is underlined 2px in `--accent` and in the strong colour; the others are
   dim. Arrow keys move between tabs. A tab opens the pane last viewed in it, else the one herdr

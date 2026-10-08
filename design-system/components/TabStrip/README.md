@@ -1,7 +1,7 @@
 herdr's tab row over the pane: one tab per herdr tab of the selected workspace, state dots, the open tab underlined in the accent, and a `+` for a new tab.
 
 ## When to use
-- Over the pane column, once the selected pane's workspace has two or more panes (a second tab or a split); for a lone pane only on a phone (up to 480px), where the header carries no title and this strip is the one place the pane is named: a tab herdr still names by its number and that holds one pane shows the pane's title instead of **Tab n**.
+- Over the pane column, once the selected pane's workspace has two or more panes (a second tab or a split); for a lone pane only on a phone (up to 480px), where the header carries no title and this strip is the one place the pane is named: there the open tab is always named by the pane in front, whatever its own name; another tab herdr still names by its number and that holds one pane shows the pane's title instead of **Tab n**.
 - Not for switching workspaces (that is the roster) or for app-level navigation.
 
 ## Anatomy
@@ -15,6 +15,7 @@ herdr's tab row over the pane: one tab per herdr tab of the selected workspace, 
 - `.tab-strip-error`: a `--status-blocked` line at the end for six seconds after a failed rename/close.
 
 ## States & variants
+- Phone (≤480px): the label is cut short with an ellipsis (`max-width: calc(100vw - 11rem)`) so a long pane title never pushes the open tab's chevron or the `+` out of the strip.
 - Open tab: strong text and a 2px `--accent` inset underline under the whole item, x included; the x is visible.
 - Other tabs: dim text; the x shows on hover or focus.
 - Dots (7px) only for working (`--status-working`), blocked (`--status-blocked`) and done (`--status-done`); idle shows none.

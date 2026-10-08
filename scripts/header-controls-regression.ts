@@ -45,6 +45,21 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
     await page.waitForFunction(() => document.querySelector(".context")?.classList.contains("is-crumb-hidden"));
     assert.equal(await visibleCount(page, ".context-copy.in-title"), 1, "a wrapped crumb: the copy button is beside the title");
     assert.equal(await visibleCount(page, ".context-copy.in-crumb"), 0, "a wrapped crumb: its copy button is not shown");
+    // no hysteresis: the crumb's state at a width is the same going down to it and coming back up to it
+    await page.evaluate(() => { document.querySelector(".context-title-text")!.textContent = "a title"; });
+    const crumbHiddenAt = async (width: number): Promise<boolean> => {
+      await page.setViewportSize({ width, height: 700 });
+      await page.waitForTimeout(300);
+      return page.evaluate(() => document.querySelector(".context")!.classList.contains("is-crumb-hidden"));
+    };
+    const widths = [1440, 1300, 1200, 1100, 1000, 900, 800, 700, 600, 500];
+    const down = new Map<number, boolean>();
+    for (const width of widths) down.set(width, await crumbHiddenAt(width));
+    for (const width of [...widths].reverse()) assert.equal(await crumbHiddenAt(width), down.get(width), `the crumb's state at ${width}px does not depend on the way there`);
+    // the title's copy button keeps its room hidden, and a hidden one is not focusable
+    await crumbHiddenAt(1440);
+    assert.equal(await page.locator(".context-copy.in-title").evaluate((node) => getComputedStyle(node).visibility), "hidden", `a drawn crumb: the title's copy button is hidden, not removed ${JSON.stringify([...down])}`);
+    assert.ok((await page.locator(".context-copy.in-title").boundingBox())!.width > 0, "the title's copy button keeps its room");
   } finally {
     await desktop.close();
   }
@@ -92,7 +107,7 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
       assert.equal((await page.locator(".drawer-path").innerText()).replace(/\s+/g, ""), path, "phone: the drawer's first line is the pane's full path");
       assert.equal(await visibleCount(page, "#workspace-drawer .drawer-palette"), 1, "phone: the drawer shows the palette row");
       assert.equal(await page.locator(".drawer-files, .drawer-alerts").count(), 0, "phone: the drawer has no Files or Alerts row");
-      assert.equal(await page.locator(".drawer-toggle-wrap .header-bell-dot").count(), 0, "phone: the drawer toggle carries no dot");
+      assert.equal(await page.locator(".drawer-toggle .header-bell-dot").count(), 0, "phone: the drawer toggle carries no dot");
     } finally {
       await phone.close();
     }
@@ -107,6 +122,8 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
     await page.getByRole("button", { name: "Open project list", exact: true }).tap();
     assert.equal((await page.locator(".drawer-path").innerText()).replace(/\s+/g, ""), path, "tablet: the drawer's first line is the pane's full path");
     assert.equal(await page.locator(".drawer-files, .drawer-alerts").count(), 0, "tablet: no Files or Alerts row");
+    assert.equal(await visibleCount(page, "#workspace-drawer .drawer-palette"), 0, "tablet: the palette row is not in the drawer, the header has the button");
+    assert.equal(await visibleCount(page, ".app-header .palette-button"), 1, "tablet: the palette button is in the header");
   } finally {
     await tablet.close();
   }

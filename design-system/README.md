@@ -55,7 +55,7 @@ Density is a second axis: `[data-density="compact"]` on the root steps the type 
 
 ## Layout
 
-- The shell is a full-viewport column: header over body; the body is sidebar plus the pane (chat or terminal). The header is one line at every width.
+- The shell is a full-viewport column: header over body; the body is sidebar plus the pane (chat or terminal). The header is one line at every width. Its controls are plain buttons, no overflow menu: copy path (`.context-copy`, end of the crumb; beside the title below 769px), Files, Alerts bell (`.header-bell`, with a dot while alerts are off) and Split. On a phone the command palette is the first row of the drawer (`.drawer-palette`).
 - From 769px the header splits in two: over the sidebar it is the sidebar's own top row on `--bg-panel`; over the pane it takes the pane's surface (`--bg` under chat, `--term-bg` under terminal).
 - At ≤768px the sidebar becomes a drawer with `--scrim`; at ≤640px dialogs and menus become bottom sheets with top `--radius-xl` corners and safe-area padding; at ≤480px labels drop and icons stay.
 

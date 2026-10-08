@@ -3,7 +3,7 @@ Medium text buttons (`.btn` with primary, danger and ghost variants) and square 
 ## When to use
 - `.btn` for a labeled command: dialog footers (Cancel / Close project), New project, Reconnect, the header's Split.
 - `.btn-primary` for the one forward action of a surface; `.btn-danger` for something that cannot be undone (usually inside a confirm); `.btn-ghost` for a quiet header or toolbar command.
-- `.icon-button` for a familiar glyph-only control (sign out, More `⋯`, steppers); add `.is-outlined` when it sits on its own and needs an edge (font-size steppers in Settings).
+- `.icon-button` for a familiar glyph-only control (sign out, the header's Alerts bell, steppers; `.context-copy` is the small dim copy-path variant); add `.is-outlined` when it sits on its own and needs an edge (font-size steppers in Settings).
 
 ## Anatomy
 - `button.btn` — inline-flex, `gap: --space-2`, optional leading 16px Lucide `svg` + label text.

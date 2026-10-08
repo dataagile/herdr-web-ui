@@ -811,6 +811,23 @@ export function App() {
   // the chat's surface is what the pane column shows: the header's pane zone and the tab strip
   // take it (from 769px). A pane herdr could not restore draws a placeholder, not the chat.
   // the Chat is for one pane at a time: with several side by side, each shows its terminal
+  // the copy button sits at the end of the crumb; below 769px, where the crumb is not drawn, beside the title
+  const copyPathButton = (place: "in-title" | "in-crumb") => crumb?.path == null ? null : (
+    <button
+      type="button"
+      className={`icon-button context-copy ${place}`}
+      aria-label={pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path })}
+      title={pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path })}
+      onClick={() => void copyText(crumb.path ?? "").then((copied) => {
+        if (!copied) return;
+        setPathCopied(true);
+        window.setTimeout(() => setPathCopied(false), 1500);
+      })}
+    >
+      {pathCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+    </button>
+  );
+
   const shownView: PaneView = splitting ? "terminal" : view;
   const chatShown = showsChat(selectedPane, shownView);
 
@@ -880,21 +897,7 @@ export function App() {
             <div className="context-title">
               {selectedAgent && <AgentMark agent={selectedAgent} size={18} />}
               <span className="context-title-text">{selectedTitle}</span>
-              {crumb.path !== null && (
-                <button
-                  type="button"
-                  className="icon-button context-copy"
-                  aria-label={pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path })}
-                  title={pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path })}
-                  onClick={() => void copyText(crumb.path ?? "").then((copied) => {
-                    if (!copied) return;
-                    setPathCopied(true);
-                    window.setTimeout(() => setPathCopied(false), 1500);
-                  })}
-                >
-                  {pathCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-                </button>
-              )}
+              {copyPathButton("in-title")}
             </div>
             <div className="context-sub">
               <span className="machine-context-name">{crumb.machine}</span><span className="context-sep" aria-hidden="true">›</span>
@@ -911,6 +914,7 @@ export function App() {
                   <span>{t("zoom {n}/{total}", { n: zoomIndex, total: selectedLayout.panes.length })}</span>
                 </>
               )}
+              {copyPathButton("in-crumb")}
             </div>
           </div>
         ) : (

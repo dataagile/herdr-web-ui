@@ -851,6 +851,10 @@ button {
   color: var(--text-dim);
 }
 
+.context-copy.in-title {
+  display: none;
+}
+
 .context-copy svg {
   width: var(--fs-md);
   height: var(--fs-md);
@@ -1431,6 +1435,10 @@ button {
 /* ---------- mobile: sidebar becomes a drawer ---------- */
 
 @media (max-width: 768px) {
+  .context-copy.in-title {
+    display: inline-flex;
+  }
+
   .drawer-toggle {
     display: inline-flex;
   }

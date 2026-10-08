@@ -90,7 +90,7 @@ export interface ElementContext {
   dentro_de?: "shadow-dom" | "iframe";
 }
 
-/** Shrinks the element context, the bulkiest parts first, until it fits. */
+/** Shrinks the element context, the bulkiest parts first, until it fits; the last steps bound every field, so the result always fits. */
 export function capElementContext(context: ElementContext, maxBytes = MAX_ELEMENT_BYTES): ElementContext {
   const next = { ...context };
   for (const step of [
@@ -98,6 +98,8 @@ export function capElementContext(context: ElementContext, maxBytes = MAX_ELEMEN
     () => { next.data_attrs = {}; },
     () => { next.console_errors = []; },
     () => { next.classes = next.classes.slice(0, 8); next.breadcrumb_dom = next.breadcrumb_dom.slice(-200); },
+    () => { delete next.dentro_de; next.classes = []; next.breadcrumb_dom = ""; },
+    () => { next.url = next.url.slice(0, 256); next.rota = next.rota.slice(0, 256); next.tag = next.tag.slice(0, 64); },
   ]) {
     if (size(next) <= maxBytes) break;
     step();
@@ -115,10 +117,19 @@ export const PRIVATE_SELECTOR = `[${PRIVATE_ATTR}]`;
 /** the text of an element outside the private surfaces is cut to this many characters */
 export const MAX_ELEMENT_TEXT = 200;
 
-/** `text` is the whole visible text, whitespace already collapsed. Masked first, then cut, so a secret across the cut cannot survive half-masked. */
+/** the most of an element's text that is scrubbed: a whole page's text is not scrubbed to keep 200 chars */
+const MAX_SCRUB_WINDOW = 8 * 1024;
+
+/**
+ * `text` is the whole visible text, whitespace already collapsed. Scrubbed on a bounded window
+ * (cut back to a word boundary, so a secret is never split by the window), then cut to 200: the
+ * 200 chars come from the masked text, so a secret across the 200th char cannot survive half-masked.
+ */
 export function maskedText(text: string, isPrivate: boolean): string {
   if (isPrivate) return scrubChatText(text);
-  const masked = scrubText(text.slice(0, MAX_ELEMENT_TEXT * 10)); // a whole page's text is not scrubbed to keep 200 chars
+  let window = text.slice(0, MAX_SCRUB_WINDOW);
+  if (text.length > MAX_SCRUB_WINDOW) window = window.slice(0, Math.max(window.lastIndexOf(" "), 0));
+  const masked = scrubText(window);
   return masked.length > MAX_ELEMENT_TEXT ? `${masked.slice(0, MAX_ELEMENT_TEXT)}…` : masked;
 }
 
@@ -150,8 +161,9 @@ export function buildFeedbackForm(input: FeedbackInput): FormData {
 }
 
 export interface FeedbackResult {
-  ticket_id: number;
-  ticket_url: string;
+  /** null when the portal answered 201 without them: the ticket exists, there is just no number or link to show */
+  ticket_id: number | null;
+  ticket_url: string | null;
   attachment_error?: string | null;
   tech_context_error?: string | null;
 }
@@ -176,7 +188,8 @@ export async function submitFeedback(form: FormData, request: typeof fetch = fet
     const wait = Number(response.headers.get("retry-after"));
     throw new FeedbackError(code === "glpi_timeout" ? 504 : response.status, typeof code === "string" ? code : null, Number.isFinite(wait) && wait > 0 ? Math.ceil(wait) : null);
   }
+  // a 201 is a ticket: an answer without its number or link is still one, and is never an invitation to send again
   const body = (await response.json().catch(() => null)) as Partial<FeedbackResult> | null;
-  if (typeof body?.ticket_id !== "number" || typeof body.ticket_url !== "string") throw new FeedbackError(502);
+  if (typeof body?.ticket_id !== "number" || typeof body.ticket_url !== "string") return { ticket_id: null, ticket_url: null, attachment_error: body?.attachment_error ?? null, tech_context_error: body?.tech_context_error ?? null };
   return body as FeedbackResult;
 }

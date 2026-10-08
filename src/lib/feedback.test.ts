@@ -54,6 +54,13 @@ describe("element context", () => {
     expect(capped.tag).toBe("button");
   });
 
+  it("always ends within the ceiling, dropping optional fields and bounding the rest", () => {
+    const huge = element({ url: "/" + "u".repeat(60_000), rota: "/" + "r".repeat(60_000), tag: "t".repeat(60_000), classes: Array.from({ length: 4000 }, (_, i) => `c${i}`), breadcrumb_dom: "b".repeat(60_000), dentro_de: "iframe", texto_visivel: "x".repeat(60_000), data_attrs: { a: "v".repeat(60_000) }, console_errors: ["e".repeat(60_000)] });
+    const capped = capElementContext(huge);
+    expect(new TextEncoder().encode(JSON.stringify(capped)).length).toBeLessThanOrEqual(16 * 1024);
+    expect(capped.modo).toBe("elemento");
+  });
+
   it("leaves a small one alone", () => {
     expect(capElementContext(element())).toEqual(element());
   });
@@ -97,10 +104,17 @@ describe("submitFeedback", () => {
     expect(seen.init?.body).toBe(form);
   });
 
-  it("carries the status of a refusal, 0 for no answer, 502 for a 201 that is not a ticket", async () => {
+  it("carries the status of a refusal and 0 for no answer", async () => {
     for (const status of [429, 503, 502, 400]) await expect(submitFeedback(form, answer(status))).rejects.toMatchObject({ status });
     await expect(submitFeedback(form, (async () => { throw new TypeError("net"); }) as unknown as typeof fetch)).rejects.toBeInstanceOf(FeedbackError);
-    await expect(submitFeedback(form, answer(201, { nope: 1 }))).rejects.toMatchObject({ status: 502 });
+  });
+
+  it("a 201 without a number or link is still an opened ticket, never an error", async () => {
+    for (const body of [{ nope: 1 }, { ticket_id: "7", ticket_url: 3 }]) {
+      expect(await submitFeedback(form, answer(201, body))).toEqual({ ticket_id: null, ticket_url: null, attachment_error: null, tech_context_error: null });
+    }
+    const unreadable = (async () => new Response("<html>", { status: 201 })) as unknown as typeof fetch;
+    expect(await submitFeedback(form, unreadable)).toMatchObject({ ticket_id: null, ticket_url: null });
   });
 });
 
@@ -124,6 +138,20 @@ describe("the ring buffer", () => {
   });
 });
 
+describe("the ring buffer is masked on read", () => {
+  beforeEach(resetFeedbackBuffer);
+
+  it("stores raw but capped, and hands out masked text", () => {
+    recordConsole(`token=zq9s7vwabc ${"y".repeat(9000)}`, "error", 1);
+    recordRequest("GET", `/api/x?session=SEEDQUERY&${"q".repeat(9000)}`, 500, 1);
+    const [line] = recentConsole(2);
+    expect(line!.message).toBe(`token=[TOKEN] ${"y".repeat(500 - "token=[TOKEN] ".length)}…`);
+    const [request] = recentRequests(2);
+    expect(request!.path).not.toContain("SEEDQUERY");
+    expect(request!.path.length).toBeLessThanOrEqual(512);
+  });
+});
+
 describe("maskedText: private surfaces and the rest", () => {
   it("a private surface leaves only its length, of the whole text", () => {
     expect(maskedText("é".repeat(5000), true)).toBe("[TEXTO OMITIDO 5000 chars]");
@@ -140,6 +168,16 @@ describe("maskedText: private surfaces and the rest", () => {
   it("a secret across the 200th char is masked before the cut", () => {
     const out = maskedText(`${"x".repeat(190)} ghp_abcdefghijklmnopqrstuvwxyz0123456789`, false);
     expect(out).not.toContain("ghp_");
+  });
+
+  it("a secret straddling the old 2000-char cut and the 8 KB window never survives, nor does a fragment of it", () => {
+    const secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789";
+    for (const at of [1990, 8192 - 10]) {
+      const text = `${"x ".repeat(Math.floor(at / 2))}${secret} ${"y ".repeat(9000)}`;
+      const out = maskedText(text, false);
+      expect(out).not.toContain("ghp_");
+      expect(out.length).toBeLessThanOrEqual(201);
+    }
   });
 });
 

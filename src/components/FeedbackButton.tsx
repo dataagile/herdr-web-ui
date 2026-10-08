@@ -6,7 +6,7 @@
  * the picker, the print and the technical data also need a window at least 1024px wide.
  */
 import { Bug, Lightbulb, Megaphone, MessageSquareText } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { buildTechContext, type ElementContext, type FeedbackCategory } from "../lib/feedback.ts";
@@ -31,7 +31,7 @@ interface Props {
   meta: FeedbackMeta;
 }
 
-const EMPTY: FeedbackDraft = { message: "", file: null, picked: false, element: null, tech: null, includeTech: true, notice: null };
+const EMPTY: FeedbackDraft = { message: "", file: null, picked: false, element: null, tech: null, includeTech: true, error: null, uncertain: false, busyUntil: 0 };
 
 export function FeedbackButton({ availability, meta }: Props) {
   const t = useT();
@@ -64,6 +64,11 @@ export function FeedbackButton({ availability, meta }: Props) {
     }
   }, []);
 
+  // the window can grow past 1024px after the form opened: the data the checkbox and the preview show is read then
+  useEffect(() => {
+    if (category && rich && draft.tech === null) setDraft((d) => (d.tech === null ? { ...d, tech: snapshot() } : d));
+  }, [category, rich, draft.tech, snapshot]);
+
   const open = (next: FeedbackCategory): void => {
     setDraft({ ...EMPTY, tech: rich ? snapshot() : null });
     setCategory(next);
@@ -74,7 +79,7 @@ export function FeedbackButton({ availability, meta }: Props) {
     window.requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   }, []);
 
-  const cancelPicking = useCallback(() => { setDraft((d) => ({ ...d, notice: null })); setPicking(false); }, []);
+  const cancelPicking = useCallback(() => setPicking(false), []);
 
   const select = useCallback(async (context: ElementContext, rect: DOMRect) => {
     if (capturingRef.current) return;
@@ -83,11 +88,12 @@ export function FeedbackButton({ availability, meta }: Props) {
     const tech = snapshot();
     try {
       const file = await captureScreen(rect, { crop: context.modo === "area" });
-      setDraft((d) => ({ ...d, file, picked: true, element: context, tech, notice: null }));
+      // a failure left by the send (504, busy) stays; one left by an earlier print does not
+      setDraft((d) => ({ ...d, file, picked: true, element: context, tech, error: d.uncertain || d.busyUntil > Date.now() ? d.error : null }));
     } catch (reason) {
       console.error("feedback: could not capture the screen", reason);
       // what was typed, and an image chosen by hand before, stay; the element still goes
-      setDraft((d) => ({ ...d, element: context, tech, notice: t("Could not capture the screen.") }));
+      setDraft((d) => ({ ...d, element: context, tech, error: t("Could not capture the screen.") }));
     } finally {
       capturingRef.current = false;
       setCapturing(false);
@@ -113,7 +119,7 @@ export function FeedbackButton({ availability, meta }: Props) {
           attachments={availability.attachments}
           rich={rich}
           onChange={setDraft}
-          onPick={() => { setDraft((d) => ({ ...d, notice: null })); setPicking(true); }}
+          onPick={() => setPicking(true)}
           onClose={close}
         />,
         document.body,

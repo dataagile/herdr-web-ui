@@ -3,7 +3,7 @@
  * element under it, a drag of more than 6 px an area; Escape cancels. The layer takes the pointer
  * itself (so nothing underneath is hovered or activated) and finds the element below it with
  * `elementsFromPoint`. Everything it draws carries `data-feedback-picker`, which the print leaves
- * out. A click is swallowed once after the press, because ending the press on the layer would
+ * out. The hint's Cancel button works for touch (no Escape there); a cancelled pointer (pointercancel) drops the press. A click is swallowed once after the press, because ending the press on the layer would
  * otherwise let the browser's synthetic click reach whatever the layer is unmounted from over.
  */
 import { Crosshair } from "lucide-react";
@@ -126,6 +126,7 @@ export function ElementPicker({ capturing, onSelect, onCancel }: ElementPickerPr
 
     const onDown = (event: PointerEvent): void => {
       if (handled || down || event.button !== 0 || calls.current.capturing) return;
+      if (event.target instanceof Element && event.target.closest(".picker-hint") !== null) return; // the hint's own button
       event.preventDefault();
       event.stopPropagation();
       down = { x: event.clientX, y: event.clientY };
@@ -142,16 +143,25 @@ export function ElementPicker({ capturing, onSelect, onCancel }: ElementPickerPr
       down = null;
       if (dragging) {
         const rect = rectOf(start, { x: event.clientX, y: event.clientY });
-        setMarquee(rect);
-        if (rect.width >= MIN_AREA_PX || rect.height >= MIN_AREA_PX) {
+        if (rect.width >= MIN_AREA_PX && rect.height >= MIN_AREA_PX) {
+          setMarquee(rect);
           // the area's context comes from the element under its first corner, best effort
           const el = under(rect.left + 1, rect.top + 1) ?? document.body;
           calls.current.onSelect(buildElementContext(el, "area"), rect);
           return;
         }
+        setMarquee(null); // a thin drag is no area: it picks the element under the pointer
       }
       if (element) calls.current.onSelect(buildElementContext(element, "elemento"), element.getBoundingClientRect());
       else handled = false;
+    };
+
+    const onCancelPointer = (event: PointerEvent): void => {
+      if (handled || !down || event.pointerId !== pointerId) return;
+      down = null;
+      pointerId = null;
+      dragging = false;
+      setMarquee(null);
     };
 
     const onKey = (event: KeyboardEvent): void => {
@@ -164,11 +174,13 @@ export function ElementPicker({ capturing, onSelect, onCancel }: ElementPickerPr
     window.addEventListener("pointermove", onMove, true);
     window.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointercancel", onCancelPointer, true);
     window.addEventListener("keydown", onKey, true);
     return () => {
       window.removeEventListener("pointermove", onMove, true);
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onCancelPointer, true);
       window.removeEventListener("keydown", onKey, true);
     };
   }, []);
@@ -193,6 +205,7 @@ export function ElementPicker({ capturing, onSelect, onCancel }: ElementPickerPr
             <span className="picker-hint-sep" aria-hidden="true">·</span>
             <kbd className="kbd">Esc</kbd>
             <span>{t("cancels")}</span>
+            <button type="button" className="btn btn-ghost picker-cancel" onClick={() => calls.current.onCancel()}>{t("Cancel")}</button>
           </>
         )}
       </div>

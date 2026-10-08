@@ -320,7 +320,8 @@ try {
           const centre = async (selector: string): Promise<[number, number]> => {
             const box = await page.locator(selector).first().boundingBox();
             assert.ok(box, `${selector} is on the screen`);
-            return [box.x + box.width / 2, box.y + box.height / 2];
+            // the composer's left edge: the picker's hint sits at the bottom centre and is not pickable
+            return [selector === ".composer" ? box.x + Math.min(box.width / 2, 40) : box.x + box.width / 2, box.y + box.height / 2];
           };
           const elementContext = async (): Promise<Record<string, unknown>> => (JSON.parse((await modal.locator(".feedback-json").textContent())!) as { element_context?: Record<string, unknown> }).element_context ?? {};
           await button(page).click();
@@ -366,6 +367,88 @@ try {
         } finally { await close(); }
       }
       console.log("PASS the picker resolves an svg to its button, private surfaces send only a length, and unchecked sends no element or technical data");
+
+      // 2c. the send guards survive the picker; a 201 with no number is an opened ticket; the picker's
+      // pointercancel, Cancel button, touch-action and thin drag
+      {
+        const { page, posts, answer, errors, close } = await open({ width: 1440, height: 900 });
+        try {
+          const modal = dialog(page);
+          const send = modal.getByRole("button", { name: /^Send( anyway)?$/ });
+          const pickAndEscape = async (): Promise<void> => {
+            await modal.getByRole("button", { name: /^(Select element on screen|Redo)$/ }).click();
+            await page.locator(".picker-layer").waitFor();
+            await page.keyboard.press("Escape");
+            await page.locator(".picker-layer").waitFor({ state: "detached" });
+            await modal.waitFor();
+          };
+          await button(page).click();
+          await page.getByRole("menuitem", { name: "Report a bug" }).click();
+          await modal.getByLabel("Description (required)").fill("Guards must survive the picker.");
+
+          // 504: after the picker the dialog still says the ticket may exist and Send is still "Send anyway"
+          answer.status = 504; answer.body = { error: { code: "glpi_timeout", message: "x" } };
+          await send.click();
+          const maybe = "The support system took too long to answer; the ticket may have been created. Check before sending again.";
+          await modal.getByText(maybe).waitFor();
+          await pickAndEscape();
+          assert.equal(await modal.getByText(maybe).count(), 1, "the 504 message survived the picker");
+          assert.equal(await modal.getByRole("button", { name: "Send anyway" }).count(), 1, "still no invitation to resend after the picker");
+          assert.equal(posts.length, 1);
+
+          // 503 busy: after the picker Send is still waiting out Retry-After
+          await modal.getByLabel("Description (required)").fill("Guards must survive the picker, busy.");
+          answer.status = 503; answer.body = { error: { code: "busy", message: "busy" } }; answer.headers = { "retry-after": "4" };
+          await send.click();
+          await modal.getByText("The portal is busy; try again in 4 s.").waitFor();
+          await pickAndEscape();
+          assert.equal(await modal.getByText("The portal is busy; try again in 4 s.").count(), 1, "the busy message survived the picker");
+          assert.equal(await send.isDisabled(), true, "Send still waits for Retry-After after the picker");
+          await page.waitForFunction(() => !(Array.from(document.querySelectorAll("button")).find((b) => b.textContent === "Send") as HTMLButtonElement | undefined)?.disabled, undefined, { timeout: 8000 });
+          answer.headers = undefined;
+
+          // the print's note says it is the screen as it is, terminal and chat included
+          assert.match((await modal.textContent()) ?? "", /exactly as it is, including the terminal and the chat/);
+
+          // picker: touch-action, the on-screen Cancel, pointercancel, a thin drag
+          await modal.getByRole("button", { name: "Select element on screen" }).click();
+          await page.locator(".picker-layer").waitFor();
+          assert.equal(await page.locator(".picker-layer").evaluate((node) => getComputedStyle(node).touchAction), "none");
+          await page.evaluate(() => {
+            const fire = (type: string, x: number): void => { window.dispatchEvent(new PointerEvent(type, { pointerId: 7, button: 0, clientX: x, clientY: 300, bubbles: true, cancelable: true })); };
+            fire("pointerdown", 400); fire("pointermove", 500); fire("pointercancel", 500); fire("pointerup", 500);
+          });
+          await page.waitForTimeout(150);
+          assert.equal(await page.locator(".picker-layer").count(), 1, "a cancelled pointer selects nothing");
+          assert.equal(await page.locator(".picker-target").count(), 0, "and leaves no marquee");
+          // a thin drag (wide, 1 px high) is no area: it picks the element
+          await page.mouse.move(400, 300);
+          await page.mouse.down();
+          await page.mouse.move(700, 301, { steps: 5 });
+          await page.mouse.up();
+          await page.locator(".feedback-thumb img").waitFor();
+          assert.match((await modal.textContent()) ?? "", /Element selected:/);
+          assert.doesNotMatch((await modal.textContent()) ?? "", /Area selected/);
+          // the on-screen Cancel works without a keyboard
+          await modal.getByRole("button", { name: "Redo" }).click();
+          await page.locator(".picker-layer").waitFor();
+          await page.locator(".picker-hint").getByRole("button", { name: "Cancel" }).click();
+          await page.locator(".picker-layer").waitFor({ state: "detached" });
+          await modal.waitFor();
+          assert.equal(posts.length, 2, "picking and cancelling sent nothing");
+
+          // a 201 that carries no number or link is an opened ticket, not an error to retry
+          answer.status = 201; answer.body = {};
+          await send.click();
+          await modal.getByText("Ticket opened", { exact: true }).waitFor();
+          assert.equal(await modal.getByText("Could not open the ticket. Try again.").count(), 0);
+          assert.equal(await modal.getByText(/Ticket #/).count(), 0);
+          assert.equal(await modal.getByRole("link").count(), 0);
+          assert.deepEqual(await modal.getByRole("button", { name: /^(Close|Send|Send anyway|Cancel)$/ }).allTextContents(), ["Close"]);
+          assert.deepEqual(errors, []);
+        } finally { await close(); }
+      }
+      console.log("PASS send guards survive the picker, a 201 without number is opened, pointercancel/thin drag/Cancel/touch-action");
 
       // 3. attachments off: a form without the image field or the technical data
       {

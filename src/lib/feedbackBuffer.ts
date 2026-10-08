@@ -1,7 +1,9 @@
 /**
  * What the feedback's technical data is made of: a small ring of the console warnings and errors
- * and of the failed requests this tab saw, kept in memory only and masked on the way in (a
- * message through `scrubText`, a request's path through `scrubUrl`, its query values dropped).
+ * and of the failed requests this tab saw, kept in memory only. Entries go in raw but capped (4 KB
+ * a line, 20 of each), so a page that logs a lot never pays for the masking; they are masked on the
+ * way out, when a feedback form reads them (a message through `scrubText`, a request's path through
+ * `scrubUrl`, its query values dropped).
  * `installFeedbackBuffer()` runs once, from App, only after the portal says feedback is on (so no
  * other install ever patches console or fetch), and is a no-op the second time.
  */
@@ -10,7 +12,7 @@ import { scrubText, scrubUrl } from "./feedbackScrub.ts";
 const MAX_ENTRIES = 20;
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_MESSAGE = 500;
-/** what is read of a console line before it is masked: a page's `console.error(hugeObject)` is not scrubbed whole */
+/** what is kept of a console line or a URL: a page's `console.error(hugeObject)` is not stored or scrubbed whole */
 const MAX_RAW = 4000;
 const MAX_STRINGIFY_NODES = 500;
 
@@ -37,22 +39,24 @@ function keep<T>(ring: Stamped<T>[], value: T, now: number): Stamped<T>[] {
 }
 
 export function recordConsole(message: string, level: ConsoleLine["level"] = "error", now = Date.now()): void {
-  const masked = scrubText(message.slice(0, MAX_RAW));
-  consoleRing = keep(consoleRing, { level, message: masked.length > MAX_MESSAGE ? `${masked.slice(0, MAX_MESSAGE)}…` : masked }, now);
+  consoleRing = keep(consoleRing, { level, message: message.slice(0, MAX_RAW) }, now);
 }
 
 export function recordRequest(method: string, url: string, status: number, now = Date.now()): void {
   // the portal's own answers (this app's 404 for /api/portal/me outside the portal, the feedback POST) are not news
   if (new URL(url, "http://local").pathname.startsWith("/api/portal/")) return;
-  requestRing = keep(requestRing, { method: method.toUpperCase().slice(0, 16), path: scrubUrl(url).slice(0, 512), status }, now);
+  requestRing = keep(requestRing, { method: method.toUpperCase().slice(0, 16), path: url.slice(0, MAX_RAW), status }, now);
 }
 
 export function recentConsole(now = Date.now()): ConsoleLine[] {
-  return consoleRing.filter((entry) => entry.at >= now - WINDOW_MS).map((entry) => entry.value);
+  return consoleRing.filter((entry) => entry.at >= now - WINDOW_MS).map(({ value }) => {
+    const masked = scrubText(value.message);
+    return { level: value.level, message: masked.length > MAX_MESSAGE ? `${masked.slice(0, MAX_MESSAGE)}…` : masked };
+  });
 }
 
 export function recentRequests(now = Date.now()): FailedRequest[] {
-  return requestRing.filter((entry) => entry.at >= now - WINDOW_MS).map((entry) => entry.value);
+  return requestRing.filter((entry) => entry.at >= now - WINDOW_MS).map(({ value }) => ({ ...value, path: scrubUrl(value.path).slice(0, 512) }));
 }
 
 /** for tests */

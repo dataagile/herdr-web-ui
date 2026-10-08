@@ -134,6 +134,7 @@
   inset: 0;
   z-index: var(--z-modal);
   cursor: crosshair;
+  touch-action: none;
 }
 
 .picker-dim {

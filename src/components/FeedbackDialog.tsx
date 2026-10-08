@@ -23,8 +23,12 @@ export interface FeedbackDraft {
   element: ElementContext | null;
   tech: TechContext | null;
   includeTech: boolean;
-  /** a failure that happened outside the form (the print could not be made) */
-  notice: string | null;
+  /** the last failure (a send, a rejected image, a print that could not be made); kept here with the two guards below so they survive the picker taking the dialog down */
+  error: string | null;
+  /** 504: the ticket may exist; no automatic retry, and Send stops inviting one until the text changes */
+  uncertain: boolean;
+  /** 503 busy: Send waits until this time (ms since the epoch), once; nothing is resent on its own */
+  busyUntil: number;
 }
 
 interface Props {
@@ -56,13 +60,9 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
   const fileInput = useRef<HTMLInputElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const [sending, setSending] = useState(false);
-  // a failure from outside the form is shown once: the draft forgets it as soon as it is read
-  const [error, setError] = useState<string | null>(draft.notice);
-  useEffect(() => { if (draft.notice !== null) onChange({ ...draft, notice: null }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // 504: the ticket may exist; no automatic retry, and Send stops inviting one until the text changes
-  const [uncertain, setUncertain] = useState(false);
-  // 503 busy: Send waits out the portal's Retry-After, once; nothing is resent on its own
-  const [busyFor, setBusyFor] = useState(0);
+  const { error, uncertain, busyUntil } = draft;
+  const [, tick] = useState(0);
+  const busy = busyUntil > Date.now();
   const [result, setResult] = useState<FeedbackResult | null>(null);
   const set = (patch: Partial<FeedbackDraft>): void => onChange({ ...draft, ...patch });
 
@@ -80,10 +80,10 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose, sending]);
   useEffect(() => {
-    if (busyFor === 0) return;
-    const timer = window.setTimeout(() => setBusyFor(0), busyFor * 1000);
+    if (!busy) return;
+    const timer = window.setTimeout(() => tick((n) => n + 1), Math.max(busyUntil - Date.now(), 0) + 20);
     return () => window.clearTimeout(timer);
-  }, [busyFor]);
+  }, [busy, busyUntil]);
   useEffect(() => { if (result) closeButton.current?.focus(); }, [result]);
 
   // unchecked, neither the technical data nor the element leaves: the preview and the send read the same two values
@@ -93,35 +93,31 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
   // the description as it will arrive: the portal masks its secrets (tokens, keys, passwords) and nothing else
   const preview = useMemo(() => JSON.stringify({ description: scrubSecrets(draft.message.trim()), ...outgoingJson(sentTech, sentElement) }, null, 2), [draft.message, sentTech, sentElement]);
   const route = window.location.pathname + window.location.search;
-  const canSend = draft.message.trim() !== "" && !sending && busyFor === 0;
+  const canSend = draft.message.trim() !== "" && !sending && !busy;
 
   const chooseFile = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0] ?? null;
     event.target.value = "";
     if (!file) return;
     if (!IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES) {
-      setError(t("Choose a PNG, JPEG, GIF or WebP image up to 10 MB."));
+      set({ error: t("Choose a PNG, JPEG, GIF or WebP image up to 10 MB.") });
       return;
     }
-    setError(null);
-    set({ file, picked: false, element: null });
+    set({ file, picked: false, element: null, error: null });
   };
 
   const send = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
     if (!canSend) return;
     setSending(true);
-    setError(null);
-    setUncertain(false);
+    set({ error: null, uncertain: false });
     try {
       setResult(await submitFeedback(buildFeedbackForm({ category, message: draft.message.trim(), route, attachment: draft.file, tech: sentTech, element: sentElement })));
     } catch (reason) {
       const status = reason instanceof FeedbackError ? reason.status : 0;
-      const busy = reason instanceof FeedbackError && status === 503 && reason.code === "busy";
+      const isBusy = reason instanceof FeedbackError && status === 503 && reason.code === "busy";
       const wait = Math.min(Math.max(reason instanceof FeedbackError ? reason.retryAfter ?? 5 : 5, 1), 120);
-      if (status === 504) setUncertain(true);
-      if (busy) setBusyFor(wait);
-      setError(busy ? t("The portal is busy; try again in {n} s.", { n: wait }) : status === 504 ? t("The support system took too long to answer; the ticket may have been created. Check before sending again.") : status === 429 ? t("Too many submissions. Try again in a few minutes.") : status === 413 ? t("Image too large (max. 10 MB).") : status === 503 ? t("Feedback is unavailable right now.") : t("Could not open the ticket. Try again."));
+      onChange({ ...draft, uncertain: status === 504, busyUntil: isBusy ? Date.now() + wait * 1000 : 0, error: isBusy ? t("The portal is busy; try again in {n} s.", { n: wait }) : status === 504 ? t("The support system took too long to answer; the ticket may have been created. Check before sending again.") : status === 429 ? t("Too many submissions. Try again in a few minutes.") : status === 413 ? t("Image too large (max. 10 MB).") : status === 503 ? t("Feedback is unavailable right now.") : t("Could not open the ticket. Try again.") });
     } finally {
       setSending(false);
     }
@@ -139,7 +135,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
   );
 
   if (result) {
-    const link = safeLink(result.ticket_url);
+    const link = result.ticket_url === null ? null : safeLink(result.ticket_url);
     return (
       <div className="modal-scrim" onMouseDown={closeFromScrim}>
         <div className="modal feedback-modal" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`}>
@@ -149,7 +145,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
             <div className="feedback-success-main">
               <span className="feedback-success-icon"><CircleCheck aria-hidden="true" /></span>
               <div>
-                <p className="feedback-success-title">{t("Ticket #{n} opened", { n: result.ticket_id })}</p>
+                <p className="feedback-success-title">{result.ticket_id === null ? t("Ticket opened") : t("Ticket #{n} opened", { n: result.ticket_id })}</p>
                 <p className="field-hint">{t("Thank you. The Data Agile team already has your report.")}</p>
                 {result.attachment_error && <p className="field-hint">{result.attachment_error}</p>}
                 {result.tech_context_error && <p className="field-hint">{result.tech_context_error}</p>}
@@ -171,7 +167,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
           <p className="new-session-note">{t("Describe it in detail. The Data Agile team receives it as a ticket.")}</p>
           <div className="field">
             <label className="field-label" htmlFor={`${id}-message`}>{t("Description (required)")}</label>
-            <textarea id={`${id}-message`} className="input feedback-textarea" rows={5} autoFocus required disabled={sending} value={draft.message} placeholder={t("Describe the error, the suggestion or your feedback…")} onChange={(event) => { setUncertain(false); set({ message: event.target.value }); }} />
+            <textarea id={`${id}-message`} className="input feedback-textarea" rows={5} autoFocus required disabled={sending} value={draft.message} placeholder={t("Describe the error, the suggestion or your feedback…")} onChange={(event) => set({ message: event.target.value, uncertain: false })} />
           </div>
           {attachments && (
             <div className="field">
@@ -181,6 +177,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
                 <button type="button" className="btn" disabled={sending} onClick={() => fileInput.current?.click()}><ImageIcon aria-hidden="true" />{t("Choose image")}</button>
                 {rich && !draft.picked && <button type="button" className="btn" disabled={sending} onClick={onPick}><Crosshair aria-hidden="true" />{t("Select element on screen")}</button>}
               </div>
+              {rich && <p className="field-hint">{t("The print shows the screen exactly as it is, including the terminal and the chat. Check that nothing sensitive is visible before sending.")}</p>}
               {draft.element && <p className="field-hint">{draft.element.modo === "area" ? t("Area selected on the screen") : t("Element selected: {name}", { name: draft.element.breadcrumb_dom.split(" > ").at(-1) || draft.element.tag })}</p>}
               {draft.file && previewUrl ? (
                 <figure className="feedback-thumb">
@@ -204,7 +201,7 @@ export function FeedbackDialog({ category, title, draft, attachments, rich, onCh
                 <input type="checkbox" checked={draft.includeTech} disabled={sending} onChange={(event) => set({ includeTech: event.target.checked })} />
                 <span>{t("Include technical data in the ticket")}</span>
               </label>
-              <span className="field-hint">{t("They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. Tokens, passwords and keys in the description are masked by the support system. The screenshot shows the screen as it is: check that no sensitive data is visible before sending.")}</span>
+              <span className="field-hint">{t("They help the team understand what happened. Passwords, tokens and documents in the technical data are masked before they leave the browser. Tokens, passwords and keys in the description are masked by the support system.")}</span>
               <details className="feedback-details">
                 <summary>{t("See what will be sent")}</summary>
                 <pre className="feedback-json" tabIndex={0}>{preview}</pre>

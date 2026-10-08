@@ -8,6 +8,16 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- The **Files** dialog is a tree: folders open in place and read their children on demand (open folders are
+  remembered per PC and pane folder), with file-type icons, a selected-row rail and arrow-key navigation (up/down,
+  right/left to open and close, Home/End). A **Filter by name** field keeps the matching names and their folders,
+  folding single-child folders into one row and marking the match, and looks in the open folders and in the git files
+  below the pane's folder. Esc clears the filter, then closes the dialog. A folder that holds more than 500 entries says
+  so. The new-project folder picker is unchanged.
+- The file viewer **draws** markdown (`.md`, in the chat's own style) and **html** (`.html`, in a sandboxed frame with no
+  scripts) with a View | Code switch, remembered per format; Edit is in Code. Raw html inside markdown is shown as text and
+  its links open in a new tab for http, https and mailto only. Relative images and links of an html file may not load.
+  by @tbc-joaovitor
 - **Modified files** in the header: a button (icon `FileDiff` with a count) after the Chat/Terminal
   switch lists the files the pane's agent changed in its session, read from its whole transcript
   (Claude, Codex, pi, omp, gjc and omo; a failed call changes nothing, except a Codex script that applies a patch and failed as a whole, which is kept and marked "uncertain") and marked with git's letter,

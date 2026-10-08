@@ -34,7 +34,7 @@ function childPath(parent: string, name: string): string {
  * never submits a form; Escape is the field's only when `escape` handles it (returns true), and
  * then it stops here. Otherwise it goes on to close the dialog.
  */
-function fieldKeys(event: KeyboardEvent<HTMLInputElement>, on: { enter?: () => void; escape: () => boolean }): void {
+export function fieldKeys(event: KeyboardEvent<HTMLInputElement>, on: { enter?: () => void; escape: () => boolean }): void {
   if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
     event.stopPropagation();
     return;

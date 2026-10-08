@@ -1,0 +1,70 @@
+/* the Files dialog's tree: filter, rows, guides, notes, hints (tokens only) */
+
+/* the filter above the list */
+.dir-browser-filter { position: relative; padding: var(--space-2); border-bottom: var(--hairline) solid var(--border); }
+.dir-browser-filter > svg { position: absolute; left: calc(var(--space-2) + var(--space-3)); top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-dim); pointer-events: none; }
+.dir-browser-filter .input { width: 100%; padding-left: calc(var(--space-3) + 16px + var(--space-2)); padding-right: calc(var(--control-h) + var(--space-1)); }
+.dir-browser-filter .icon-button { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); color: var(--text-dim); }
+.dir-browser-filter .icon-button svg { width: 16px; height: 16px; }
+/* the field's own clear mark would sit beside ours */
+.dir-browser-filter input[type="search"]::-webkit-search-cancel-button { appearance: none; display: none; }
+
+/* nothing matched */
+.dir-browser-empty { margin: 0; padding: var(--space-6) var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); color: var(--text-dim); font-size: var(--fs-sm); text-align: center; }
+.dir-browser-empty svg { width: 24px; height: 24px; }
+.dir-browser-empty strong { color: var(--text-strong); font-weight: var(--fw-semibold); }
+
+/* keyboard hints in the footer */
+.dir-browser-hints { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-dim); font-size: var(--fs-xs); }
+.dir-browser-hints span { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+/* the part that matched: bold plus the accent, never colour alone */
+.dir-browser-hit { background: var(--accent-tint); color: var(--accent); font-weight: var(--fw-semibold); border-radius: var(--radius-sm); }
+
+/* the tree */
+.files-dialog.is-tree { width: min(100%, 640px); }
+.dir-browser-tree { --tree-indent: 16px; --tree-row-h: calc(var(--control-h) - var(--space-1)); }
+.files-dialog.is-tree .dir-browser-list { max-height: calc(var(--tree-row-h) * 14); }
+.dir-browser-tree .dir-browser-list { padding: var(--space-1) 0; }
+
+/* a row: indent guides + chevron + icon + name (+ size) */
+.tree-row { position: relative; min-height: var(--tree-row-h); padding: 0 var(--space-3) 0 var(--space-2); gap: var(--space-1); }
+.dir-browser-item.tree-row svg { width: 16px; height: 16px; }
+.dir-browser-item.tree-row svg.tree-chev { color: var(--text-dim); }
+.tree-twist { flex: none; width: 16px; height: 16px; }
+/* one cell per level; the line runs under the centre of the parent's chevron */
+.tree-guides { display: flex; align-self: stretch; flex: none; }
+.tree-guides i { width: var(--tree-indent); background: linear-gradient(var(--border), var(--border)) calc(var(--tree-indent) / 2) 0 / var(--hairline) 100% no-repeat; }
+.dir-browser-item.tree-row .tree-name { flex: 0 1 auto; min-width: 0; color: var(--text); }
+.tree-row:hover .tree-name, .tree-row.is-selected .tree-name { color: var(--text-strong); }
+.tree-name .tree-sep { color: var(--text-dim); }
+.tree-row.is-folder .tree-name { font-weight: var(--fw-medium); }
+
+/* the selected row: an accent rail; the keyboard cursor: a focus ring inside the row */
+.tree-row.is-selected { background: var(--bg-hover); box-shadow: inset var(--rail-w) 0 0 var(--accent); }
+.tree-row.is-active, .tree-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); background: var(--bg-hover); color: var(--text-strong); }
+
+/* a folder being read, and a folder cut at the server's cap: they take the children's place */
+.tree-note { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tree-row-h); padding: 0 var(--space-3) 0 var(--space-2); color: var(--text-dim); font-size: var(--fs-xs); }
+.tree-note svg { flex: none; width: 14px; height: 14px; }
+.tree-note .tree-spin { animation: tree-spin 1s steps(8) infinite; color: var(--accent); }
+.tree-note .tree-twist { width: 16px; }
+@keyframes tree-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tree-note .tree-spin { animation: none; } }
+
+/* what the search covers, just above the footer */
+.dir-browser-scope { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: var(--hairline) solid var(--border); color: var(--text-dim); font-size: var(--fs-xs); }
+.dir-browser-scope svg { flex: none; width: 14px; height: 14px; }
+
+@media (pointer: coarse) { .tree-row, .tree-note { min-height: var(--touch-target); } }
+@media (max-width: 640px) {
+  .files-dialog.is-tree { height: 100%; max-height: 100%; }
+  .files-dialog.is-tree .modal-body { padding: var(--space-3); display: flex; flex-direction: column; }
+  .files-dialog.is-tree .dir-browser { flex: 1 1 auto; min-height: 0; }
+  .files-dialog.is-tree .dir-browser-list { flex: 1 1 auto; max-height: none; }
+  .dir-browser-hints { display: none; }
+  .dir-browser-tree { --tree-indent: 12px; }
+  .files-dialog.is-tree { width: 100%; }
+  .files-dialog.is-tree .dir-browser-list { max-height: none; }
+  .tree-row { padding-right: var(--space-2); }
+}

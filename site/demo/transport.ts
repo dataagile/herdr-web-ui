@@ -263,6 +263,14 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
     return json({ files: DEMO_FILES.filter((file) => file.toLowerCase().includes(q)).slice(0, Number(query.get("limit") ?? 20)) });
   }
   if (path === "/api/pane/input" || path === "/api/pane/keys" || path === "/api/pane/focus") return json({ ok: true });
+  // seen in the app: a done pane goes to rest, as the server settles it ({ ok, changed } in shared/protocol.ts)
+  if (path === "/api/pane/seen") {
+    const body = await bodyOf(init, input);
+    const pane = paneOf(String(body["pane_id"] ?? ""));
+    const changed = pane?.agent_status === "done";
+    if (changed) setStatus(pane.pane_id, "idle");
+    return json({ ok: true, changed });
+  }
   // the demo's session is one pane per tab: there is no layout to split, resize or zoom
   if (path === "/api/pane/split" || path === "/api/pane/resize" || path === "/api/pane/zoom") return error("not_in_demo", "Splits are not part of the demo", 400);
   if (path === "/api/pane/rename") {

@@ -1,7 +1,7 @@
 The agent state chip: a tinted uppercase word, READY, RUN, INPUT, DONE or "—", so state never rests on color alone.
 
 ## When to use
-- Wherever a pane's or workspace's agent state is shown: sidebar roster rows (`.pane-meta`), the command palette, Needs you.
+- Wherever a pane's or workspace's agent state is shown: sidebar roster rows (`.pane-meta`), the command palette, and Needs you (INPUT and DONE, inside each PC group).
 - `.badge-restore-error` (NOT RESTORED) for a pane herdr could not bring back after a restart, with the reason in `title`.
 - `.badge-background` beside the state for background tasks still running (Layers icon + count).
 

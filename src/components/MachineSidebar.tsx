@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Download, LogOut, Monitor, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, LogOut, Monitor, Settings, SlidersHorizontal, X } from "lucide-react";
 import type { Machine, MachineState, MachineUpdate } from "../../shared/machines.ts";
 import { MachineContext } from "../lib/machineContext.tsx";
 import { answerMachineSetup, machineRequest } from "../lib/api.ts";
@@ -10,6 +10,7 @@ import { useInstallPrompt } from "../lib/install.ts";
 import { builtLabel, currentBuild, versionLine } from "../lib/buildInfo.ts";
 import { Sidebar } from "./Sidebar.tsx";
 import { NeedsInput } from "./NeedsInput.tsx";
+import { panesNeedingYou, type PaneNeedingYou } from "../lib/needsInput.ts";
 import { UsageMeters } from "./UsageMeters.tsx";
 import "./Machines.css";
 import { useT } from "../lib/i18n.ts";
@@ -23,17 +24,19 @@ export const STATE_WORD: Readonly<Record<MachineState, string>> = {
   error: "Connection error",
 };
 
-interface Props { herdrVersion: string | null; machines: Machine[]; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup(machine: Machine, update?: boolean): void }
+interface Props { herdrVersion: string | null; machines: Machine[]; /** PCs whose bridge refuses `pane/seen`: this device could never clear a DONE row there */ seenRefused: ReadonlySet<string>; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup(machine: Machine, update?: boolean): void }
 export function MachineSidebar(props: Props) {
   const t = useT();
   const { canInstall, installed, install, help } = useInstallPrompt();
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const build = currentBuild();
+  // once per PC per render: the Needs you block and the status line below read the same rows
+  const waiting = props.machines.map((machine) => panesNeedingYou(machine, props.seenRefused.has(machine.id)));
   // no top bar: a workspace starts from its PC's header; Add PC is in the footer, Settings → Remote PCs and the palette
   return <div className="sidebar-shell">
     <div className="machine-list" aria-label={t("PCs and projects")}>
-      <NeedsInput machines={props.machines} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} onSelect={props.onSelect} />
-      {props.machines.map((machine) => <MachineGroup key={machine.id} {...props} machine={machine} />)}
+      <p className="visually-hidden" role="status">{t("Panes waiting for input: {n}", { n: waiting.reduce((sum, rows) => sum + rows.filter((row) => row.pane.agent_status === "blocked").length, 0) })}</p>
+      {props.machines.map((machine, index) => <MachineGroup key={machine.id} {...props} machine={machine} waiting={waiting[index]!} />)}
       {!props.machines.length && <p className="tree-state" role="status">{t("Loading PCs…")}</p>}
     </div>
     <footer className="sidebar-footer">
@@ -51,7 +54,7 @@ export function MachineSidebar(props: Props) {
   </div>;
 }
 
-function MachineGroup({ machine, ...props }: Props & { machine: Machine }) {
+function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine; waiting: PaneNeedingYou[] }) {
   const t = useT();
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(`herdr-web-ui:pc-collapsed:${machine.id}`) === "1"; } catch { return false; } });
   const [editing, setEditing] = useState(false);
@@ -78,7 +81,6 @@ function MachineGroup({ machine, ...props }: Props & { machine: Machine }) {
         {machine.kind === "local" && <span className="machine-kind" title={t("The computer this app runs on")}>{t("Host")}</span>}
         <span className={`machine-dot is-${machine.state}`} title={t(STATE_WORD[machine.state])} aria-hidden="true" />
       </button>
-      <button className="sidebar-row-action" disabled={!online} aria-label={t("New project on {name}", { name: machine.name })} title={t("New project")} onClick={() => props.onNew(machine.id)}><Plus aria-hidden="true" /></button>
       {machine.kind === "ssh" && <button className="sidebar-row-action" aria-label={t("Manage {name}", { name: machine.name })} title={t("Manage PC")} aria-expanded={editing} onClick={() => { setEditing(!editing); setConfirmDelete(false); }}><SlidersHorizontal aria-hidden="true" /></button>}
     </header>
     {/* connected is the norm and says nothing new; every other state is spelled out */}
@@ -92,8 +94,10 @@ function MachineGroup({ machine, ...props }: Props & { machine: Machine }) {
       {confirmDelete && <p className="field-hint">{t("Removes this registration. Remote sessions keep running.")}</p>}
     </div>}
     {error && <p className="machine-error" role="alert">{error}</p>}
+    {/* outside the fold: a waiting agent is never hidden by a collapsed PC */}
+    <NeedsInput machine={machine} waiting={waiting} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} onSelect={props.onSelect} />
     {!collapsed && <div className={online ? "" : "machine-offline"} {...(!online ? { inert: "" } : {})}>
-      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} /></MachineContext.Provider>}
+      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} /></MachineContext.Provider>}
     </div>}
   </section>;
 }

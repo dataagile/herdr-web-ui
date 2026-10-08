@@ -3,17 +3,20 @@ The sidebar roster: a PC group header followed by one two-line row per herdr wor
 ## When to use
 - The left sidebar (`--sidebar-w`, on `--bg-panel`) is the only place this lives: one `.machine-group` per PC, one `.workspace` row per workspace, as herdr's Spaces sidebar.
 - Not for a list of panes: the other panes of a workspace are reached from the tab strip, the command palette and Needs you.
+- Needs you is the one block that does list panes: see below.
 
 ## Anatomy
-- PC header `.machine-header`: `.machine-toggle` (caret `.machine-caret`, monitor `.machine-icon`, `.machine-name`, `.machine-kind` "Host" for the local PC, `.machine-dot.is-<state>`), then a `.sidebar-row-action` `+` (new workspace, disabled offline) and, for SSH PCs, a manage button. `.machine-state` spells out every state except connected (kept `.visually-hidden`).
+- PC header `.machine-header`: `.machine-toggle` (caret `.machine-caret`, monitor `.machine-icon`, `.machine-name`, `.machine-kind` "Host" for the local PC, `.machine-dot.is-<state>`), then, for SSH PCs, a manage button. The new-project `+` is not here: it ends the Projects section header (`.sidebar-section-row`: `.sidebar-section-header` grows, `.sidebar-row-action` stays at the end; the offline PC's roster is inert, so it is unreachable). `.machine-state` spells out every state except connected (kept `.visually-hidden`).
 - List: `.machine-workspaces > nav.sidebar-list > ul.workspace-list > li.workspace.pane-item`.
 - Row `.pane-row`: `.sidebar-drag-handle` (absolute, left gutter, hover/focus only), `.pane-select` (`role="button"`) holding `.agent-mark-holder` (agent mark, or `.is-shell` with the Terminal glyph) and `.pane-copy` with `.pane-primary > .pane-title` on line one and `.pane-meta` (state `.badge`, optional `.badge-background` count, `.pane-subtitle` place) on line two; `.pane-actions > .row-menu-toggle` (the `⋯`).
+- Needs you `section.needs-input` sits inside the `.machine-group`, right under the header and above the Projects section: `h2.needs-input-heading` (+ `span.pill` count) and `ul.pane-list > li.needs-input-item > button.pane-select.needs-input-select` (agent mark, `.pane-title`, `.pane-meta` with the state `.badge` and the workspace label as `.pane-subtitle`). Blocked rows (INPUT) first, then done (DONE).
 - Worktree children sit in `li.worktree-children` behind a hairline; By folder mode adds `.directory-group` / `.directory-header`.
 
 ## States & variants
 - Selected `.is-selected`: `--bg-hover` fill, an amber rail (`::before`, `--rail-w`, `--accent`) outside the rounded box, an amber-edged mark box on `--accent-tint`, and the `⋯` visible.
 - Hover / focus-within: hover fill, grip and `⋯` appear. Touch: grip and `⋯` always shown, actions grow to `--touch-target`.
 - State word (roll-up: blocked > working > done > ready): INPUT `.badge-blocked`, RUN `.badge-working` (breathing dot), DONE `.badge-done`, READY `.badge-idle`, `—` `.badge-unknown`; `.badge-restore-error` replaces it for a pane herdr could not restore.
+- Needs you: `--accent-tint` fill, `--rail-w` left bar and heading/pill in `--accent`, `--radius-md`, margin `--space-1` `--space-2` `--space-2`. Absent when the PC has no waiting pane and when it is offline; it stays visible when the PC is folded (the fold hides Projects and Agents only), so a waiting agent is never hidden. Row badges keep their own status colours.
 - PC dot: `is-connected` done green, `is-connecting`/`is-reconnecting` working pulse, `is-error` blocked, otherwise idle.
 - Dragging `.is-dragging` (55% opacity); inline rename swaps the title/meta for `.pane-rename-input`; `.sidebar-inline-error` under a row for server failures.
 
@@ -23,13 +26,14 @@ The sidebar roster: a PC group header followed by one two-line row per herdr wor
 - aria: `aria-current="true"` on the selected `.pane-select`; `aria-label` "Reorder project {name}", "More for {title}", "New project on {pc}"; `aria-expanded` on the toggle and `⋯`; full pane id/title/cwd in the row's `title`.
 
 ## Tokens used
-`--bg-panel`, `--bg-hover`, `--bg-elevated`, `--border`, `--text`, `--text-strong`, `--text-dim`, `--accent`, `--accent-tint`, `--status-done`, `--status-working`, `--status-blocked`, `--status-idle` (+ their `-tint`s via badges), `--row-h`, `--avatar-size`, `--mark-size`, `--rail-w`, `--dot-size`, `--chip-h`, `--control-h`, `--icon-size`, `--radius-md`, `--radius-sm`, `--radius-pill`, `--space-1`…`--space-4`, `--fs-sm`, `--fs-xs`, `--fw-semibold`, `--lh-tight`.
+`--bg-panel`, `--bg-hover`, `--bg-elevated`, `--border`, `--text`, `--text-strong`, `--text-dim`, `--accent`, `--accent-tint`, `--status-done`, `--status-working`, `--status-blocked`, `--status-idle` (+ their `-tint`s via badges), `--row-h`, `--avatar-size`, `--mark-size`, `--rail-w`, `--accent-tint`, `--dot-size`, `--chip-h`, `--control-h`, `--icon-size`, `--radius-md`, `--radius-sm`, `--radius-pill`, `--space-1`…`--space-4`, `--fs-sm`, `--fs-xs`, `--fw-semibold`, `--lh-tight`.
 
 ## Do & Don't
 - Do keep every row two lines: title alone on line one, state word first on line two.
 - Do spend amber only on the selected row (rail + mark box edge); mark boxes stay neutral otherwise.
 - Do name on line two only what the title does not already say (workspace, then folder).
 - Don't add workspace headers, numbers or folds in the By project view.
+- Don't add a second attention block or a top-level one: Needs you is per PC.
 - Don't colour a row by state: the badge carries the colour and the word.
 - Don't put more than the one `⋯` at the row's end; actions live in the row menu.
 

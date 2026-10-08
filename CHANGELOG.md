@@ -8,6 +8,18 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the
+  tab coming back with it in front) now counts as seen: it leaves Needs you and reads idle, without
+  moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges
+  lack it, keep the old behaviour. A `done` that herdr reports itself (a Claude Code pane through the
+  herdr integration) is cleared too: the server remembers it was seen and reads the pane at rest until
+  herdr reports anything but `done` (not kept across a server restart, and dropped when status events
+  were lost: a done shown again is acceptable, a finished turn hidden is not), so the next finished turn shows DONE again. Only a user action marks a pane seen, never a
+  done that merely arrives on a visible selected pane or is open at load: a tab nobody is looking at
+  must not cancel the phone's done push. The app sends at most one request per pane per done episode
+  (a failed one is retried on the next action) and stops asking a PC whose bridge refuses it until
+  that PC reconnects (a 403 is also forgotten when the device's role changes). A notification tap that opens the app cold counts as an action; keyboard stepping between panes does not. On a PC that refuses it, Needs you lists only the INPUT rows (DONE still shows as the badge in Projects). A seen native done also reads DONE again after a server restart or whenever a status subscription reopens (herdr has no API to acknowledge a done).
+  ([#13](https://github.com/dataagile/herdr-web-ui/pull/13) by @tbc-joaovitor)
 - A **History** section in the sidebar, under Agents, for the selected project (this PC only):
   the Claude Code sessions that ran in the project's folder or a worktree of it, read from the PC's
   transcripts (`CLAUDE_CONFIG_DIR`, else `~/.claude`; nothing is written). Chips for Today (since
@@ -79,6 +91,18 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Changed
+- The **+** for a new project moved from the PC's header to the end of its **Projects** header,
+  where it reads as "add a project here"; it keeps the label "New project on {PC}" and is out of
+  reach while the PC is offline. ([#13](https://github.com/dataagile/herdr-web-ui/pull/13) by @tbc-joaovitor)
+- **Needs you** moved from the top of the sidebar into each PC group, under the PC's header row and
+  above Projects, listing only that PC's panes. It now holds agents that are `done` and not yet
+  seen as well as blocked ones (badges INPUT and DONE; blocked first), shows the workspace as the
+  row subtitle (the PC is the group around it) and is marked as the sidebar's attention block
+  (`--accent-tint` fill, `--accent` bar, heading and count). It is absent for a PC with nothing
+  waiting and for an offline PC, and stays visible when its PC is folded. Each block is a landmark named "Needs you on {PC}", so a screen reader tells the PCs apart. The screen-reader line counts only
+  blocked panes ("Panes waiting for input: {n}"), so done churn does not talk over a screen reader. The design system bundle gains the missing
+  `.sidebar-section-header` rules.
+  ([#13](https://github.com/dataagile/herdr-web-ui/pull/13) by @tbc-joaovitor)
 - On a phone (up to 480px) the tab strip is always shown, even for a workspace with one tab and
   one pane: the header no longer carries the pane's title, so the strip is where the pane is named.
   Wider windows keep it away for a lone pane. The open tab there always carries the name of the

@@ -840,7 +840,7 @@ try {
   assert.equal(await tabDialog.getByRole("button", { name: "Start", exact: true }).isDisabled(), false, "a reopened dialog is not left pending");
   await page.keyboard.press("Escape");
   await tabDialog.waitFor({ state: "hidden" });
-  // the PC's + is New project again, not a tab in the workspace the last dialog was for
+  // the Projects header's + is New project again, not a tab in the workspace the last dialog was for
   await page.getByRole("button", { name: /^New project on / }).click();
   await page.getByRole("dialog", { name: /^New project/ }).waitFor();
   await page.keyboard.press("Escape");

@@ -393,12 +393,21 @@ One set for both themes: the card is island black wherever it shows.
 - Mono metadata at `--chip-h`. The **Needs you** count is one; offline is the one header pill and uses danger tokens.
 
 ### Sidebar roster row and footer
-- No top bar. The sidebar opens with the plan panel (when Settings puts it there), **Needs you**
-  and the PC groups. A workspace starts from the `+` on its PC's header, or from the **New project**
+- No top bar. The sidebar opens with the plan panel (when Settings puts it there) and the PC groups. A workspace starts from the `+` at the end of its PC's **Projects** header, or from the **New project**
   button in the dashed **No projects yet** box of an empty PC. **Add PC** lives in the sidebar footer, Settings →
   Remote PCs and in the command palette. Search lives in the command palette, not the roster.
+- **Needs you** lives inside each PC group, under its header row and above Projects: the PC's panes
+  that wait for the user, blocked (INPUT) first, then done and not yet seen (DONE), each in workspace
+  order, with the workspace label as the subtitle. It is the one attention block of the sidebar:
+  `--accent-tint` fill, a `--rail-w` bar in `--accent`, `--radius-md`, heading and count pill in
+  `--accent`; the row badges keep their own status colours. It is absent when the PC has no such
+  pane or is offline, and stays visible when the PC is folded (the fold hides Projects and Agents only). A DONE row leaves the block once its pane has been
+  opened in the browser (the app tells the server the pane was seen), not only when herdr's own
+  focus reaches it. Only a user action marks a pane seen (selecting it, or returning to the page with it
+  selected): a done that arrives while the pane is selected on a visible page, is open at load, or is the
+  neighbour a closed pane hands the selection to, stays DONE, so a tab nobody is looking at never hides it or cancels the phone's push. A tap on a notification is one (also when it opens the app cold); stepping with the keyboard (Mod+Shift+arrow) is not. On a PC whose bridge refuses the call (an old bridge: 404; a watch-role device: 403) this device could never clear a DONE row, so Needs you lists only that PC's INPUT rows there; DONE still shows as the badge in Projects.
 - Each PC group holds two foldable sections, as herdr's own sidebar: **Projects** above **Agents**,
-  each headed by its name and count (Projects counts the workspaces that draw a row). Folds are
+  each headed by its name and count (Projects counts the workspaces that draw a row); the Projects header ends in a `+` (`.sidebar-row-action`, New project on that PC, over the rows' `⋯` column), beside the fold button and not inside it. Folds are
   remembered per PC; both start open.
 - **Projects** is one row per workspace. The row is titled with the workspace's label and opens its
   *current pane*: the selected pane when it is in the workspace, else the pane last viewed there,

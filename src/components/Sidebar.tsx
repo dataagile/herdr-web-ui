@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Ellipsis, Folder, FolderOpen, GitBranch, GripVertical, Layers, Pencil, Plus, Terminal, Trash2, X } from "lucide-react";
 
 import "./Sidebar.css";
@@ -106,19 +106,23 @@ interface InlineError {
 interface MenuState { anchor: HTMLElement; workspace: WorkspaceInfo; pane: PaneInfo; scope: string; title: string; place: string }
 interface ConfirmState { title: string; body: string; action?: string; run: () => Promise<void>; escalation?: { label: string; code: string; run: () => Promise<void> } }
 
-function SectionHeader({ section, label, count, folded, onToggle }: { section: Section; label: string; count?: number; folded: boolean; onToggle: (section: Section) => void }) {
-  return (
+/** `action` sits at the row's end, beside the fold button and never inside it (no nested buttons). */
+function SectionHeader({ section, label, count, folded, onToggle, action }: { section: Section; label: string; count?: number; folded: boolean; onToggle: (section: Section) => void; action?: ReactNode }) {
+  const header = (
     <button type="button" className="sidebar-section-header" aria-expanded={!folded} onClick={() => onToggle(section)}>
       {folded ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
       <span>{count === undefined ? label : `${label} · ${count}`}</span>
     </button>
   );
+  return action ? <div className="sidebar-section-row">{header}{action}</div> : header;
 }
 
 export interface SidebarProps {
   snapshot: SessionSnapshot | null;
   selectedPaneId: string | null;
   actions: AppActions;
+  /** Names the PC in the Projects `+`; the roster is one per PC. */
+  machineName?: string;
 }
 
 /**
@@ -127,7 +131,7 @@ export interface SidebarProps {
  * herdr has in front) and opens it. The panes of a workspace are picked from the tab strip
  * over the pane, the palette and Needs you; the row's state is the roll-up of all of them.
  */
-export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
+export function Sidebar({ snapshot, selectedPaneId, actions, machineName }: SidebarProps) {
   const t = useT();
   const { settings } = useSettings();
   const byFolder = settings.sidebarGrouping === "directory";
@@ -548,7 +552,9 @@ export function Sidebar({ snapshot, selectedPaneId, actions }: SidebarProps) {
             <button type="button" className="btn" onClick={actions.openNewSession}><Plus aria-hidden="true" />{t("New project")}</button>
           </div>
         )}
-        {snapshot && snapshot.workspaces.length > 0 && <SectionHeader section="spaces" label={t("Projects")} count={spaceCount} folded={folded.spaces} onToggle={toggleSection} />}
+        {snapshot && snapshot.workspaces.length > 0 && <SectionHeader section="spaces" label={t("Projects")} count={spaceCount} folded={folded.spaces} onToggle={toggleSection} action={
+          <button type="button" className="sidebar-row-action" aria-label={machineName ? t("New project on {name}", { name: machineName }) : t("New project")} title={t("New project")} onClick={actions.openNewSession}><Plus aria-hidden="true" /></button>
+        } />}
         {!folded.spaces && (byFolder ? directories.map((directory) => {
           const collapsed = collapsedGroups.has(directory.key);
           const name = directory.path ? cwdBasename(directory.path) : directory.workspaces[0]?.workspace.label;

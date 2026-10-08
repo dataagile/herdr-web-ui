@@ -64,7 +64,7 @@ describe("notification clicks", () => {
     const worker = notifications([target]);
     await worker.click("remote pane/?", "remote&pc");
     expect(target.selected).toEqual([{ type: "select-pane", pane_id: "remote pane/?", machine_id: "remote&pc" }]);
-    expect(worker.opened).toEqual(["/?machine=remote%26pc&pane=remote%20pane%2F%3F"]);
+    expect(worker.opened).toEqual(["/?machine=remote%26pc&pane=remote%20pane%2F%3F&via=notification"]);
   });
 
   it("chooses the focused window and does not open another after a successful focus", async () => {
@@ -81,7 +81,7 @@ describe("notification clicks", () => {
     const worker = notifications([]);
     await worker.click("pane-b", "remote");
     await worker.click(null);
-    expect(worker.opened).toEqual(["/?machine=remote&pane=pane-b", "/"]);
+    expect(worker.opened).toEqual(["/?machine=remote&pane=pane-b&via=notification", "/"]);
   });
 
   it("focuses a generic notification without sending an empty pane selection", async () => {
@@ -237,7 +237,7 @@ describe("notification clicks", () => {
       expect(foreground).toBe("opened");
       expect(opened.selected.at(-1)).toEqual(selection);
       expect(newer.selected.at(-1)).toEqual(selection);
-      expect(worker.opened).toEqual(["/?machine=first%26pc&pane=older%20pane%2F%3F"]);
+      expect(worker.opened).toEqual(["/?machine=first%26pc&pane=older%20pane%2F%3F&via=notification"]);
       expect(focuses).toBe(fallback ? 2 : 1);
     });
   }
@@ -269,6 +269,6 @@ describe("notification clicks", () => {
     lookup.resolve();
     await second;
     expect(newer.selected.at(-1)).toEqual(selection);
-    expect(worker.opened).toEqual(["/?machine=local&pane=pane-a"]);
+    expect(worker.opened).toEqual(["/?machine=local&pane=pane-a&via=notification"]);
   });
 });

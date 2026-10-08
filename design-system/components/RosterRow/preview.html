@@ -1,4 +1,4 @@
-<!-- @dsCard group="Navigation" height=350 subtitle="PC header and two-line workspace rows: selected, RUN, INPUT, DONE, READY" -->
+<!-- @dsCard group="Navigation" height=350 subtitle="PC header, Needs you block and two-line workspace rows: selected, RUN, INPUT, DONE, READY" -->
 <div class="ds-stage">
   <div class="sidebar-shell">
     <div class="machine-list" aria-label="PCs and projects">
@@ -11,12 +11,22 @@
             <span class="machine-kind" title="The computer this app runs on">Host</span>
             <span class="machine-dot is-connected" title="Connected" aria-hidden="true"></span>
           </button>
-          <button class="sidebar-row-action" aria-label="New project on studio" title="New project"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
         </header>
         <p class="machine-state is-connected visually-hidden" role="status"><span class="machine-state-word">Connected</span></p>
+        <section class="needs-input" aria-label="Needs you">
+          <h2 class="needs-input-heading">Needs you <span class="pill">2</span></h2>
+          <ul class="pane-list">
+            <li class="needs-input-item"><button type="button" class="pane-select needs-input-select"><span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span><span class="pane-copy"><span class="pane-title">Fix token refresh race</span><span class="pane-meta"><span class="badge badge-blocked" data-status="blocked" title="Agent INPUT">INPUT</span><span class="pane-subtitle">api</span></span></span></button></li>
+            <li class="needs-input-item"><button type="button" class="pane-select needs-input-select"><span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span><span class="pane-copy"><span class="pane-title">Draft release notes for 0.9</span><span class="pane-meta"><span class="badge badge-done" data-status="done" title="Agent DONE">DONE</span><span class="pane-subtitle">docs</span></span></span></button></li>
+          </ul>
+        </section>
         <div>
           <div class="machine-workspaces">
             <nav class="sidebar-list" aria-label="Herdr projects">
+              <div class="sidebar-section-row">
+                <button type="button" class="sidebar-section-header" aria-expanded="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><span>Projects · 4</span></button>
+                <button class="sidebar-row-action" aria-label="New project on studio" title="New project"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+              </div>
               <ul class="workspace-list">
 
                 <li class="workspace pane-item is-selected">

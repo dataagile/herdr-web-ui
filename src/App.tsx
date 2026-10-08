@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Bell, BellOff, Check, Columns2, Copy, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
-import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
+import { ApiError, authenticate, closePane, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, focusPane, markPaneSeen, pairDevice, resizePane, sendTestPush, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { PaneTerminal } from "./components/PaneTerminal.tsx";
@@ -72,6 +72,13 @@ const REFETCH_DEBOUNCE_MS = 500;
 /** A notification tapped while the app was closed opens `/?pane=<id>` (public/sw.js). */
 function paneFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("pane");
+}
+
+/** The pane a notification tap opened this load on (`via=notification`, added by public/sw.js): that tap is a user action. */
+function notificationOpenTarget(): { machineId: string; paneId: string } | null {
+  const query = new URLSearchParams(window.location.search);
+  const paneId = query.get("pane");
+  return paneId !== null && query.get("via") === "notification" ? { machineId: query.get("machine") ?? "local", paneId } : null;
 }
 
 const SELECTION_KEY = "herdr-web-ui:selection";
@@ -370,12 +377,56 @@ export function App() {
     return () => { for (const event of events) window.removeEventListener(event, unlock, true); };
   }, [settings.alertSound]);
 
+  // One POST per pane per `done` episode (reset when the pane leaves done). A transient failure releases the
+  // key so the next user action retries; a bridge that answers 404/403 (no route, or a watch-role device) is
+  // not asked again until that PC reconnects (an upgraded bridge gets the route). Silent to the user.
+  const seenSent = useRef(new Set<string>());
+  // PC -> the status that refused it. The ids are state too: Needs you lists only INPUT rows for such a PC
+  // (a DONE row there could never be cleared from this device)
+  const seenRefused = useRef(new Map<string, number>());
+  const [seenRefusedIds, setSeenRefusedIds] = useState<ReadonlySet<string>>(new Set());
+  const forgetRefusals = useCallback((drop: (machineId: string, status: number) => boolean) => {
+    let changed = false;
+    for (const [id, status] of seenRefused.current) if (drop(id, status)) { seenRefused.current.delete(id); changed = true; }
+    if (changed) setSeenRefusedIds(new Set(seenRefused.current.keys()));
+  }, []);
+  const sendSeen = useCallback((machineId: string, paneId: string) => {
+    const key = paneStorageId(machineId, paneId);
+    if (seenSent.current.has(key) || seenRefused.current.has(machineId)) return;
+    seenSent.current.add(key);
+    markPaneSeen(paneId, machineId).then((result) => {
+      // the server says it was not done: nothing to remember
+      if (!result.changed) seenSent.current.delete(key);
+    }).catch((err: unknown) => {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
+        seenRefused.current.set(machineId, err.status);
+        setSeenRefusedIds(new Set(seenRefused.current.keys()));
+      } else seenSent.current.delete(key);
+      console.debug(`pane/seen on ${machineId} failed`, err);
+    });
+  }, []);
+
+  // a PC that is not connected (down, reconnecting, or updating its bridge) may come back with another bridge
+  useEffect(() => {
+    const away = new Set(machines.filter((machine) => machine.state !== "connected" || machine.updating).map((machine) => machine.id));
+    if (away.size > 0) forgetRefusals((id) => away.has(id));
+    // every roster source (SSE, reseed, poll) lands here: a pane that is not done starts a new episode
+    for (const machine of machines) for (const pane of machine.snapshot?.panes ?? []) {
+      if (pane.agent_status !== "done") seenSent.current.delete(paneStorageId(machine.id, pane.pane_id));
+    }
+  }, [machines, forgetRefusals]);
+
+  // a 403 is the device's role: another role (the owner changed it) may be allowed. A 404 is the bridge's, and waits for a reconnect
+  const deviceRole = auth?.role;
+  useEffect(() => forgetRefusals((_id, status) => status === 403), [deviceRole, forgetRefusals]);
+
   // One SSE subscription watches every PC, even when no terminal is selected.
   useEffect(() => {
     if (locked !== false) return;
     const seed = (list: Machine[]) => {
       for (const machine of list) for (const pane of machine.snapshot?.panes ?? []) {
         statusRef.current.set(paneStorageId(machine.id, pane.pane_id), pane.agent_status);
+        if (pane.agent_status !== "done") seenSent.current.delete(paneStorageId(machine.id, pane.pane_id));
       }
     };
     const events = new EventSource("/api/machines/events");
@@ -396,6 +447,7 @@ export function App() {
         const key = paneStorageId(machine.id, message.pane_id);
         const previous = statusRef.current.get(key);
         statusRef.current.set(key, message.agent_status);
+        if (message.agent_status !== "done") seenSent.current.delete(key);
         const pane = machine.snapshot?.panes.find((p) => p.pane_id === message.pane_id);
         const worked = trackTurn(turnStartRef.current, key, previous, message.agent_status, Date.now());
         if (worked !== null) lastTurnRef.current.set(key, worked);
@@ -404,7 +456,7 @@ export function App() {
           dropIn(machine, pane, kind);
           chime(machine, pane, kind);
         }
-        if (pane && shouldNotifyStatus(previous, message.agent_status) && alertsOnRef.current && !pushOnRef.current && alertsAllow(alertsRef.current, message.agent_status)) showPaneStatusNotification(message.pane_id, `${machine.name} · ${displayPaneTitle(pane)}`, message.agent_status, () => selectTargetRef.current(machine.id, message.pane_id), machine.id);
+        if (pane && shouldNotifyStatus(previous, message.agent_status) && alertsOnRef.current && !pushOnRef.current && alertsAllow(alertsRef.current, message.agent_status)) showPaneStatusNotification(message.pane_id, `${machine.name} · ${displayPaneTitle(pane)}`, message.agent_status, () => pickTargetRef.current(machine.id, message.pane_id), machine.id);
         setMachines((list) => {
           let changed = false;
           const next = list.map((m) => {
@@ -427,7 +479,7 @@ export function App() {
       }
       if (message.type === "pane-exited" && alertsOnRef.current && !pushOnRef.current && alertsRef.current.done !== "off") {
         const pane = machine.snapshot?.panes.find((p) => p.pane_id === message.pane_id);
-        if (pane) showPaneEndedNotification(message.pane_id, `${machine.name} · ${displayPaneTitle(pane)}`, () => selectTargetRef.current(machine.id, message.pane_id), machine.id);
+        if (pane) showPaneEndedNotification(message.pane_id, `${machine.name} · ${displayPaneTitle(pane)}`, () => pickTargetRef.current(machine.id, message.pane_id), machine.id);
       }
       if (message.type === "session-changed" || message.type === "pane-exited") scheduleRefetch();
     };
@@ -528,6 +580,16 @@ export function App() {
 
   const selectedMachineRef = useRef(selectedMachineId);
   selectedMachineRef.current = selectedMachineId;
+  // THE rule for "seen": only a user action marks a done pane seen, and only the call sites of a user action call
+  // this (pickTarget/pickPane: sidebar, Needs you, palette, tab strip, notification click; visibilitychange).
+  // selectTarget/selectPane never mark: a done that arrives over SSE on a selected, visible pane, the initial load,
+  // the fallback auto-selection, URL restore, the neighbour a closed pane hands the selection to and `machines`
+  // reseeds are NOT actions: a visible tab nobody looks at must not cancel the phone's done push
+  // or hide the pane from Needs you. Once per `done` episode, errors ignored (herdr's focus does not move).
+  const markSeenIfDone = useCallback((machineId: string, paneId: string | null) => {
+    const pane = paneId === null ? undefined : machinesRef.current.find((m) => m.id === machineId)?.snapshot?.panes.find((p) => p.pane_id === paneId);
+    if (paneId !== null && pane?.agent_status === "done") sendSeen(machineId, paneId);
+  }, [sendSeen]);
   const selectTarget = useCallback((machineId: string, paneId: string | null) => {
     // Only another PC mounts a new terminal (and socket), which reports its own state. A pane
     // on the same PC keeps the connected socket, which never reports again: resetting here
@@ -537,7 +599,8 @@ export function App() {
     setOutputStopped(false);
     storeSelection(machineId, paneId);
   }, []);
-  const selectTargetRef = useRef(selectTarget); selectTargetRef.current = selectTarget;
+  const pickTarget = useCallback((machineId: string, paneId: string | null) => { markSeenIfDone(machineId, paneId); selectTarget(machineId, paneId); }, [markSeenIfDone, selectTarget]);
+  const pickTargetRef = useRef(pickTarget); pickTargetRef.current = pickTarget;
   useEffect(() => {
     // An offline PC's cached roster cannot invalidate a selection. Once connected,
     // a closed pane (including one remembered across reloads) must release its selection.
@@ -564,14 +627,34 @@ export function App() {
     setAutoSelected(false);
     setDrawerOpen(false);
   }, []);
+  const pickPane = useCallback((paneId: string) => { markSeenIfDone(selectedMachineRef.current, paneId); selectPane(paneId); }, [markSeenIfDone, selectPane]);
+
+  // the user is back in the tab with a done pane in front (a user action, see markSeenIfDone)
+  useEffect(() => {
+    const onVisible = (): void => {
+      if (document.visibilityState === "visible") markSeenIfDone(selectionRef.current.machineId, selectionRef.current.paneId);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [markSeenIfDone]);
 
   // a tapped notification focuses this window and names the pane (public/sw.js)
-  useEffect(() => onNotificationTarget((target) => selectTargetRef.current(target.machine_id, target.pane_id)), []);
+  useEffect(() => onNotificationTarget((target) => pickTargetRef.current(target.machine_id, target.pane_id)), []);
 
-  // the ?pane= a notification opened us with has done its job once it selected the pane
+  // the ?pane= a notification opened us with has done its job once it selected the pane (and so has `via`)
   useEffect(() => {
     if (paneFromUrl() !== null) window.history.replaceState(window.history.state, "", window.location.pathname);
   }, []);
+  // a tap that opened the app cold is a user action: once the roster shows that pane done, it is seen (once)
+  const coldTap = useRef(notificationOpenTarget());
+  useEffect(() => {
+    const target = coldTap.current;
+    if (target === null) return;
+    const pane = machines.find((m) => m.id === target.machineId && m.state === "connected")?.snapshot?.panes.find((p) => p.pane_id === target.paneId);
+    if (!pane) return;
+    coldTap.current = null;
+    markSeenIfDone(target.machineId, target.paneId);
+  }, [machines, markSeenIfDone]);
 
   const selectedPane = snapshot?.panes.find((pane) => pane.pane_id === selectedPaneId) ?? null;
   useScreenWakeLock(settings.keepScreenOn && locked === false && selectedPane !== null);
@@ -698,16 +781,16 @@ export function App() {
 
   // a click in a split tab's pane: the keyboard goes there, here and in herdr
   const focusSplitPane = useCallback((paneId: string): void => {
-    selectPane(paneId);
+    pickPane(paneId);
     void focusPane(paneId, selectedMachineId).catch(() => { /* the next poll shows where herdr's focus is */ });
-  }, [selectPane, selectedMachineId]);
+  }, [pickPane, selectedMachineId]);
 
   const zoomSplitPane = useCallback(async (paneId: string, mode: "on" | "off"): Promise<void> => {
-    if (mode === "on") selectPane(paneId);
+    if (mode === "on") pickPane(paneId);
     try { adoptLayout(selectedMachineId, (await zoomPane(paneId, mode, selectedMachineId)).layout); }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     void load();
-  }, [selectPane, adoptLayout, selectedMachineId, load]);
+  }, [pickPane, adoptLayout, selectedMachineId, load]);
 
   const resizeSplit = useCallback(async (step: ResizeStep): Promise<PaneLayoutSnapshot | null> => {
     try {
@@ -772,13 +855,14 @@ export function App() {
 
   const actions = useMemo<AppActions>(
     () => ({
-      selectPane,
+      selectPane: pickPane,
       selectAdjacentPane: (direction) => {
         // the panes the sidebar lists: a step never lands on a viewer it leaves out
         const panes = rosterPanes(snapshotRef.current?.panes ?? [], selectedPaneId);
         if (panes.length === 0) return;
         const index = panes.findIndex((pane) => pane.pane_id === selectedPaneId);
         const next = panes[(index + direction + panes.length) % panes.length];
+        // stepping with the keyboard passes over panes: it is no reading of a done, so it does not mark seen
         if (next) selectPane(next.pane_id);
       },
       setView,
@@ -832,7 +916,7 @@ export function App() {
       refresh: () => void load(),
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
     }),
-    [selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, portal, portalSignOut, bellVisible, bell.run, enableNotifications, load],
+    [pickPane, selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, portal, portalSignOut, bellVisible, bell.run, enableNotifications, load],
   );
 
   useShortcuts(actions, locked === false);
@@ -1025,7 +1109,7 @@ export function App() {
             </button>
           </div>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}
-          <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} onSelect={selectTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
+          <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} seenRefused={seenRefusedIds} onSelect={pickTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
         </aside>
 
         {drawerOpen && <div className="scrim" aria-hidden="true" onClick={() => setDrawerOpen(false)} />}
@@ -1037,7 +1121,7 @@ export function App() {
         <UpdateNotice updates={updates} onOpen={() => setSettingsOpen(true)} />
         <MachineActionBanner machines={machines} onSetup={(machine, update = false) => { setDrawerOpen(false); setUpdateRemote(update); setMachineDialog(machine); }} />
         {snapshot && selectedPane && selectedWorkspace && (
-          <TabStrip snapshot={snapshot} workspace={selectedWorkspace} selectedPane={selectedPane} onSelectPane={selectPane} onNewTab={() => actions.openNewTab()} sideBySide={splitting} />
+          <TabStrip snapshot={snapshot} workspace={selectedWorkspace} selectedPane={selectedPane} onSelectPane={pickPane} onNewTab={() => actions.openNewTab()} sideBySide={splitting} />
         )}
         <main
           className="terminal-host"
@@ -1136,7 +1220,7 @@ export function App() {
         if (!machinesRef.current.find((m) => m.id === machineId)?.snapshot?.panes.some((p) => p.pane_id === paneId)) return;
         // Files lists the pane it was opened on, and would open its paths on the new one
         setFilesOpen(false);
-        selectTargetRef.current(machineId, paneId);
+        pickTargetRef.current(machineId, paneId);
       }} />
       <SettingsDialog auth={auth} herdrVersion={health?.herdr?.version ?? null} open={settingsOpen} onClose={closeSettings} actions={actions} updates={updates} onEnableNotifications={enableNotifications} />
       {filesOpen && selectedPane && (

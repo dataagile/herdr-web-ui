@@ -966,6 +966,16 @@ export function createServer(
     if (turn) push.onStatus(paneId, status).catch(logPushError);
   }
 
+  // a finish reported as done has been seen: idle again, for the roster and the alerts
+  function paneSeen(paneId: string, byFocus = false): boolean {
+    if (!completions.seen(paneId, byFocus)) return false;
+    // exactly what the roster reads from now on: `idle`, or a Codex's `unknown`
+    const rest = completions.current(paneId) ?? "idle";
+    broadcastAll({ type: "pane-status", pane_id: paneId, agent_status: rest });
+    push.onStatus(paneId, rest).catch(logPushError);
+    return true;
+  }
+
   const collector = startStatusCollector({
     onStatus: (paneId, raw, agent, replay) => {
       // read back from a snapshot around a gap between subscriptions. An OmO pane's status there
@@ -987,12 +997,12 @@ export function createServer(
       push.onStatus(paneId, status).catch(logPushError);
     },
     // a finish reported as done, now in front at herdr's terminal: seen, idle again
-    onFocus: (paneId) => {
-      if (!completions.seen(paneId)) return;
-      broadcastAll({ type: "pane-status", pane_id: paneId, agent_status: "idle" });
-      push.onStatus(paneId, "idle").catch(logPushError);
-    },
+    onFocus: (paneId) => { paneSeen(paneId, true); },
     onBaseline: (panes) => push.seed(panes),
+    // events may be lost while a subscription reopens: seen native dones read DONE again, and clients are told
+    onGap: () => {
+      for (const paneId of completions.unacknowledgeAll()) broadcastAll({ type: "pane-status", pane_id: paneId, agent_status: "done" });
+    },
     // the tracker first: what it makes of each pane (a finish after work is done, not idle) is
     // what the alerts are measured against from here, or the next event would alert of it
     onResync: (panes, newer) => {
@@ -1756,6 +1766,21 @@ export function createServer(
         } catch (error) {
           return errorResponse(error);
         }
+      }
+
+      // seen in a browser: a done pane turns idle without herdr's focus moving (unlike pane/focus)
+      if (pathname === "/api/pane/seen") {
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        let payload: { pane_id?: unknown };
+        try {
+          payload = (await request.json()) as typeof payload;
+        } catch {
+          return badRequest("invalid_json", "request body must be JSON");
+        }
+        if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
+        if (typeof payload.pane_id !== "string" || payload.pane_id.trim() === "") return badRequest("missing_pane_id", "pane_id is required");
+        // a pane that is not done, or not known here, is a no-op
+        return jsonResponse({ ok: true, changed: paneSeen(payload.pane_id) });
       }
 
       if (pathname === "/api/pane/resize") {

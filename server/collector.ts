@@ -77,6 +77,11 @@ export interface StatusCollectorHandlers {
    * truth for every pane but the `newer` ones, which had an event since it was asked for.
    */
   onResync?: (panes: readonly HerdrPane[], newer: ReadonlySet<string>) => void;
+  /**
+   * A status subscription is about to open (first, another pane set, or after a loss): events may be lost
+   * until it starts, for a stretch the replay cannot see (it only looks at panes whose raw status changed).
+   */
+  onGap?: () => void;
   onPaneEnded: (paneId: string) => void;
   onStructureChange: () => void;
   /** herdr's focus moved onto this pane: whoever is at its terminal has it in front */
@@ -259,6 +264,7 @@ export function startStatusCollector(handlers: StatusCollectorHandlers, override
     let refused = false;
     // between the snapshot that chose these panes and this subscription's start nothing listens
     gap = true;
+    handlers.onGap?.();
     const subscription = deps.subscribe(
       paneIds.map((paneId) => ({ type: "pane.agent_status_changed", pane_id: paneId })),
       {

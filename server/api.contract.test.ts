@@ -246,7 +246,7 @@ describe("mutation body validation", () => {
     for (const path of [
       "/api/workspace/create", "/api/tab/create", "/api/tab/rename", "/api/tab/close", "/api/workspace/rename", "/api/workspace/move", "/api/workspace/close",
       "/api/pane/rename", "/api/pane/input", "/api/pane/keys", "/api/pane/close", "/api/pane/image",
-      "/api/pane/scroll", "/api/pane/split", "/api/pane/focus", "/api/pane/resize", "/api/pane/zoom",
+      "/api/pane/scroll", "/api/pane/split", "/api/pane/focus", "/api/pane/seen", "/api/pane/resize", "/api/pane/zoom",
     ]) {
       for (const body of [null, [], "text", 42, true]) {
         const response = await fetch(`${base()}${path}`, {
@@ -266,6 +266,7 @@ describe("mutation body validation", () => {
       ["/api/pane/split", { pane_id: "unknown", direction: "sideways" }, "invalid_direction"],
       ["/api/pane/split", { pane_id: "unknown", direction: "right", agent: { kind: 3 } }, "invalid_agent"],
       ["/api/pane/focus", { pane_id: 7 }, "missing_pane_id"],
+      ["/api/pane/seen", { pane_id: "" }, "missing_pane_id"],
       ["/api/pane/resize", { direction: "left", amount: 0.1 }, "missing_pane_id"],
       ["/api/pane/resize", { pane_id: "unknown", direction: "diagonal", amount: 0.1 }, "invalid_direction"],
       ["/api/pane/resize", { pane_id: "unknown", direction: "left", amount: 0 }, "invalid_amount"],
@@ -1703,6 +1704,127 @@ describe("web push", () => {
     }
   }, 40_000);
 
+  it("marks a done pane seen over /api/pane/seen without moving herdr's focus", async () => {
+    let created: Awaited<ReturnType<typeof workspaceCreate>> | undefined;
+    let dir: string | undefined;
+    let bridge: ReturnType<typeof createServer> | undefined;
+    let watcher: RecordingSocket | undefined;
+    try {
+      created = await workspaceCreate({ cwd: tmpdir(), label: "herdr-web-ui-test-pane-seen" });
+      const paneId = created.root_pane.pane_id;
+      dir = mkdtempSync(join(tmpdir(), "herdr-web-ui-pane-seen-"));
+      bridge = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: dir, machines: false });
+      const origin = `http://127.0.0.1:${bridge.port}`;
+      watcher = await RecordingSocket.connect(`ws://127.0.0.1:${bridge.port}/ws`);
+      const post = (body: unknown, headers: Record<string, string> = {}) => fetch(`${origin}/api/pane/seen`, {
+        method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body),
+      });
+      const focused = async () => (await herdrRpc<{ snapshot: SessionSnapshot }>("session.snapshot", {})).snapshot.focused_pane_id;
+
+      // refused before the tracker: wrong method, other origin, bad bodies
+      expect((await fetch(`${origin}/api/pane/seen`)).status).toBe(400);
+      const foreign = await post({ pane_id: paneId }, { origin: "http://other.example" });
+      expect(foreign.status).toBe(403);
+      expect(await foreign.json()).toMatchObject({ error: { code: "invalid_origin" } });
+      expect(((await (await post({ pane_id: 7 })).json()) as ApiError).error.code).toBe("missing_pane_id");
+      expect(((await (await post([])).json()) as ApiError).error.code).toBe("invalid_body");
+      // a pane the tracker does not know: no-op
+      expect(await (await post({ pane_id: "no-such-pane" })).json()).toEqual({ ok: true, changed: false });
+
+      // not done: no-op
+      // the collector may still be subscribing to the new pane: alternate real changes until one lands
+      let live = false;
+      for (let attempt = 0; attempt < 8 && !live; attempt += 1) {
+        const state = attempt % 2 === 0 ? "working" : "blocked";
+        await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "codex", state });
+        live = await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === state, "live", 2_500).then(() => true).catch(() => false);
+      }
+      expect(live).toBe(true);
+      await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "codex", state: "working" });
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "working", "working", 5_000);
+      expect(await (await post({ pane_id: paneId })).json()).toEqual({ ok: true, changed: false });
+
+      // done -> rest (a Codex at rest reads `unknown`), the pane-status herdr's own focus would have caused, and the focus stays
+      await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "codex", state: "unknown" });
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done", "done", 5_000);
+      const focusBefore = await focused();
+      watcher.seen.length = 0;
+      expect(await (await post({ pane_id: paneId })).json()).toEqual({ ok: true, changed: true });
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "unknown", "rest after seen", 5_000);
+      expect(await focused()).toBe(focusBefore);
+      const shown = await (await fetch(`${origin}/api/session`)).json() as { snapshot: SessionSnapshot };
+      // a Codex at rest reads `unknown` in the roster (as after herdr's own focus); what matters is that it no longer reads done
+      expect(shown.snapshot.panes.find((pane) => pane.pane_id === paneId)?.agent_status).not.toBe("done");
+      // idempotent
+      expect(await (await post({ pane_id: paneId })).json()).toEqual({ ok: true, changed: false });
+    } finally {
+      watcher?.close();
+      bridge?.stop();
+      if (dir) rmSync(dir, { recursive: true, force: true });
+      if (created) await workspaceClose(created.workspace.workspace_id).catch(() => undefined);
+    }
+  }, 40_000);
+
+  it("marks a herdr-native done seen, and shows the next native done again", async () => {
+    let created: Awaited<ReturnType<typeof workspaceCreate>> | undefined;
+    let dir: string | undefined;
+    let bridge: ReturnType<typeof createServer> | undefined;
+    let watcher: RecordingSocket | undefined;
+    try {
+      created = await workspaceCreate({ cwd: tmpdir(), label: "herdr-web-ui-test-native-done-seen" });
+      const paneId = created.root_pane.pane_id;
+      dir = mkdtempSync(join(tmpdir(), "herdr-web-ui-native-done-"));
+      bridge = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: dir, machines: false });
+      const origin = `http://127.0.0.1:${bridge.port}`;
+      watcher = await RecordingSocket.connect(`ws://127.0.0.1:${bridge.port}/ws`);
+      const post = () => fetch(`${origin}/api/pane/seen`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pane_id: paneId }),
+      }).then((response) => response.json());
+      const focused = async () => (await herdrRpc<{ snapshot: SessionSnapshot }>("session.snapshot", {})).snapshot.focused_pane_id;
+      const report = (state: string) => herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "claude", state });
+      const shownStatus = async () => ((await (await fetch(`${origin}/api/session`)).json()) as { snapshot: SessionSnapshot }).snapshot.panes.find((pane) => pane.pane_id === paneId)?.agent_status;
+
+      // the collector may still be subscribing to the new pane: alternate real changes until one lands
+      let live = false;
+      for (let attempt = 0; attempt < 8 && !live; attempt += 1) {
+        const state = attempt % 2 === 0 ? "working" : "blocked";
+        await report(state);
+        live = await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === state, "live", 2_500).then(() => true).catch(() => false);
+      }
+      expect(live).toBe(true);
+      await report("working");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "working", "working", 5_000);
+      // an integration agent (claude) back to idle in an unfocused pane: herdr itself turns that into done
+      await report("idle");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done", "native done", 5_000);
+      expect(await shownStatus()).toBe("done");
+      const focusBefore = await focused();
+      watcher.seen.length = 0;
+      expect(await post()).toEqual({ ok: true, changed: true });
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "idle", "rest after seen", 5_000);
+      expect(await focused()).toBe(focusBefore);
+      expect(await shownStatus()).toBe("idle");
+      expect(await post()).toEqual({ ok: true, changed: false });
+      // herdr repeating its report does not bring the done back. Status events reach the collector in order, so the
+      // `working` that follows is the barrier: once its frame arrived, the repeated report has been processed
+      watcher.seen.length = 0;
+      await report("idle");
+      expect(await shownStatus()).toBe("idle");
+      // the next finished turn shows done again
+      await report("working");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "working", "working again", 5_000);
+      expect(watcher.seen.filter((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done")).toEqual([]);
+      await report("idle");
+      await watcher.waitFor((m) => m.type === "pane-status" && m.pane_id === paneId && m.agent_status === "done", "done again", 5_000);
+      expect(await shownStatus()).toBe("done");
+    } finally {
+      watcher?.close();
+      bridge?.stop();
+      if (dir) rmSync(dir, { recursive: true, force: true });
+      if (created) await workspaceClose(created.workspace.workspace_id).catch(() => undefined);
+    }
+  }, 40_000);
+
   it("alerts on the very first change after a restart, measured against herdr's snapshot", async () => {
     // A server restart must not cost the first alert: the collector seeds each pane's
     // status from its startup snapshot. Pane `watched` is already working when the new
@@ -2176,7 +2298,7 @@ it("refuses cross-origin changes while allowing same-origin and CLI requests", a
   const base = `http://127.0.0.1:${instance.port}`;
   const created = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-origin" });
   try {
-    for (const path of ["pane/input", "pane/keys", "pane/close", "pane/split", "pane/focus", "pane/resize", "pane/zoom", "workspace/create", "tab/create", "tab/rename", "tab/close", "push/subscribe"]) {
+    for (const path of ["pane/input", "pane/keys", "pane/close", "pane/split", "pane/focus", "pane/seen", "pane/resize", "pane/zoom", "workspace/create", "tab/create", "tab/rename", "tab/close", "push/subscribe"]) {
       const response = await fetch(`${base}/api/${path}`, { method: "POST", headers: { origin: "http://other.example", "content-type": "text/plain" }, body: JSON.stringify({ pane_id: created.root_pane.pane_id, text: "must not type", keys: ["Enter"] }) });
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ error: { code: "invalid_origin" } });

@@ -347,6 +347,12 @@ export async function focusPane(paneId: string, machineId = "local"): Promise<vo
   await sendJson(machinePath(machineId, "pane/focus"), "POST", { pane_id: paneId });
 }
 
+/** POST /api/pane/seen: a `done` pane read in the browser turns idle, herdr's focus stays. A bridge without the route (a remote PC) answers 404: callers ignore it. */
+export async function markPaneSeen(paneId: string, machineId = "local"): Promise<{ ok: boolean; changed: boolean }> {
+  const response = await sendJson(machinePath(machineId, "pane/seen"), "POST", { pane_id: paneId });
+  return (await response.json()) as { ok: boolean; changed: boolean };
+}
+
 /** POST /api/pane/resize: the pane's border on that side moves that way by a fraction of its split. */
 export async function resizePane(paneId: string, direction: ResizeDirection, amount: number, machineId = "local"): Promise<PaneResizeResult> {
   const response = await sendJson(machinePath(machineId, "pane/resize"), "POST", { pane_id: paneId, direction, amount });

@@ -400,7 +400,7 @@ One set for both themes: the card is island black wherever it shows.
   that wait for the user, blocked (INPUT) first, then done and not yet seen (DONE), each in workspace
   order, with the workspace label as the subtitle. It is the one attention block of the sidebar:
   `--accent-tint` fill, a `--rail-w` bar in `--accent`, `--radius-md`, heading and count pill in
-  `--accent`; the row badges keep their own status colours. It is absent when the PC has no such
+  `--accent`; the heading is a button with a fold chevron (as the Projects header) that hides the rows and keeps the count, remembered per PC and never reopened by a new waiting pane; the row badges keep their own status colours. It is absent when the PC has no such
   pane or is offline, and stays visible when the PC is folded (the fold hides Projects and Agents only). A DONE row leaves the block once its pane has been
   opened in the browser (the app tells the server the pane was seen), not only when herdr's own
   focus reaches it. Only a user action marks a pane seen (selecting it, or returning to the page with it

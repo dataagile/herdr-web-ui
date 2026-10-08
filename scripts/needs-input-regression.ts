@@ -46,8 +46,8 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     const remote = page.locator('.machine-group[aria-label="PC QA remote"] .needs-input');
     await host.getByRole("button", { name: /Local waiting/ }).waitFor();
     // one block per PC, with that PC's panes only, blocked before done, workspace as the subtitle
-    assert.equal(await host.getByRole("button").count(), 2);
-    assert.equal(await remote.getByRole("button").count(), 1);
+    assert.equal(await host.locator(".needs-input-select").count(), 2);
+    assert.equal(await remote.locator(".needs-input-select").count(), 1);
     assert.deepEqual(await host.locator(".pane-title").allTextContents(), ["Local waiting", "Local finished"]);
     assert.deepEqual(await host.locator(".badge").allTextContents(), ["INPUT", "DONE"]);
     assert.equal(await host.locator(".pill").textContent(), "2");
@@ -66,6 +66,21 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
       return before(group.querySelector(".machine-header")!, el) && before(el, group.querySelector(".sidebar-section-header"));
     }), true);
     assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
+    // the heading folds the rows and keeps the count; the choice survives a reload; unfolding shows the rows again
+    const hostToggle = host.getByRole("button", { name: /^Needs you/ });
+    assert.equal(await hostToggle.getAttribute("aria-expanded"), "true");
+    await hostToggle.click();
+    assert.equal(await hostToggle.getAttribute("aria-expanded"), "false");
+    assert.equal(await host.getByRole("button", { name: /Local waiting/ }).count(), 0);
+    assert.equal(await host.locator(".pill").textContent(), "2");
+    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
+    assert.equal(await remote.getByRole("button", { name: /Remote waiting/ }).count(), 1);
+    await page.reload();
+    await hostToggle.waitFor();
+    assert.equal(await hostToggle.getAttribute("aria-expanded"), "false");
+    assert.equal(await host.getByRole("button", { name: /Local waiting/ }).count(), 0);
+    await hostToggle.click();
+    assert.equal(await host.getByRole("button", { name: /Local waiting/ }).count(), 1);
     await remote.getByRole("button", { name: /Remote waiting/ }).click();
     await page.locator(".context .machine-context-name").filter({ hasText: "QA remote" }).waitFor();
     assert.equal(await remote.getByRole("button", { name: /Remote waiting/ }).getAttribute("aria-current"), "true");

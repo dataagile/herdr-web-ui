@@ -5385,14 +5385,37 @@ button, a, [role="button"] {
 }
 
 .needs-input-heading {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.needs-input-toggle {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0;
+  width: 100%;
   padding: var(--space-2);
+  border: 0;
+  background: transparent;
   color: var(--accent);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.needs-input-toggle > svg {
+  flex: 0 0 auto;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.needs-input-toggle:focus-visible {
+  background: var(--bg-hover);
+}
+
+.needs-input .pane-list[hidden] {
+  display: none;
 }
 
 .needs-input-select {

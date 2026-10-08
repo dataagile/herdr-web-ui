@@ -8,6 +8,8 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- **Needs you** can be folded: its heading is a button with a chevron (like the Projects header) that hides
+  the rows and keeps the count. The choice is remembered per PC and a new waiting pane does not reopen it. by @tbc-joaovitor
 - A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the
   tab coming back with it in front) now counts as seen: it leaves Needs you and reads idle, without
   moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges

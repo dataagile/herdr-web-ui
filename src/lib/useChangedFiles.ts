@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { ChangedFile, ChangedFilesResponse, SessionChangedFile } from "../../shared/protocol.ts";
 import { fetchChangedFiles } from "./api.ts";
@@ -11,7 +11,6 @@ export interface ChangedFilesState {
   files: ChangedFilesResponse | null;
   /** false once the PC's bridge answered that it does not know the route: the header shows no button */
   supported: boolean;
-  refresh: () => void;
 }
 
 /**
@@ -23,8 +22,6 @@ export function useChangedFiles(machineId: string, paneId: string | null, agentS
   const [state, setState] = useState<{ paneId: string | null; machineId: string; files: ChangedFilesResponse | null; supported: boolean }>(
     { paneId, machineId, files: null, supported: true },
   );
-  const [tick, setTick] = useState(0);
-  const refresh = useCallback(() => setTick((value) => value + 1), []);
 
   // another pane (or PC) has its own list: the previous one must not show under it
   const current = state.paneId === paneId && state.machineId === machineId;
@@ -41,9 +38,9 @@ export function useChangedFiles(machineId: string, paneId: string | null, agentS
     if (!open) return () => { cancelled = true; };
     const timer = window.setInterval(load, CHANGED_FILES_REFRESH_MS);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [machineId, paneId, agentStatus, open, tick]);
+  }, [machineId, paneId, agentStatus, open]);
 
-  return current ? { files: state.files, supported: state.supported, refresh } : { files: null, supported: true, refresh };
+  return current ? { files: state.files, supported: state.supported } : { files: null, supported: true };
 }
 
 /**

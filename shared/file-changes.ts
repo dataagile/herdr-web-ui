@@ -23,8 +23,10 @@ export type ChangeBody =
 export interface FileChange {
   /** as the call named it: absolute, or relative to the agent's folder */
   path: string;
-  /** the call makes the file: a write, a patch's Add File */
+  /** the call makes the file, for certain: a patch's Add File, the name a patch moves a file to */
   created: boolean;
+  /** the call writes the whole file: it made it or replaced it, which only the call's result or git can tell */
+  whole?: boolean;
   body: ChangeBody;
 }
 
@@ -44,8 +46,13 @@ export function fileChanges(name: string, input: string): FileChange[] {
   if (kind !== "edit" && kind !== "write") return [];
   const patch = patchText(input);
   if (patch !== null) {
-    return patchSections(patch).flatMap((section) => section.file === null ? []
-      : [{ path: section.file, created: section.action === "Add", body: { kind: "patch" as const, action: section.action, lines: section.lines } }]);
+    return patchSections(patch).flatMap((section): FileChange[] => {
+      if (section.file === null) return [];
+      const body = { kind: "patch" as const, action: section.action, lines: section.lines };
+      const move = section.action === "Update" ? section.lines.map((line) => /^\*\*\* Move to: (.+)$/.exec(line)?.[1]?.trim()).find((to) => to !== undefined) : undefined;
+      // the file moved: the old name is changed (it is gone), the new one is made by this patch
+      return [{ path: section.file, created: section.action === "Add", body }, ...(move === undefined ? [] : [{ path: move, created: true, body }])];
+    });
   }
   let args: unknown;
   try { args = JSON.parse(input); } catch { return []; }
@@ -54,7 +61,7 @@ export function fileChanges(name: string, input: string): FileChange[] {
   const path = text(record["file_path"]) ?? text(record["notebook_path"]) ?? text(record["path"]);
   if (path === undefined || path.length === 0) return [];
   const content = text(record["content"]);
-  if (kind === "write" && content !== undefined) return [{ path, created: true, body: { kind: "write", content } }];
+  if (kind === "write" && content !== undefined) return [{ path, created: false, whole: true, body: { kind: "write", content } }];
   const edits = Array.isArray(record["edits"])
     ? record["edits"].flatMap((item) => typeof item === "object" && item !== null ? [pair(item as Record<string, unknown>)] : []).filter((item) => item !== null)
     : [];

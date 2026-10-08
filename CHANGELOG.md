@@ -10,7 +10,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ### Added
 - **Modified files** in the header: a button (icon `FileDiff` with a count) after the Chat/Terminal
   switch lists the files the pane's agent changed in its session, read from its whole transcript
-  (Claude, Codex, pi, omp, gjc and omo; a failed call changes nothing) and marked with git's letter,
+  (Claude, Codex, pi, omp, gjc and omo; a failed call changes nothing, except a Codex script that applies a patch and failed as a whole, which is kept and marked "uncertain") and marked with git's letter,
   and, apart, the other changes git sees in the pane's folder, which may not be the agent's. A file
   opens in the viewer on a new "Changes in this session" tab (each edit in order, drawn like the
   chat's diffs; git's own diff for a file the session did not edit) beside the existing "File"
@@ -18,7 +18,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   New `GET /api/pane/changed-files` and `/diff` (a path the list did not name is refused); a PC whose
   bridge lacks them shows no button. On a phone (480px and below) the Chat/Terminal switch is one
   button that shows the current lens and switches to the other, so every header button keeps its
-  touch size. Edit times are the turn's, not each call's. (by @tbc-joaovitor)
+  touch size. A relative path resolves against the folder the call ran in when the transcript records it (Claude's record cwd, Codex's `workdir` or session folder); a Codex patch's `Move to` names the new file too; "created" means the file did not exist before the session's first write (git's `?`/`A` decides when the transcript cannot tell); a repo whose `git status` is too long shows a note instead of a cut list. Edit times are the turn's, not each call's. (by @tbc-joaovitor)
 - A **done** pane opened in the browser (sidebar, Needs you, palette, tab strip, an alert link, or the
   tab coming back with it in front) now counts as seen: it leaves Needs you and reads idle, without
   moving herdr's focus. The app calls the new `POST /api/pane/seen`; PCs added over SSH, whose bridges

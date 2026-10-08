@@ -233,7 +233,9 @@ export function App() {
   // the modified-files panel; `changesFirst` is the file it opened, whose viewer starts on its changes
   const [changedOpen, setChangedOpen] = useState(false);
   const [changesFirst, setChangesFirst] = useState<string | null>(null);
+  // every opening but the changed-files panel's starts on "File": the panel sets `changesFirst` after this clears it
   const viewFile = useCallback((path: string) => {
+    setChangesFirst(null);
     openFile({ path, paneId: selectedPaneId, machineId: selectedMachineId });
   }, [openFile, selectedPaneId, selectedMachineId]);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1252,10 +1254,10 @@ export function App() {
         <FilesDialog start={selectedPane.foreground_cwd ?? selectedPane.cwd ?? ""} viewing={viewing !== null} onOpenFile={viewFile} onClose={() => setFilesOpen(false)} />
       )}
       {changedOpen && selectedPane && (
-        <ChangedFilesDialog files={changed.files} viewing={viewing !== null} onOpenFile={(path) => { setChangesFirst(path); viewFile(path); }} onClose={() => setChangedOpen(false)} />
+        <ChangedFilesDialog files={changed.files} viewing={viewing !== null} onOpenFile={(path) => { viewFile(path); setChangesFirst(path); }} onClose={() => setChangedOpen(false)} />
       )}
       {viewing !== null && <MachineContext.Provider value={viewing.machineId}>
-        <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={closeFile} onOpen={(path) => openFile({ ...viewing, path })}
+        <FileViewer key={viewing.path} path={viewing.path} paneId={viewing.paneId} onClose={() => { setChangesFirst(null); closeFile(); }} onOpen={(path) => { setChangesFirst(null); openFile({ ...viewing, path }); }}
           {...(changeOf(changed.files, viewing, selectedMachineId, selectedPaneId, changesFirst) ?? {})} />
       </MachineContext.Provider>}
       {paneMenu && (

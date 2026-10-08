@@ -613,9 +613,9 @@ One set for both themes: the card is island black wherever it shows.
   over its top-right corner (`--accent` edge, `--accent-tint` fill, `--lh-base` line). It is not drawn
   at 0 session files, nor for a PC whose bridge lacks `GET /api/pane/changed-files`. It opens the
   Files dialog's modal (a bottom sheet up to `640px`) with two groups, **In this session** and **Other
-  changes in git** ("May include changes that are not from this agent."). A row is a `.dir-browser-item`
+  changes in git** ("May include changes that are not from this agent."; a repo with more changes than git status is read for shows the note "Too many changes in the repository to list" instead). A row is a `.dir-browser-item`
   with the folder in `--text-dim`, the file name in `--text-strong` (mono `--fs-xs`), a pill ("edited
-  ×N" / "created"), the turn's time, and git's letter at the right: `A` and `?` in `--status-done`,
+  ×N" / "created", and "uncertain" for a failed script whose patch may have landed), the turn's time, and git's letter at the right: `A` and `?` in `--status-done`,
   `D` in `--status-blocked`, `M` and `R` in `--text-dim`. A row opens the file viewer on a
   `.changed-tabs` segmented control, "Changes in this session" (or "Changes in git") and "File":
   the first is a column of `.changed-edit` sections, "Edit 2 of 3 · 10:35" over the chat's own diff

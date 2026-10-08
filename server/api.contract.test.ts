@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll } from "bun:test";
+import { describe, expect, it, beforeAll, afterAll, spyOn } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -8,7 +8,8 @@ import { HerdrUpdater } from "./herdr-update.ts";
 import type { HerdrUpdateStatus } from "../shared/update.ts";
 import { USAGE_PROVIDERS, UsageService } from "./usage.ts";
 import { VoiceService } from "./voice.ts";
-import { herdrRpc, ping, sessionSnapshot, tabCreate, workspaceCreate, workspaceClose } from "./herdr/client.ts";
+import * as conversationModule from "./conversation.ts";
+import { HerdrError, herdrRpc, ping, sessionSnapshot, tabCreate, workspaceCreate, workspaceClose } from "./herdr/client.ts";
 import { startFakePushService, type FakePushService } from "./push.fake.ts";
 import { descriptorPath, type BridgeDescriptor } from "./bridge.ts";
 import { handleMachineRequest } from "./machine-api.ts";
@@ -2480,6 +2481,18 @@ describe("changed files API", () => {
     expect(body.repo).toBe(true);
     expect(body.session).toEqual([]);
     expect(Object.fromEntries(body.git.map((file) => [file.rel, file.git]))).toEqual({ "tracked.txt": "M", "fresh.txt": "?" });
+  });
+
+  it("still lists git's changes when the transcript cannot be resolved", async () => {
+    const spy = spyOn(conversationModule, "paneWholeConversation").mockRejectedValue(new HerdrError("timeout", "herdr did not answer"));
+    const quiet = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const response = await changed(`?pane_id=${encodeURIComponent(paneId)}`);
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { session: unknown[]; git: unknown[] };
+      expect(body.session).toEqual([]);
+      expect(body.git).toHaveLength(2);
+    } finally { spy.mockRestore(); quiet.mockRestore(); }
   });
 
   it("answers the diff of a listed path and refuses every other", async () => {

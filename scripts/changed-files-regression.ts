@@ -161,6 +161,17 @@ try {
   await page.keyboard.press("Escape");
   await panel.waitFor({ state: "hidden" });
 
+  // ---- only an opening from the panel starts on the changes: the Files dialog opens the same file on "File"
+  await page.locator(".app-header .header-files").click();
+  await page.getByRole("dialog", { name: "Files" }).locator(".dir-browser-item", { hasText: "tracked.txt" }).click();
+  const viaFiles = page.getByRole("dialog", { name: "tracked.txt", exact: true });
+  await viaFiles.waitFor();
+  assert.equal(await viaFiles.getByRole("button", { name: "Changes in this session", exact: true }).getAttribute("aria-pressed"), "false");
+  assert.equal(await viaFiles.locator(".chat-diff").count(), 0);
+  await viaFiles.getByRole("button", { name: "Close file", exact: true }).click();
+  await page.keyboard.press("Escape");
+  console.log("PASS a file opened from the Files dialog starts on 'File', not on its changes");
+
   // ---- phone widths: one Chat/Terminal button, every control at touch size, no horizontal overflow
   for (const width of [360, 390]) {
     const phone = await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true });

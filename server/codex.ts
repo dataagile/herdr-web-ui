@@ -4,7 +4,7 @@ import { Database } from "bun:sqlite";
 import { closeSync, openSync, readdirSync, readFileSync, readlinkSync, readSync, realpathSync, statSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { ConversationPart, ConversationTurn, HerdrPane } from "../shared/protocol.ts";
 import { patchFiles, patchText } from "../shared/patch.ts";
 import { processStartedAt } from "./process-start.ts";
@@ -91,6 +91,8 @@ interface CodexParseState {
   startedAt?: string;
   skillEvents?: Set<string>;
   activeTurnId?: string;
+  /** the folder the session records (session_meta, turn_context): where a relative `workdir` starts */
+  cwd?: string;
 }
 
 /** Complete records are folded once; snapshots detach mutable tools from prior HTTP answers. */
@@ -131,6 +133,7 @@ export function createCodexTranscriptParser(state: CodexParseState = { turns: []
     for (const entry of entries(text)) {
       const payload = record(entry.payload);
       const ts = string(entry.timestamp);
+      if ((entry.type === "session_meta" || entry.type === "turn_context") && isAbsolute(string(payload.cwd))) state.cwd = string(payload.cwd);
       if (entry.type === "event_msg") {
         if (payload.type === "item_completed" && (!state.activeTurnId || !payload.turn_id || payload.turn_id === state.activeTurnId)) {
           const item = record(payload.item);
@@ -206,6 +209,10 @@ export function createCodexTranscriptParser(state: CodexParseState = { turns: []
           kind: "tool", name, summary: (string(summary) || name).slice(0, 120),
           input: Object.keys(args).length ? JSON.stringify(args, null, 2) : string(raw), output: "",
         };
+        // exec_command names the folder it ran in; any other call ran in the session's
+        const workdir = string(args.workdir);
+        const ranIn = workdir.length === 0 ? state.cwd : isAbsolute(workdir) ? workdir : state.cwd === undefined ? undefined : resolve(state.cwd, workdir);
+        if (ranIn !== undefined) part.cwd = ranIn;
         const skill = codexReadCall(name, args);
         if (skill) part.skill = skill;
         assistant(ts).parts.push(part);

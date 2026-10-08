@@ -13,10 +13,10 @@ import { parseOmpTranscript } from "./transcript-records.ts";
 const jsonl = (...records: unknown[]) => records.map((record) => JSON.stringify(record)).join("\n");
 const T = (minute: number) => `2026-10-08T10:${String(minute).padStart(2, "0")}:00.000Z`;
 
-const claudeUse = (id: string, name: string, input: unknown, minute: number) =>
-  ({ type: "assistant", timestamp: T(minute), message: { role: "assistant", content: [{ type: "tool_use", id, name, input }] } });
-const claudeResult = (id: string, minute: number, isError = false) =>
-  ({ type: "user", timestamp: T(minute), message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: "ok", is_error: isError }] } });
+const claudeUse = (id: string, name: string, input: unknown, minute: number, cwd?: string) =>
+  ({ type: "assistant", timestamp: T(minute), ...(cwd === undefined ? {} : { cwd }), message: { role: "assistant", content: [{ type: "tool_use", id, name, input }] } });
+const claudeResult = (id: string, minute: number, isError = false, content = "ok") =>
+  ({ type: "user", timestamp: T(minute), message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content, is_error: isError }] } });
 const claudePrompt = (text: string, minute: number) => ({ type: "user", timestamp: T(minute), message: { role: "user", content: text } });
 
 describe("changed files: Claude transcript", () => {
@@ -37,7 +37,8 @@ describe("changed files: Claude transcript", () => {
     expect([...files.keys()].sort()).toEqual(["/w/src/a.ts", "/w/src/new.ts", "/w/src/rel.ts"]);
     expect(files.get("/w/src/a.ts")).toMatchObject({ created: false });
     expect(files.get("/w/src/a.ts")!.edits).toHaveLength(2);
-    expect(files.get("/w/src/new.ts")).toMatchObject({ created: true });
+    // the result says nothing about whether the file existed: git's letter decides later
+    expect(files.get("/w/src/new.ts")).toMatchObject({ created: null });
     expect(files.get("/w/src/new.ts")!.edits[0]!.body).toEqual({ kind: "write", content: "hello\n" });
   });
 
@@ -52,6 +53,102 @@ describe("changed files: Claude transcript", () => {
   it("keeps the turn's time", () => {
     expect(files.get("/w/src/a.ts")!.edits[0]!.at).toBe(T(1));
     expect(files.get("/w/src/a.ts")!.last_at).toBe(T(8));
+  });
+});
+
+describe("changed files: a whole-file write is created only when the file was not there", () => {
+  const turns = parseClaudeTranscript(jsonl(
+    claudePrompt("go", 0),
+    claudeUse("a", "Write", { file_path: "/w/made.ts", content: "x" }, 1), claudeResult("a", 1, false, "File created successfully at: /w/made.ts"),
+    claudeUse("b", "Write", { file_path: "/w/over.ts", content: "x" }, 2), claudeResult("b", 2, false, "The file /w/over.ts has been updated. Here's the result"),
+    claudeUse("c", "Edit", { file_path: "/w/made.ts", old_string: "x", new_string: "y" }, 3), claudeResult("c", 3),
+    claudeUse("d", "Edit", { file_path: "/w/over.ts", old_string: "x", new_string: "y" }, 4), claudeResult("d", 4),
+  ));
+  const files = sessionEdits(turns, "/w");
+  it("reads the result of the first call", () => {
+    expect(files.get("/w/made.ts")!.created).toBe(true);
+    expect(files.get("/w/over.ts")!.created).toBe(false);
+    expect(files.get("/w/over.ts")!.edits).toHaveLength(2);
+  });
+});
+
+describe("changed files: the folder a call ran in", () => {
+  it("resolves a Claude relative path against the record's cwd", () => {
+    const turns = parseClaudeTranscript(jsonl(
+      claudePrompt("go", 0),
+      claudeUse("a", "Edit", { file_path: "rel.ts", old_string: "x", new_string: "y" }, 1, "/w/sub"), claudeResult("a", 1),
+      claudeUse("b", "Edit", { file_path: "rel2.ts", old_string: "x", new_string: "y" }, 2), claudeResult("b", 2),
+    ));
+    expect([...sessionEdits(turns, "/pane").keys()].sort()).toEqual(["/pane/rel2.ts", "/w/sub/rel.ts"]);
+  });
+
+  it("records a Codex call's folder: the exec's workdir (relative to the session's), else the session's", () => {
+    const item = (payload: unknown) => ({ type: "response_item", timestamp: T(1), payload });
+    const patch = "*** Begin Patch\n*** Update File: a.ts\n@@\n-1\n+2\n*** End Patch";
+    const turns = parseCodexTranscript(jsonl(
+      { type: "session_meta", payload: { id: "t", cwd: "/session" } },
+      item({ type: "message", role: "user", content: [{ type: "input_text", text: "go" }] }),
+      item({ type: "custom_tool_call", call_id: "p1", name: "apply_patch", input: patch }),
+      item({ type: "custom_tool_call_output", call_id: "p1", output: "Success" }),
+      item({ type: "function_call", call_id: "s1", name: "exec_command", arguments: JSON.stringify({ cmd: "ls", workdir: "nested" }) }),
+      item({ type: "function_call", call_id: "s2", name: "exec_command", arguments: JSON.stringify({ cmd: "ls", workdir: "/elsewhere" }) }),
+      { type: "turn_context", payload: { cwd: "/moved" } },
+      item({ type: "custom_tool_call", call_id: "p2", name: "apply_patch", input: patch.replace("a.ts", "b.ts") }),
+      item({ type: "custom_tool_call_output", call_id: "p2", output: "Success" }),
+    ), Infinity);
+    const folders = turns.flatMap((turn) => turn.parts.flatMap((part) => part.kind === "tool" ? [part.cwd] : []));
+    expect(folders).toEqual(["/session", "/session/nested", "/elsewhere", "/moved"]);
+    expect([...sessionEdits(turns, "/pane").keys()]).toEqual(["/session/a.ts", "/moved/b.ts"]);
+  });
+
+  it("falls back to the pane's folder when the transcript records none", () => {
+    const item = (payload: unknown) => ({ type: "response_item", timestamp: T(1), payload });
+    const turns = parseCodexTranscript(jsonl(
+      item({ type: "message", role: "user", content: [{ type: "input_text", text: "go" }] }),
+      item({ type: "custom_tool_call", call_id: "p1", name: "apply_patch", input: "*** Begin Patch\n*** Update File: a.ts\n@@\n-1\n+2\n*** End Patch" }),
+      item({ type: "custom_tool_call_output", call_id: "p1", output: "Success" }),
+    ), Infinity);
+    expect([...sessionEdits(turns, "/pane").keys()]).toEqual(["/pane/a.ts"]);
+  });
+
+  it("keeps the part's cwd out of the way of an absolute path", () => {
+    const turns = parseClaudeTranscript(jsonl(claudePrompt("go", 0),
+      claudeUse("a", "Edit", { file_path: "/abs.ts", old_string: "x", new_string: "y" }, 1, "/w/sub"), claudeResult("a", 1)));
+    expect([...sessionEdits(turns, "/pane").keys()]).toEqual(["/abs.ts"]);
+  });
+});
+
+describe("changed files: a Codex script that failed", () => {
+  const item = (payload: unknown) => ({ type: "response_item", timestamp: T(1), payload });
+  const patch = "*** Begin Patch\n*** Update File: /abs/s.ts\n@@\n-1\n+2\n*** End Patch";
+  const turns = parseCodexTranscript(jsonl(
+    item({ type: "message", role: "user", content: [{ type: "input_text", text: "go" }] }),
+    item({ type: "custom_tool_call", call_id: "x1", name: "exec", input: `tools.apply_patch(${JSON.stringify(patch)}); throw new Error("later")` }),
+    item({ type: "custom_tool_call_output", call_id: "x1", output: "Script failed\nError: later" }),
+    item({ type: "custom_tool_call", call_id: "x2", name: "exec", input: `tools.apply_patch(${JSON.stringify(patch.replace("/abs/s.ts", "/abs/v.ts"))})` }),
+    item({ type: "custom_tool_call_output", call_id: "x2", output: "Script failed\napply_patch verification failed: no such file" }),
+    item({ type: "custom_tool_call", call_id: "x3", name: "apply_patch", input: patch.replace("/abs/s.ts", "/abs/b.ts") }),
+    item({ type: "custom_tool_call_output", call_id: "x3", output: "Script failed" }),
+  ), Infinity);
+  const files = sessionEdits(turns, "/w");
+  it("keeps the patch's edits, marked uncertain, unless the patch itself was refused", () => {
+    expect(turns[0]!.parts.every((part) => part.kind !== "tool" || part.error === true)).toBe(true);
+    expect([...files.keys()]).toEqual(["/abs/s.ts"]);
+    expect(files.get("/abs/s.ts")).toMatchObject({ uncertain: true });
+  });
+  it("still skips a Claude Edit the tool refused", () => {
+    const claude = parseClaudeTranscript(jsonl(claudePrompt("go", 0),
+      claudeUse("a", "Edit", { file_path: "/w/r.ts", old_string: "x", new_string: "y" }, 1), claudeResult("a", 1, true, "refused")));
+    expect(sessionEdits(claude, "/w").size).toBe(0);
+  });
+});
+
+describe("changed files: a patch that moves a file", () => {
+  it("attributes the new name as created, and the old one as changed", () => {
+    const patch = "*** Begin Patch\n*** Update File: old/a.ts\n*** Move to: new/a.ts\n@@\n-1\n+2\n*** End Patch";
+    const changes = fileChanges("apply_patch", patch);
+    expect(changes.map((change) => [change.path, change.created])).toEqual([["old/a.ts", false], ["new/a.ts", true]]);
+    expect(changes[1]!.body).toMatchObject({ kind: "patch", action: "Update" });
   });
 });
 
@@ -106,7 +203,7 @@ describe("changed files: pi, omp, gjc and omo records", () => {
 
   it("reads old/new text, writes, edit scripts and edit lists", () => {
     expect(files.get("/w/a.ts")!.edits[0]!.body).toEqual({ kind: "replace", edits: [{ before: "x", after: "y" }] });
-    expect(files.get("/w/b.ts")).toMatchObject({ created: true });
+    expect(files.get("/w/b.ts")).toMatchObject({ created: null });
     expect(files.get("/w/c.ts")!.edits[0]!.body).toEqual({ kind: "script", script: "PUT 3\n+line" });
     expect(files.get("/w/d.ts")!.edits[0]!.body).toEqual({ kind: "replace", edits: [{ before: "a", after: "b" }] });
   });
@@ -174,6 +271,12 @@ describe("changed files: a real repo", () => {
     expect(byName).toMatchObject({ "tracked.txt": "M", "other.txt": "M", "fresh.txt": "?" });
   });
 
+  it("returns no list at all when git's output was cut", async () => {
+    const found = await gitChanges(dir, 20);
+    expect(found).toMatchObject({ changes: [], truncated: true });
+    expect((await gitChanges(dir))!.truncated).toBe(false);
+  });
+
   it("is no repo outside a work tree", async () => {
     const plain = mkdtempSync(join(tmpdir(), "herdr-plain-"));
     try { expect(await gitChanges(plain)).toBeNull(); } finally { rmSync(plain, { recursive: true, force: true }); }
@@ -181,7 +284,7 @@ describe("changed files: a real repo", () => {
 
   async function listed(sessionPaths: string[]): Promise<PaneChanges> {
     const found = (await gitChanges(dir))!;
-    const edits = new Map(sessionPaths.map((path) => [path, { path, created: false, last_at: null, edits: [{ at: T(1), body: { kind: "write" as const, content: "x" } }] }]));
+    const edits = new Map(sessionPaths.map((path) => [path, { path, created: false as boolean | null, last_at: null, edits: [{ at: T(1), body: { kind: "write" as const, content: "x" } }] }]));
     return {
       root: found.root, edits,
       report: {

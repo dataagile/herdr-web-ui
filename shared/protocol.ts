@@ -293,6 +293,8 @@ export type ConversationPart =
   /** `error`: the call failed (the agent recorded it so, or its output says a command exited non-zero) */
   | {
     kind: "tool"; name: string; summary: string; input: string; output: string; error?: boolean;
+    /** the folder the call ran in, when the transcript records it (Claude's record cwd; Codex's workdir, else the session's) */
+    cwd?: string;
     skill?: SkillActivity;
     /** set when `output` was cut: the call's id, for GET /api/pane/conversation/tool-output, and the whole output's length */
     output_ref?: string; output_size?: number;
@@ -400,8 +402,10 @@ export interface ChangedFile {
 export interface SessionChangedFile extends ChangedFile {
   /** how many calls changed it */
   edits: number;
-  /** the first call made it (a write, a patch's Add File) */
+  /** the file did not exist before the session's first call on it (a patch's Add File; a write that made it; git's `?`/`A` when the transcript cannot tell) */
   created: boolean;
+  /** a Codex script that applies a patch failed as a whole: the patch may or may not have landed */
+  uncertain?: boolean;
   /** when the turn of its last change ended; null when the transcript recorded no time */
   last_at: string | null;
 }
@@ -413,6 +417,8 @@ export interface ChangedFilesResponse {
   git: (ChangedFile & { git: NonNullable<ChangedFile["git"]> })[];
   /** the pane's folder is inside a git work tree */
   repo: boolean;
+  /** git status had more output than is read: `git` is empty rather than a partial list */
+  gitTruncated?: boolean;
 }
 
 /** One change a session's call made to a file; `body` is what the chat draws for that call. */

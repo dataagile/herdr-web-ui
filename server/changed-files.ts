@@ -11,6 +11,7 @@ import { realpathSync } from "node:fs";
 import nodePath from "node:path";
 
 import { fileChanges, type ChangeBody } from "../shared/file-changes.ts";
+import { patchText } from "../shared/patch.ts";
 import type { ChangedFile, ChangedFileDiff, ChangedFilesResponse, ConversationTurn, SessionChangedFile } from "../shared/protocol.ts";
 import { ConversationUnavailable, paneWholeConversation } from "./conversation.ts";
 import { HerdrError, sessionSnapshot } from "./herdr/client.ts";
@@ -18,28 +19,38 @@ import { HerdrError, sessionSnapshot } from "./herdr/client.ts";
 /** What one file's calls added up to, before it meets the disk and git. */
 export interface SessionFileEdits {
   path: string;
-  created: boolean;
+  /** the file did not exist before the session's first call on it; null when a whole-file write leaves that unknown (git's letter decides) */
+  created: boolean | null;
+  /** a Codex script that applies a patch failed as a whole: its patch may or may not have landed */
+  uncertain?: boolean;
   last_at: string | null;
   edits: { at: string | null; body: ChangeBody }[];
 }
 
 /**
  * Walks a conversation's turns and gathers, per file, the calls that changed it. A call that
- * failed changed nothing. Relative paths are the agent's: they resolve against `cwd`.
+ * failed changed nothing, except a Codex exec script that applies a patch: the script can fail
+ * after the patch landed and the result does not say which, so its edits are kept and marked
+ * uncertain. A relative path resolves against the folder the call ran in when the transcript
+ * records it, else against `cwd`.
  */
 export function sessionEdits(turns: readonly ConversationTurn[], cwd: string, path: typeof nodePath = nodePath): Map<string, SessionFileEdits> {
   const files = new Map<string, SessionFileEdits>();
   for (const turn of turns) {
     if (turn.role !== "assistant") continue;
     for (const part of turn.parts) {
-      if (part.kind !== "tool" || part.error) continue;
+      if (part.kind !== "tool") continue;
+      const script = part.error === true && !/^(apply_patch|patch)$/i.test(part.name) && patchText(part.input) !== null && !/apply_patch verification failed/.test(part.output);
+      if (part.error && !script) continue;
       for (const change of fileChanges(part.name, part.input)) {
-        const absolute = path.resolve(cwd, change.path);
+        const absolute = path.resolve(part.cwd ?? cwd, change.path);
         let file = files.get(absolute);
         if (file === undefined) {
-          file = { path: absolute, created: change.created, last_at: null, edits: [] };
+          const made = change.created || (change.whole === true && /File created successfully/.test(part.output));
+          file = { path: absolute, created: made ? true : change.whole === true && !/has been updated/.test(part.output) ? null : false, last_at: null, edits: [] };
           files.set(absolute, file);
         }
+        if (script) file.uncertain = true;
         file.edits.push({ at: turn.ts, body: change.body });
         file.last_at = turn.end_ts ?? turn.ts ?? file.last_at;
       }
@@ -108,13 +119,15 @@ async function git(cwd: string, args: string[], maxBytes = GIT_STATUS_MAX_BYTES)
 }
 
 /** Where the pane's repo starts and what git sees changed in it; null outside a work tree. */
-export async function gitChanges(cwd: string): Promise<{ root: string; changes: { path: string; status: NonNullable<ChangedFile["git"]> }[] } | null> {
+export async function gitChanges(cwd: string, maxBytes = GIT_STATUS_MAX_BYTES): Promise<{ root: string; changes: { path: string; status: NonNullable<ChangedFile["git"]> }[]; truncated: boolean; fingerprint: string } | null> {
   const top = await git(cwd, ["rev-parse", "--show-toplevel"]);
   if (top === null || top.code !== 0 || top.out.trim().length === 0) return null;
-  const status = await git(cwd, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"]);
+  const status = await git(cwd, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"], maxBytes);
   if (status === null || status.code !== 0) return null;
   const root = top.out.trim();
-  return { root, changes: parsePorcelain(status.out).map((change) => ({ ...change, path: nodePath.resolve(root, change.path) })) };
+  // a cut list is not a list: the last name may be half of one, and the rest are missing
+  if (status.truncated) return { root, changes: [], truncated: true, fingerprint: "truncated" };
+  return { root, truncated: false, fingerprint: status.out, changes: parsePorcelain(status.out).map((change) => ({ ...change, path: nodePath.resolve(root, change.path) })) };
 }
 
 function realOrSelf(path: string): { path: string; exists: boolean } {
@@ -147,45 +160,74 @@ export interface PaneChanges {
   root: string | null;
 }
 
+/** The last report per pane, kept while neither its transcript, its folder nor git's status changed: a /diff asked right after the list does not rebuild it. */
+const reportCache = new Map<string, { key: string; changes: PaneChanges }>();
+
 /** Forgets what was read from transcripts (tests). */
-export function forgetChangedFiles(): void { sessionCache.clear(); }
+export function forgetChangedFiles(): void { sessionCache.clear(); reportCache.clear(); }
 
 export async function paneChanges(paneId: string, codexHome?: string): Promise<PaneChanges> {
+  // one snapshot answers the pane's folder and the transcript's lookup
+  const snapshot = await sessionSnapshot();
   // an unknown pane is an error, as it is for every pane route; a pane with no agent is an empty session
-  let cwd = await paneFolder(paneId);
+  let cwd = paneFolder(snapshot, paneId);
   let edits = new Map<string, SessionFileEdits>();
+  let signature = "none";
   try {
-    const whole = await paneWholeConversation(paneId, codexHome);
+    const whole = await paneWholeConversation(paneId, codexHome, snapshot);
     cwd = whole.cwd;
+    signature = `${whole.path}:${whole.signature}`;
     edits = cachedSessionEdits(whole.path, whole.signature, whole.cwd, whole.read);
   } catch (error) {
-    // a pane with no recognized agent has no session to list; its git changes still stand
-    if (!(error instanceof ConversationUnavailable)) throw error;
+    // a pane with no recognized agent has no session to list; its git changes still stand.
+    // Anything else (a herdr timeout, a transcript that cannot be read) must not take the git list with it.
+    if (!(error instanceof ConversationUnavailable)) console.error(`changed-files: session of pane ${paneId} not read: ${error instanceof Error ? error.message : String(error)}`);
   }
   const repo = await gitChanges(cwd);
+  const key = `${signature}\0${cwd}\0${repo?.root ?? ""}\0${repo?.fingerprint ?? ""}`;
+  const cached = reportCache.get(paneId);
+  if (cached !== undefined && cached.key === key) return cached.changes;
+
+  // each path meets the disk once
+  const real = new Map<string, { path: string; exists: boolean }>();
+  const disk = (path: string): { path: string; exists: boolean } => {
+    let found = real.get(path);
+    if (found === undefined) { found = realOrSelf(path); real.set(path, found); }
+    return found;
+  };
   const letters = new Map<string, NonNullable<ChangedFile["git"]>>();
-  for (const change of repo?.changes ?? []) letters.set(realOrSelf(change.path).path, change.status);
+  for (const change of repo?.changes ?? []) letters.set(disk(change.path).path, change.status);
 
   const listed = new Set<string>();
   const session: SessionChangedFile[] = [...edits.values()].map((file) => {
-    const disk = realOrSelf(file.path);
-    listed.add(disk.path);
-    const letter = letters.get(disk.path);
+    const onDisk = disk(file.path);
+    listed.add(onDisk.path);
+    const letter = letters.get(onDisk.path);
     return {
-      ...locate(file.path, cwd), exists: disk.exists, edits: file.edits.length, created: file.created, last_at: file.last_at,
+      ...locate(file.path, cwd), exists: onDisk.exists, edits: file.edits.length,
+      // a whole-file write the transcript cannot place: git says whether the file is new
+      created: file.created ?? (letter === "?" || letter === "A"), last_at: file.last_at,
+      ...(file.uncertain === true ? { uncertain: true } : {}),
       ...(letter === undefined ? {} : { git: letter }),
     };
   });
-  const git = (repo?.changes ?? []).filter((change) => !listed.has(realOrSelf(change.path).path)).map((change) => ({
+  const git = (repo?.changes ?? []).filter((change) => !listed.has(disk(change.path).path)).map((change) => ({
     ...locate(change.path, cwd), exists: change.status !== "D", git: change.status,
   }));
   session.sort((left, right) => (right.last_at ?? "").localeCompare(left.last_at ?? ""));
-  return { report: { session, git, repo: repo !== null }, edits, root: repo?.root ?? null };
+  const changes: PaneChanges = {
+    report: { session, git, repo: repo !== null, ...(repo?.truncated ? { gitTruncated: true } : {}) },
+    edits, root: repo?.root ?? null,
+  };
+  reportCache.delete(paneId);
+  reportCache.set(paneId, { key, changes });
+  if (reportCache.size > 32) reportCache.delete(reportCache.keys().next().value!);
+  return changes;
 }
 
 /** The folder the files dialog opens at: the pane's foreground process's, else the pane's. */
-async function paneFolder(paneId: string): Promise<string> {
-  const pane = (await sessionSnapshot()).panes.find((candidate) => candidate.pane_id === paneId);
+function paneFolder(snapshot: Awaited<ReturnType<typeof sessionSnapshot>>, paneId: string): string {
+  const pane = snapshot.panes.find((candidate) => candidate.pane_id === paneId);
   if (!pane) throw new HerdrError("pane_not_found", `pane ${paneId} not found`);
   const cwd = pane.foreground_cwd ?? pane.cwd;
   if (!cwd) throw new HerdrError("cwd_not_found", `pane ${paneId} has no working directory`);
@@ -202,7 +244,7 @@ export class ChangedFileNotListed extends Error {
  */
 export async function changedFileDiff(changes: PaneChanges, path: string): Promise<ChangedFileDiff> {
   const edits = changes.edits.get(path);
-  if (edits !== undefined && changes.report.session.some((file) => file.path === path)) {
+  if (edits !== undefined) {
     return { kind: "session", path, edits: edits.edits };
   }
   const entry = changes.report.git.find((file) => file.path === path);

@@ -34,6 +34,7 @@ function Row({ file, onOpenFile }: { file: ChangedFile | SessionChangedFile; onO
         <span className="changed-path"><span className="changed-dir">{file.rel.slice(0, slash + 1)}</span><strong>{file.rel.slice(slash + 1)}</strong></span>
         {session !== null && <span className="changed-meta">
           <span className="pill">{session.created ? t("created") : t("edited ×{n}", { n: session.edits })}</span>
+          {session.uncertain === true && <span className="pill" title={t("The script failed; its patch may not have been applied")}>{t("uncertain")}</span>}
           {time !== null && <span className="changed-time">{time}</span>}
         </span>}
       </span>
@@ -65,11 +66,12 @@ export function ChangedFilesDialog({ files, viewing, onOpenFile, onClose }: Chan
         </header>
         <div className="modal-body">
           {files === null && <p className="changed-note">{t("Loading…")}</p>}
-          {files !== null && session.length === 0 && other.length === 0 && <p className="changed-note">{t("No modified files")}</p>}
+          {files !== null && session.length === 0 && other.length === 0 && files.gitTruncated !== true && <p className="changed-note">{t("No modified files")}</p>}
           {session.length > 0 && <>
             <h3 className="menu-heading changed-heading">{t("In this session")} <span className="pill">{session.length}</span></h3>
             <div className="dir-browser"><ul className="dir-browser-list">{session.map((file) => <Row key={file.path} file={file} onOpenFile={onOpenFile} />)}</ul></div>
           </>}
+          {files?.gitTruncated === true && <p className="changed-note">{t("Too many changes in the repository to list")}</p>}
           {other.length > 0 && <>
             <h3 className={`menu-heading changed-heading${session.length > 0 ? " changed-gap" : ""}`}>{t("Other changes in git")} <span className="pill">{other.length}</span></h3>
             <p className="changed-note">{t("May include changes that are not from this agent.")}</p>

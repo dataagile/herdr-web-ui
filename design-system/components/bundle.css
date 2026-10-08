@@ -1623,7 +1623,7 @@ button, a, [role="button"] {
 .header-amod-count {
   position: absolute;
   top: 0;
-  right: -2px;
+  right: calc(var(--space-1) / -2);
   height: auto;
   padding: 0 var(--space-1);
   border-color: var(--accent);
@@ -1665,7 +1665,7 @@ button, a, [role="button"] {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: calc(var(--space-1) / 2);
   overflow: visible;
 }
 

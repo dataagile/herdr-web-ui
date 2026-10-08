@@ -97,6 +97,7 @@ interface TranscriptEntry {
   isMeta?: boolean;
   isCompactSummary?: boolean;
   message?: { role?: string; content?: unknown };
+  cwd?: unknown;
   attachment?: { type?: unknown; prompt?: unknown; commandMode?: unknown; origin?: { kind?: unknown } };
 }
 
@@ -210,6 +211,7 @@ export function parseClaudeTranscript(text: string, maxTurns = MAX_TURNS): Conve
             summary: toolSummary(b.name, input),
             input: JSON.stringify(input, null, 2),
             output: "",
+            ...(typeof entry.cwd === "string" && entry.cwd.length > 0 ? { cwd: entry.cwd } : {}),
           };
           const skill = invokedSkill(b.name, input);
           if (skill) { part.skill = skill; part.summary = skill.name; }
@@ -905,10 +907,10 @@ const MAX_WHOLE_PAGES = 40;
  * from the newest turns with the cursors the chat uses, so a /clear, a pi branch or a Codex
  * rollout chain bounds it exactly as it bounds the chat. Throws ConversationUnavailable.
  */
-export async function paneWholeConversation(paneId: string, codexHome?: string): Promise<{
+export async function paneWholeConversation(paneId: string, codexHome?: string, known?: Awaited<ReturnType<typeof sessionSnapshot>>): Promise<{
   source: RecognizedConversation["source"]; path: string; cwd: string; signature: string; read: () => ConversationTurn[];
 }> {
-  const snapshot = await sessionSnapshot();
+  const snapshot = known ?? await sessionSnapshot();
   const pane = snapshot.panes.find((candidate) => candidate.pane_id === paneId);
   if (pane === undefined) throw new ConversationUnavailable("pane_not_found");
   if (typeof pane.cwd !== "string" || pane.cwd.length === 0) throw new ConversationUnavailable("no_recognized_transcript");

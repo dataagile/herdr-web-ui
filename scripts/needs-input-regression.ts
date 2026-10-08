@@ -9,6 +9,7 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
   let resumed = false;
   let seen = false;
   let offline = false;
+  let extra = false;
   try {
     // both PCs start folded: Needs you must still show, so a waiting agent is never hidden
     await context.addInitScript(() => {
@@ -23,7 +24,7 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
       const pane = local.snapshot.panes.find((pane: any) => pane.pane_id === paneId);
       local.name = "QA host";
       // the done pane is listed first in the roster: Needs you still puts the blocked one on top
-      local.snapshot.panes = [{ ...pane, pane_id: `${paneId}-done`, label: "Local finished", agent: "claude", agent_status: seen ? "idle" : "done" }, { ...pane, label: "Local waiting", agent: "claude", agent_status: resumed ? "working" : "blocked" }];
+      local.snapshot.panes = [{ ...pane, pane_id: `${paneId}-done`, label: "Local finished", agent: "claude", agent_status: seen ? "idle" : "done" }, { ...pane, label: "Local waiting", agent: "claude", agent_status: resumed ? "working" : "blocked" }, ...(extra ? [{ ...pane, pane_id: `${paneId}-extra`, label: "Local extra", agent: "claude", agent_status: "blocked" }] : [])];
       local.snapshot.workspaces = local.snapshot.workspaces.filter((workspace: any) => workspace.workspace_id === pane.workspace_id);
       const remote = { ...local, id: "qa-remote", kind: "ssh", name: "QA remote", state: offline ? "disconnected" : "connected", snapshot: { ...local.snapshot, panes: [{ ...pane, label: "Remote waiting", agent: "codex", agent_status: "blocked" }] } };
       await route.fulfill({ json: { machines: [local, remote] } });
@@ -46,8 +47,8 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     const remote = page.locator('.machine-group[aria-label="PC QA remote"] .needs-input');
     await host.getByRole("button", { name: /Local waiting/ }).waitFor();
     // one block per PC, with that PC's panes only, blocked before done, workspace as the subtitle
-    assert.equal(await host.getByRole("button").count(), 2);
-    assert.equal(await remote.getByRole("button").count(), 1);
+    assert.equal(await host.locator(".needs-input-select").count(), 2);
+    assert.equal(await remote.locator(".needs-input-select").count(), 1);
     assert.deepEqual(await host.locator(".pane-title").allTextContents(), ["Local waiting", "Local finished"]);
     assert.deepEqual(await host.locator(".badge").allTextContents(), ["INPUT", "DONE"]);
     assert.equal(await host.locator(".pill").textContent(), "2");
@@ -56,16 +57,40 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     assert.equal(await host.getAttribute("aria-label"), "Needs you on QA host");
     assert.equal(await remote.getAttribute("aria-label"), "Needs you on QA remote");
     // both PCs are folded: no Projects, and the block is still there
-    assert.equal(await page.locator(".machine-group .sidebar-section-header").count(), 0);
+    assert.equal(await page.locator(".machine-group .sidebar-section-header:not(.needs-input-toggle)").count(), 0);
     // unfolded, it sits under the PC's header, above its Projects section
     await page.locator('.machine-group[aria-label="PC QA host"] .machine-toggle').click();
-    await page.locator('.machine-group[aria-label="PC QA host"] .sidebar-section-header').first().waitFor();
+    await page.locator('.machine-group[aria-label="PC QA host"] .sidebar-section-header:not(.needs-input-toggle)').first().waitFor();
     assert.equal(await host.evaluate((el) => {
       const group = el.closest(".machine-group")!;
       const before = (a: Element, b: Element | null) => b !== null && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-      return before(group.querySelector(".machine-header")!, el) && before(el, group.querySelector(".sidebar-section-header"));
+      return before(group.querySelector(".machine-header")!, el) && before(el, group.querySelector(".sidebar-section-header:not(.needs-input-toggle)"));
     }), true);
     assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
+    // the heading folds the rows and keeps the count; the choice survives a reload; unfolding shows the rows again
+    const hostToggle = host.getByRole("button", { name: /^Needs you/ });
+    assert.equal(await hostToggle.getAttribute("aria-expanded"), "true");
+    await hostToggle.click();
+    assert.equal(await hostToggle.getAttribute("aria-expanded"), "false");
+    assert.equal(await host.getByRole("button", { name: /Local waiting/ }).count(), 0);
+    assert.equal(await host.locator(".pill").textContent(), "2");
+    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
+    assert.equal(await remote.getByRole("button", { name: /Remote waiting/ }).count(), 1);
+    // a new waiting pane (via the same stand-in listing) updates the count but never reopens the folded block
+    extra = true;
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await host.locator(".pill").filter({ hasText: "3" }).waitFor();
+    assert.equal(await hostToggle.getAttribute("aria-expanded"), "false");
+    assert.equal(await host.getByRole("button", { name: /Local extra/ }).count(), 0);
+    extra = false;
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await host.locator(".pill").filter({ hasText: "2" }).waitFor();
+    await page.reload();
+    await hostToggle.waitFor();
+    assert.equal(await hostToggle.getAttribute("aria-expanded"), "false");
+    assert.equal(await host.getByRole("button", { name: /Local waiting/ }).count(), 0);
+    await hostToggle.click();
+    assert.equal(await host.getByRole("button", { name: /Local waiting/ }).count(), 1);
     await remote.getByRole("button", { name: /Remote waiting/ }).click();
     await page.locator(".context .machine-context-name").filter({ hasText: "QA remote" }).waitFor();
     assert.equal(await remote.getByRole("button", { name: /Remote waiting/ }).getAttribute("aria-current"), "true");

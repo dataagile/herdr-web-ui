@@ -10,6 +10,7 @@ import { useInstallPrompt } from "../lib/install.ts";
 import { builtLabel, currentBuild, versionLine } from "../lib/buildInfo.ts";
 import { Sidebar } from "./Sidebar.tsx";
 import { NeedsInput } from "./NeedsInput.tsx";
+import { panesNeedingYou } from "../lib/needsInput.ts";
 import { UsageMeters } from "./UsageMeters.tsx";
 import "./Machines.css";
 import { useT } from "../lib/i18n.ts";
@@ -32,7 +33,7 @@ export function MachineSidebar(props: Props) {
   // no top bar: a workspace starts from its PC's header; Add PC is in the footer, Settings → Remote PCs and the palette
   return <div className="sidebar-shell">
     <div className="machine-list" aria-label={t("PCs and projects")}>
-      <NeedsInput machines={props.machines} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} onSelect={props.onSelect} />
+      <p className="visually-hidden" role="status">{t("Panes waiting for you: {n}", { n: props.machines.reduce((sum, machine) => sum + panesNeedingYou(machine).length, 0) })}</p>
       {props.machines.map((machine) => <MachineGroup key={machine.id} {...props} machine={machine} />)}
       {!props.machines.length && <p className="tree-state" role="status">{t("Loading PCs…")}</p>}
     </div>
@@ -92,6 +93,7 @@ function MachineGroup({ machine, ...props }: Props & { machine: Machine }) {
       {confirmDelete && <p className="field-hint">{t("Removes this registration. Remote sessions keep running.")}</p>}
     </div>}
     {error && <p className="machine-error" role="alert">{error}</p>}
+    {!collapsed && <NeedsInput machine={machine} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} onSelect={props.onSelect} />}
     {!collapsed && <div className={online ? "" : "machine-offline"} {...(!online ? { inert: "" } : {})}>
       {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} /></MachineContext.Provider>}
     </div>}

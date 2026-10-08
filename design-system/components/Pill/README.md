@@ -8,7 +8,7 @@ A rounded mono chip (`.pill`) for small metadata: the Needs you count, row facts
 
 ## Anatomy
 - `span.pill` — inline-flex, `--chip-h` tall, `0 --space-2` padding, `--border` hairline edge, `--radius-pill`, `--font-mono` at `--fs-2xs`, `--text-dim`, no wrap.
-- Needs you: `h2.needs-input-heading` text followed by `span.pill` with the count.
+- Needs you: `h2.needs-input-heading` text followed by `span.pill` with the count; inside `.needs-input.is-machine` the heading and pill take `--accent` (pill edge too).
 - Header: `.header-meta > span.pill.pill-offline` before the sign-out and More icon buttons.
 - Worktree: last child of `button.worktree-row`, after the branch/path copy.
 

@@ -79,6 +79,14 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Changed
+- **Needs you** moved from the top of the sidebar into each PC group, under the PC's header row and
+  above Projects, listing only that PC's panes. It now holds agents that are `done` and not yet
+  seen as well as blocked ones (badges INPUT and DONE; blocked first), shows the workspace as the
+  row subtitle (the PC is the group around it) and is marked as the sidebar's attention block
+  (`--accent-tint` fill, `--accent` bar, heading and count). It is absent for a PC with nothing
+  waiting and for an offline PC, and folds with its PC. The screen-reader line counts both states
+  ("Panes waiting for you: {n}"). The design system bundle gains the missing
+  `.sidebar-section-header` rules.
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
   copy, `claude --resume <id> --fork-session`, so the running session is never driven by two
   processes; its **Go to tab** icon, beside the copy icon, selects the pane that has it. Copy command

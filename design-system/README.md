@@ -66,7 +66,7 @@ Only state changes move: hover/press (`120ms`, `cubic-bezier(0.2, 0, 0, 1)`), th
 ## Content
 
 - Voice: short, plain, sentence case. Name things by what the user sees: "New project", "New tab · api", "Open worktree…", "Close project".
-- State words are fixed: **READY**, **RUN**, **INPUT**, **DONE**, and **—** for unknown. The attention group is **Needs you**.
+- State words are fixed: **READY**, **RUN**, **INPUT**, **DONE**, and **—** for unknown. The attention group is **Needs you**: one per PC, inside its group, listing INPUT then DONE panes.
 - Shortcuts are written `Mod+Shift+key`; Mod renders `⌘` on Apple platforms and `Ctrl` elsewhere, in `.kbd` keycaps.
 - A working directory used as a title shows its last folder (`~/dev/api` → `api`); the full path lives in the tooltip.
 - Danger is asked, not hidden: an irreversible action opens a confirm with Cancel focused and the danger action on the right; a refusal turns into its escalation (**Delete anyway**) with the refusal's own words above it.

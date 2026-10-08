@@ -5293,6 +5293,25 @@ button, a, [role="button"] {
   border-bottom: var(--hairline) solid var(--border);
 }
 
+/* inside a PC: an attention block, tinted and barred in the accent, ahead of its Projects */
+.needs-input.is-machine {
+  margin: var(--space-1) var(--space-2) var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-2) var(--space-1);
+  border-bottom: 0;
+  border-left: var(--rail-w) solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-tint);
+}
+
+.needs-input.is-machine .needs-input-heading {
+  color: var(--accent);
+}
+
+.needs-input.is-machine .pill {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .needs-input-heading {
   display: flex;
   align-items: center;
@@ -7221,6 +7240,35 @@ button, a, [role="button"] {
   .pane-actions {
     transition: none;
   }
+}
+
+/* the Spaces and Agents sections, as herdr's own sidebar: a small caps header with a fold chevron */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sidebar-section-header:hover,
+.sidebar-section-header:focus-visible {
+  color: var(--text-strong);
+}
+
+.sidebar-section-header > svg {
+  flex: 0 0 auto;
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 

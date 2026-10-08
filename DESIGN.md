@@ -385,10 +385,15 @@ One set for both themes: the card is island black wherever it shows.
 - Mono metadata at `--chip-h`. The **Needs you** count is one; offline is the one header pill and uses danger tokens.
 
 ### Sidebar roster row and footer
-- No top bar. The sidebar opens with the plan panel (when Settings puts it there), **Needs you**
-  and the PC groups. A workspace starts from the `+` on its PC's header, or from the **New project**
+- No top bar. The sidebar opens with the plan panel (when Settings puts it there) and the PC groups. A workspace starts from the `+` on its PC's header, or from the **New project**
   button in the dashed **No projects yet** box of an empty PC. **Add PC** lives in the sidebar footer, Settings →
   Remote PCs and in the command palette. Search lives in the command palette, not the roster.
+- **Needs you** lives inside each PC group, under its header row and above Projects: the PC's panes
+  that wait for the user, blocked (INPUT) first, then done and not yet seen (DONE), each in workspace
+  order, with the workspace label as the subtitle. It is the one attention block of the sidebar:
+  `--accent-tint` fill, a `--rail-w` bar in `--accent`, `--radius-md`, heading and count pill in
+  `--accent`; the row badges keep their own status colours. It is absent when the PC has no such
+  pane or is offline, and folds with the PC.
 - Each PC group holds two foldable sections, as herdr's own sidebar: **Projects** above **Agents**,
   each headed by its name and count (Projects counts the workspaces that draw a row). Folds are
   remembered per PC; both start open.

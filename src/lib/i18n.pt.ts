@@ -630,7 +630,7 @@ export const PT: Record<string, string> = {
   "…": "…",
   "Alerts": "Alertas",
   "Needs you": "Precisa de você",
-  "Panes waiting for input: {n}": "Painéis aguardando resposta: {n}",
+  "Panes waiting for you: {n}": "Painéis aguardando você: {n}",
   "Keep screen on": "Manter a tela ligada",
   "While a terminal or chat pane is open. Requires HTTPS or localhost and a supported browser.": "Enquanto um painel de terminal ou chat estiver aberto. Exige HTTPS ou localhost e um navegador compatível.",
   "Test notification": "Notificação de teste",

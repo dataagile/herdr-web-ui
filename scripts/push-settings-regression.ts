@@ -93,6 +93,8 @@ export async function checkPushSettings(browser: Browser, origin: string): Promi
     assert.equal(tests.length, beforeMissing);
 
     await page.getByRole("button", { name: "Close settings", exact: true }).click();
+    // the bell leaves the header on a phone (it is a drawer row there): back to the desktop for it
+    await page.setViewportSize({ width: 1280, height: 800 });
     await tapBell(page);
     await page.keyboard.press("ControlOrMeta+Shift+Comma");
     assert.equal(await send.isDisabled(), true, "testing must not turn alerts on implicitly");

@@ -11,6 +11,7 @@ import type { WorkspaceCreated, WorktreeOpened } from "../shared/protocol.ts";
 import { alertsOffMarked, alertsState, tapBell } from "./header-bell.ts";
 import { checkPushSettings } from "./push-settings-regression.ts";
 import { checkWakeLock } from "./wake-lock-regression.ts";
+import { checkHeaderControls } from "./header-controls-regression.ts";
 import { checkNeedsInput } from "./needs-input-regression.ts";
 import { checkSecretInput } from "./secret-input-regression.ts";
 import { checkTerminalCopy } from "./terminal-copy-regression.ts";
@@ -358,12 +359,15 @@ try {
   console.log("PASS an update answer that arrives while the page is hidden releases the buttons");
 
   // the header's bell turns this device's alerts on, and off again (it stayed disabled once on)
-    // before the permission question is answered the item already reads as on: in-app alerts show
+  // before the permission question is answered the bell already reads as on: in-app alerts show
   assert.equal((await alertsState(page)).on, true, "before the permission is asked the bell reads as on");
   assert.equal(await alertsOffMarked(page), false, "alerts that are on leave the bell unmarked");
   await context.grantPermissions(["notifications"], { origin });
   await tapBell(page);
-  await until(async () => (await alertsState(page)).title.includes("pushed") || (await alertsState(page)).title.startsWith("Alerts on"), "the bell's tap takes the permission");
+  await until(async () => {
+    const { title } = await alertsState(page);
+    return title.includes("pushed") || title.startsWith("Alerts on");
+  }, "the bell's tap takes the permission");
   assert.equal((await alertsState(page)).on, true);
   assert.equal(await alertsOffMarked(page), false);
   await tapBell(page);
@@ -399,6 +403,7 @@ try {
 
   await checkPushSettings(browser, origin);
   await checkWakeLock(browser, origin, paneA);
+  await checkHeaderControls(browser, origin, paneA, join(root, "a"));
   await checkNeedsInput(browser, origin, paneA);
   await checkSecretInput(browser, origin);
   await checkTerminalCopy(browser, origin);

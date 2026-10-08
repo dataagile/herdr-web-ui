@@ -313,9 +313,13 @@ One set for both themes: the card is island black wherever it shows.
   from the left `24px` edge opens the drawer and a swipe to the left closes it (`56px` of travel).
 - The terminal stack contains a positioned terminal surface, then composer or key bar. The xterm
   mount stays alive under the chat lens; changing views never creates a second connection.
-- At `<=480px` the brand name, the offline pill and desktop-only control labels go (Split, Files
-  and New tab keep their icons), and the palette's button gives its room to the title: the palette
-  is the first row of the drawer (`.drawer-palette`) there.
+- At `<=480px` the brand name, the offline pill, desktop-only control labels, the palette's button,
+  **Files** and the **Alerts** bell go from the header (Split and New tab keep their icons) and give
+  their room to the title. They are the first rows of the drawer (`.drawer-rows`: `.drawer-palette`,
+  `.drawer-files`, `.drawer-alerts` with the bell's state as a `--text-dim` hint at the row end;
+  Files and the palette close the drawer). The ☰ toggle carries the `--dot-size` `--accent` dot
+  while alerts are off, so the cue stays in sight. The header's buttons keep `--touch-target` under
+  `pointer: coarse`: no smaller size is drawn for the phone.
   Icons and selected context remain.
 
 ## 5. Components
@@ -567,13 +571,18 @@ One set for both themes: the card is island black wherever it shows.
   when the title, the PC or the workspace does not already say it (`lib/headerCrumb.ts`). The
   title may shorten with an ellipsis; the crumb never does: when it does not fit whole beside the
   whole title it is not drawn, and the title has the row. The full path is in the context's
-  tooltip and behind a small copy button (`.context-copy`, `Copy` icon, `--text-dim`) after the
-  title, which turns into a check for 1.5 s once the path is on the clipboard. With no selection,
-  the brand fills the context slot.
+  tooltip and behind a small copy button (`.context-copy`, `Copy` icon, `--text-dim`, `--space-6`
+  square; `--touch-target` under `pointer: coarse`): at the end of the crumb, or - while the crumb
+  is wrapped out of sight (the context carries `.is-crumb-hidden`, set by a `ResizeObserver` in
+  `App.tsx`) - right after the title. Exactly one is shown; the crumb's keeps its room hidden. The
+  button turns into a check for 1.5 s once that pane's path is on the clipboard; where the clipboard
+  API is missing (plain HTTP) it opens the browser's prompt with the path ready to select. With no
+  selection, the brand fills the context slot.
 - **Alerts** is a bell button (`.header-bell`, `aria-pressed`, its title says this device's state in
   words) that switches this device's alerts; shown as `BellOff` while off. While alerts are off the
   button carries a `--dot-size` `--accent` dot: the dot marks the state that needs a look, never
-  "on". **Files** opens the file browser for the pane in front.
+  "on". **Files** opens the file browser for the pane in front; its label goes at `<=1100px` so the
+  title keeps the room.
 - The segmented Chat/Terminal view switch lives in the header. There is no floating view-toggle pill.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows

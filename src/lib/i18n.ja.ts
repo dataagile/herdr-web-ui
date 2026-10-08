@@ -859,6 +859,7 @@ export const JA: Record<string, string> = {
   "Copy command": "コマンドをコピー",
   "Copy path: {path}": "パスをコピー: {path}",
   "Path copied": "パスをコピーしました",
+  "Copy path": "パスをコピー",
   "Show more": "さらに表示",
   "No match in the loaded sessions. Show more to search further.": "読み込み済みのセッションに一致するものはありません。「さらに表示」で検索を続けます。",
   "{n} prompts": "プロンプト {n} 件",

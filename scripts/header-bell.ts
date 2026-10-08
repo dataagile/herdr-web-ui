@@ -19,7 +19,7 @@ export async function alertsState(page: Page): Promise<{ on: boolean; title: str
 
 /** Whether the bell carries the dot: alerts are off on this device. The dot and the pressed state have to agree. */
 export async function alertsOffMarked(page: Page): Promise<boolean> {
-  const dot = (await page.locator(".app-header .header-bell-dot").count()) === 1;
+  const dot = (await page.locator(".app-header .header-bell .header-bell-dot").count()) === 1;
   const on = (await alertsState(page)).on;
   if (dot === on) throw new Error(`the bell's dot (${dot}) and its pressed state (${on}) disagree`);
   return dot;

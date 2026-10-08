@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Bell, BellOff, Check, Columns2, Copy, FolderOpen, Lock, Maximize2, Menu, MessageSquare, Minimize2, PanelLeft, Plus, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, PaneInfo, PaneLayoutSnapshot } from "../shared/protocol.ts";
@@ -203,8 +203,21 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [lens, setLens] = useState<{ key: string; view: PaneView }>({ key: "", view: "terminal" });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // the path button in the header's title shows a check for a moment after it copies
-  const [pathCopied, setPathCopied] = useState(false);
+  // the header's copy-path button shows a check for a moment after it copies; the state is the
+  // path it copied, so another pane's button does not show one
+  const [copiedPath, setCopiedPath] = useState<string | null>(null);
+  const copiedTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
+  const copyPath = async (path: string): Promise<void> => {
+    // no clipboard API on a plain-HTTP address: the browser's own box has the path selected
+    if (!(await copyText(path))) {
+      window.prompt(t("Copy path"), path);
+      return;
+    }
+    setCopiedPath(path);
+    window.clearTimeout(copiedTimer.current);
+    copiedTimer.current = window.setTimeout(() => setCopiedPath(null), 1500);
+  };
   // the Files dialog, and the file open in the viewer (a path as the chat or the dialog gave it)
   const [filesOpen, setFilesOpen] = useState(false);
   const { viewing, openFile, closeFile } = useFileViewer();
@@ -635,6 +648,23 @@ export function App() {
     ? headerCrumb({ machine: selectedMachine?.name ?? selectedMachineId, workspace: selectedWorkspace?.label ?? selectedPane.workspace_id, title: selectedTitle, cwd: selectedPane.cwd })
     : null;
 
+  // the crumb that does not fit wraps to a second line the header clips (styles.css, .context):
+  // then the copy button moves from its end to the title
+  const contextRef = useRef<HTMLDivElement>(null);
+  const [crumbHidden, setCrumbHidden] = useState(false);
+  const hasContext = crumb !== null;
+  useLayoutEffect(() => {
+    const context = contextRef.current;
+    if (!context) return;
+    const title = context.querySelector<HTMLElement>(".context-title");
+    const sub = context.querySelector<HTMLElement>(".context-sub");
+    const measure = (): void => setCrumbHidden(!title || !sub || sub.offsetTop > title.offsetTop);
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const element of [context, title, sub]) if (element) observer.observe(element);
+    return () => observer.disconnect();
+  }, [hasContext]);
+
   useEffect(() => {
     document.title = selectedTitle ? `${selectedTitle} · herdr` : APP_TITLE;
   }, [selectedTitle]);
@@ -811,22 +841,17 @@ export function App() {
   // the chat's surface is what the pane column shows: the header's pane zone and the tab strip
   // take it (from 769px). A pane herdr could not restore draws a placeholder, not the chat.
   // the Chat is for one pane at a time: with several side by side, each shows its terminal
-  // the copy button sits at the end of the crumb; below 769px, where the crumb is not drawn, beside the title
-  const copyPathButton = (place: "in-title" | "in-crumb") => crumb?.path == null ? null : (
-    <button
-      type="button"
-      className={`icon-button context-copy ${place}`}
-      aria-label={pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path })}
-      title={pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path })}
-      onClick={() => void copyText(crumb.path ?? "").then((copied) => {
-        if (!copied) return;
-        setPathCopied(true);
-        window.setTimeout(() => setPathCopied(false), 1500);
-      })}
-    >
-      {pathCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-    </button>
-  );
+  // the copy button sits at the end of the crumb; beside the title while the crumb is wrapped out of sight
+  const copyPathButton = (place: "in-title" | "in-crumb") => {
+    if (crumb?.path == null) return null;
+    const pathCopied = copiedPath === crumb.path;
+    const label = pathCopied ? t("Path copied") : t("Copy path: {path}", { path: crumb.path });
+    return (
+      <button type="button" className={`icon-button context-copy ${place}`} aria-label={label} title={label} onClick={() => void copyPath(crumb.path ?? "")}>
+        {pathCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+      </button>
+    );
+  };
 
   const shownView: PaneView = splitting ? "terminal" : view;
   const chatShown = showsChat(selectedPane, shownView);
@@ -868,16 +893,20 @@ export function App() {
             .header-side is the sidebar's own top row from 769px (styles.css); below that its
             buttons sit in the bar */}
         <div className="header-side">
-          <button
-            type="button"
-            className="icon-button drawer-toggle"
-            aria-label={t(drawerOpen ? "Close project list" : "Open project list")}
-            aria-expanded={drawerOpen}
-            aria-controls="workspace-drawer"
-            onClick={() => setDrawerOpen((open) => !open)}
-          >
-            {drawerOpen ? <X /> : <Menu />}
-          </button>
+          <span className="drawer-toggle-wrap">
+            <button
+              type="button"
+              className="icon-button drawer-toggle"
+              aria-label={t(drawerOpen ? "Close project list" : "Open project list")}
+              aria-expanded={drawerOpen}
+              aria-controls="workspace-drawer"
+              onClick={() => setDrawerOpen((open) => !open)}
+            >
+              {drawerOpen ? <X /> : <Menu />}
+            </button>
+            {/* phone only: the bell is in the drawer there, and its dot stays on the way to it */}
+            {alertsOffDot && <span className="header-bell-dot is-drawer-cue" aria-hidden="true" />}
+          </span>
           <button
             type="button"
             className="icon-button header-desktop-only sidebar-toggle"
@@ -893,7 +922,7 @@ export function App() {
           </button>
         </div>
         {selectedPane && crumb ? (
-          <div className="context" title={crumb.tooltip}>
+          <div className={`context${crumbHidden ? " is-crumb-hidden" : ""}`} ref={contextRef} title={crumb.tooltip}>
             <div className="context-title">
               {selectedAgent && <AgentMark agent={selectedAgent} size={18} />}
               <span className="context-title-text">{selectedTitle}</span>
@@ -942,7 +971,7 @@ export function App() {
           </button>
         )}
         {selectedPane && (
-          <button type="button" className="btn btn-ghost" title={t("Browse files")} onClick={() => setFilesOpen(true)}>
+          <button type="button" className="btn btn-ghost header-files" title={t("Browse files")} onClick={() => setFilesOpen(true)}>
             <FolderOpen aria-hidden="true" />
             <span className="header-desktop-only">{t("Files")}</span>
           </button>
@@ -990,11 +1019,26 @@ export function App() {
 
       <div className="app-body">
         <aside id="workspace-drawer" className={`sidebar${drawerOpen ? " is-open" : ""}`}>
-          {/* phone only (styles.css): the header's palette button gives its room to the pane's title */}
-          <button type="button" className="btn btn-ghost drawer-palette" onClick={() => { setDrawerOpen(false); setPaletteOpen(true); }}>
-            <Search aria-hidden="true" />
-            <span>{t("Command palette")}</span>
-          </button>
+          {/* phone only (styles.css): the header's palette, Files and Alerts leave it for the pane's title */}
+          <div className="drawer-rows">
+            <button type="button" className="btn btn-ghost drawer-palette" onClick={() => { setDrawerOpen(false); setPaletteOpen(true); }}>
+              <Search aria-hidden="true" />
+              <span>{t("Command palette")}</span>
+            </button>
+            {selectedPane && (
+              <button type="button" className="btn btn-ghost drawer-files" onClick={() => { setDrawerOpen(false); setFilesOpen(true); }}>
+                <FolderOpen aria-hidden="true" />
+                <span>{t("Files")}</span>
+              </button>
+            )}
+            {bellVisible && (
+              <button type="button" className="btn btn-ghost drawer-alerts" aria-pressed={bell.on} title={bell.title} onClick={() => void bell.run()}>
+                {bell.on ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+                <span>{t("Alerts")}</span>
+                <span className="drawer-hint">{bell.state}</span>
+              </button>
+            )}
+          </div>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}
           <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} onSelect={selectTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
         </aside>

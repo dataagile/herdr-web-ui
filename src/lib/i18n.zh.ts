@@ -861,6 +861,7 @@ export const ZH: Record<string, string> = {
   "Copy command": "复制命令",
   "Copy path: {path}": "复制路径：{path}",
   "Path copied": "路径已复制",
+  "Copy path": "复制路径",
   "Show more": "显示更多",
   "No match in the loaded sessions. Show more to search further.": "已加载的会话中没有匹配项。点击“显示更多”继续搜索。",
   "{n} prompts": "{n} 条提示",

@@ -81,8 +81,9 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ### Changed
 - The header's **More** menu (`⋯`) is gone. **Files** and **Alerts** (a bell, with its dot while
   alerts are off) are buttons of their own, New tab was already one, and a small copy button after
-  the pane's title copies its folder's full path. On a phone Split stays in the header (icon only)
-  and the command palette is the first row of the ☰ drawer.
+  the pane's folder copies its full path (at the end of the crumb, or after the title when the
+  crumb does not fit). On a phone Split stays in the header (icon only); the command palette, Files
+  and Alerts are the first rows of the ☰ drawer.
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
   copy, `claude --resume <id> --fork-session`, so the running session is never driven by two
   processes; its **Go to tab** icon, beside the copy icon, selects the pane that has it. Copy command

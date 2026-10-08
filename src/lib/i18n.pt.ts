@@ -838,6 +838,7 @@ export const PT: Record<string, string> = {
   "Copy command": "Copiar comando",
   "Copy path: {path}": "Copiar caminho: {path}",
   "Path copied": "Caminho copiado",
+  "Copy path": "Copiar caminho",
   "Show more": "Mostrar mais",
   "No match in the loaded sessions. Show more to search further.": "Nada encontrado nas sessões carregadas. Use Mostrar mais para buscar além.",
   "{n} prompts": "{n} prompts enviados",

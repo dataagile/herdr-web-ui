@@ -79,6 +79,10 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Changed
+- The header's **More** menu (`⋯`) is gone. **Files** and **Alerts** (a bell, with its dot while
+  alerts are off) are buttons of their own, New tab was already one, and a small copy button after
+  the pane's title copies its folder's full path. On a phone Split stays in the header (icon only)
+  and the command palette is the first row of the ☰ drawer.
 - A History row always opens a new tab. A session that is open in a pane (**OPEN NOW**) opens as a
   copy, `claude --resume <id> --fork-session`, so the running session is never driven by two
   processes; its **Go to tab** icon, beside the copy icon, selects the pane that has it. Copy command

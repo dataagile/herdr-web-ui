@@ -27,7 +27,7 @@ async function assertShell(page: Page, label: string, titleRoom = 60): Promise<v
   const newTab = page.locator(".app-header").getByRole("button", { name: "New tab" });
   assert.equal(await newTab.count(), 1, `${label}: the header has its own New tab button`);
   assert.equal(await newTab.locator(".header-desktop-only").isVisible(), false, `${label}: the New tab button is icon-only on this width`);
-  assert.equal(await page.locator(".app-header .header-more-button").isVisible(), true, `${label}: New tab is an item of the header's More menu`);
+  assert.equal(await page.locator(".app-header .header-more-button").count(), 0, `${label}: the header has no More menu`);
   const title = await box(page, ".context-title-text");
   assert.ok(title.width >= titleRoom, `${label}: the pane's title keeps its room in the header (${title.width}px)`);
   const header = await box(page, ".app-header");

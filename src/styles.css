@@ -686,7 +686,7 @@ button {
 /* The selected pane on one line: mark and title, then PC › workspace › folder. The title may
    shorten; the crumb may not: when it does not fit whole beside a whole title it wraps to a second
    line that the height clips, so it is all there or gone, and the title has the row. The full
-   location is in the tooltip and at the top of the More menu. */
+   location is in the tooltip and on the copy button beside the title. */
 .context {
   --context-line: calc(var(--fs-lg) * var(--lh-base));
   display: flex;
@@ -825,20 +825,14 @@ button {
   }
 }
 
-/* New tab, Browse files and Alerts are one menu's items (RowMenu, through its portal) */
-.header-more {
+/* the Alerts button: a dot on it while alerts are off on this device. Its title says it in words. */
+.header-bell {
   position: relative;
   display: inline-flex;
+  flex: 0 0 auto;
 }
 
-/* nothing to offer but the palette, which has its own button above phone width */
-.header-more.is-phone-only {
-  display: none;
-}
-
-/* alerts are off on this device: the one state of the menu worth a glance. The button's name
-   and the Alerts item say it in words. */
-.header-more-dot {
+.header-bell-dot {
   position: absolute;
   top: var(--space-1);
   right: var(--space-1);
@@ -849,25 +843,22 @@ button {
   pointer-events: none;
 }
 
-/* the menu's first thing, two lines on purpose: "PC › workspace", then the whole path in the
-   mono face. It is where a touch screen reads the path. A path longer than six lines scrolls
-   here, so the items under it stay on the screen. */
-.header-more-crumb {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(6em * var(--lh-base));
-  overflow-y: auto;
-  overscroll-behavior: contain;
+/* copy the pane's folder: small and dim beside the title, the title keeps the row's give; two
+   classes so the touch size (.icon-button, pointer: coarse) does not grow it */
+.icon-button.context-copy {
+  width: var(--space-6);
+  height: var(--space-6);
   color: var(--text-dim);
-  font-size: var(--fs-xs);
-  line-height: var(--lh-base);
-  overflow-wrap: anywhere;
 }
 
-.header-more-path {
-  color: var(--text);
-  font-family: var(--font-mono);
-  white-space: pre-wrap;
+.context-copy svg {
+  width: var(--fs-md);
+  height: var(--fs-md);
+}
+
+/* the palette's row at the top of the phone drawer; hidden everywhere else */
+.drawer-palette {
+  display: none;
 }
 
 /* From 769px the header is two zones. Over the sidebar, the sidebar's own top row (its toggle
@@ -1493,7 +1484,7 @@ button {
 
 /* phones: the version pill is the least useful header item; below that, the brand word goes
    too - the mark keeps the identity. The palette's button gives its room to the pane's title:
-   the palette is the More menu's first item there. */
+   the palette is the first row of the drawer there. */
 @media (max-width: 480px) {
   .conn {
     padding: 0 var(--space-1);
@@ -1504,13 +1495,32 @@ button {
   .pill-offline,
   .brand-name,
   .palette-button,
-  .header-split,
   .header-desktop-only {
     display: none;
   }
 
-  .header-more.is-phone-only {
-    display: inline-flex;
+  /* the header's buttons are all icons here: tighter, so the title keeps a few letters beside them */
+  .app-header {
+    gap: var(--space-1);
+  }
+
+  .app-header > .btn {
+    padding: 0 var(--space-1);
+  }
+
+  .app-header .icon-button:not(.context-copy) {
+    width: var(--control-h);
+  }
+
+  /* the header's room goes to the title; the agent shows in the sidebar */
+  .context-title .agent-mark {
+    display: none;
+  }
+
+  .drawer-palette {
+    display: flex;
+    justify-content: flex-start;
+    margin: var(--space-2);
   }
 }
 

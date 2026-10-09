@@ -41,3 +41,5 @@ herdr's tab row over the pane: one tab per herdr tab of the selected workspace, 
 
 Source: src/components/TabStrip.tsx · TabStrip.css
 Preview: static rendition (markup + the repo's CSS), not the live React component.
+
+- On a short phone (up to 480px wide and 600px tall) the strip is hidden while a prompt card is docked, so the card keeps its room; the pane's name returns once the card is answered.

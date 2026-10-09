@@ -9380,6 +9380,14 @@ button.sidebar-section-label:focus-visible { outline-offset: calc(var(--ring-off
   }
 }
 
+/* a short phone (the keyboard up, or landscape-ish) answering a question: the card needs the room
+   more than the pane's name does, and the name is back as soon as the card is answered */
+@media (max-width: 480px) and (max-height: 600px) {
+  .pane-column:has(.prompt-dock > .prompt-card) .tab-strip {
+    display: none;
+  }
+}
+
 /* ===== components/TerminalInput.css ===== */
 /* the terminal's input line on touch screens (TerminalInput.tsx): above the key bar, one row
    that grows to four, with a send button that reads Enter while the line is empty */

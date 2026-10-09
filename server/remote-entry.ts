@@ -49,7 +49,7 @@ async function spawnDetachedWindows(exe: string, args: string[], log: string): P
   ].join("\n");
   const ps = Bun.spawn(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { stdin: "ignore", stdout: "ignore", stderr: "pipe" });
   const [code, stderr] = await Promise.all([ps.exited, new Response(ps.stderr).text()]);
-  if (code !== 0) throw new Error(`herdr could not be started through WMI (${code}): ${stderr.trim()}`);
+  if (code !== 0) throw new Error(`The session server could not be started through WMI (${code}): ${stderr.trim()}`);
 }
 
 const descriptor = descriptorPath();
@@ -81,7 +81,7 @@ try {
     if (existsSync(socket) && !(windows ? staleWindowsMarker(socket) : await refusedSocket(socket))) throw error;
     // a Windows bundle carries no herdr: its installer is herdr's own, and setup ran it
     const herdr = process.env["HERDR_WEB_HERDR_BIN"] || join(bundle, "bin/herdr");
-    if (windows && !existsSync(herdr)) throw new Error(`herdr is not installed at ${herdr}; install it with herdr.dev/install.cmd`);
+    if (windows && !existsSync(herdr)) throw new Error(`The session server is not installed at ${herdr}; install it with herdr.dev/install.cmd`);
     const args = session ? ["--session", session, "server"] : ["server"];
     // one log per session on Windows: cmd holds the file a running daemon's output goes to
     const log = join(dirname(descriptor), windows && session ? `herdr-${session}.log` : "herdr.log");
@@ -90,10 +90,10 @@ try {
     let ready = false;
     // a cold first start (fresh HOME, slow disk or CI runner) can take well over ten seconds
     for (let i = 0; i < 300; i++) { try { await bridgeIdentity(); ready = true; break; } catch { await Bun.sleep(100); } }
-    if (!ready) throw new Error("herdr did not start; inspect ~/.config/herdr-web-ui/bridges/herdr.log");
+    if (!ready) throw new Error("The session server did not start; inspect ~/.config/herdr-web-ui/bridges/herdr.log");
   }
   const info = await bridgeIdentity();
-  if (info.herdr.protocol < 22) throw new Error("herdr 0.9+ is required; update it explicitly before connecting");
+  if (info.herdr.protocol < 22) throw new Error("Session server 0.9+ is required; update it explicitly before connecting");
   const token = randomBytes(32).toString("hex");
   const server = createServer({ port: 0, hostname: "127.0.0.1", token, machines: false, stateDir: descriptor + ".state" });
   const registration = registerBridge(server.port, token);

@@ -17,7 +17,7 @@ Design system for the **Portal Dev Data Agile** (`dataagile/portal_desenvolvimen
 | `components/bundle.css` | Component styles: herdr's real CSS + the portal CSS scoped under `.da-portal` |
 | `components/<Name>/README.md`, `preview.html` | Guidelines and a static preview per component (open a preview with `tokens.css` and `bundle.css` loaded) |
 | `fonts/` | Pretendard Variable (Latin subset), JetBrains Mono |
-| `assets/` | DevIcons (the Data Agile Dev app icon of both products), Portal (Data Agile marks), Screens (herdr screenshots), Logos and Icons (upstream herdr ram, reference only) |
+| `assets/` | DevIcons (the DevDA "<DA/>" app icon of both products), Portal (Data Agile marks), Screens (herdr screenshots), Logos and Icons (upstream herdr ram, reference only) |
 | `design-system.json` | Index of the artifact (asset ids); kept so the artifact can be re-synced |
 
 The artifact on claude.ai is the source of truth for design work; re-export it here when it changes.

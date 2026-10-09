@@ -4,11 +4,11 @@ import { builtLabel, currentBuild, versionLine } from "./buildInfo.ts";
 
 describe("versionLine", () => {
   it("is the brand, the version and the commit, in that order", () => {
-    expect(versionLine({ version: "0.3.52", commit: "fc94649", built: null })).toBe("Data Agile Dev · v0.3.52 · fc94649");
+    expect(versionLine({ version: "0.3.52", commit: "fc94649", built: null })).toBe("DevDA · v0.3.52 · fc94649");
   });
 
   it("reads the dev commit a build without Git carries", () => {
-    expect(versionLine({ version: "0.3.52", commit: "dev", built: null }).split(" · ")).toEqual(["Data Agile Dev", "v0.3.52", "dev"]);
+    expect(versionLine({ version: "0.3.52", commit: "dev", built: null }).split(" · ")).toEqual(["DevDA", "v0.3.52", "dev"]);
   });
 });
 

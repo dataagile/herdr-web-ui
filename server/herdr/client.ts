@@ -96,7 +96,7 @@ export async function herdrRpc<T = unknown>(
     };
 
     timer = setTimeout(
-      () => finish(() => reject(new HerdrError("timeout", `herdr ${method} timed out after ${timeoutMs}ms`))),
+      () => finish(() => reject(new HerdrError("timeout", `session server ${method} timed out after ${timeoutMs}ms`))),
       timeoutMs,
     );
 
@@ -105,11 +105,11 @@ export async function herdrRpc<T = unknown>(
       try {
         frame = JSON.parse(line) as typeof frame;
       } catch {
-        finish(() => reject(new HerdrError("bad_frame", `herdr sent unparseable frame: ${line.slice(0, 200)}`)));
+        finish(() => reject(new HerdrError("bad_frame", `session server sent unparseable frame: ${line.slice(0, 200)}`)));
         return;
       }
       if (frame.error) {
-        const { code = "herdr_error", message = "herdr request failed" } = frame.error;
+        const { code = "herdr_error", message = "session server request failed" } = frame.error;
         finish(() => reject(new HerdrError(code, message)));
         return;
       }
@@ -125,10 +125,10 @@ export async function herdrRpc<T = unknown>(
           onData(chunk);
         },
         error(_sock, err) {
-          finish(() => reject(new HerdrError("socket_error", err?.message ?? "herdr socket error")));
+          finish(() => reject(new HerdrError("socket_error", err?.message ?? "session server socket error")));
         },
         close() {
-          finish(() => reject(new HerdrError("closed", `herdr closed the connection before answering ${method}`)));
+          finish(() => reject(new HerdrError("closed", `session server closed the connection before answering ${method}`)));
         },
       },
     })
@@ -146,7 +146,7 @@ export async function herdrRpc<T = unknown>(
       })
       .catch((err: Error) => {
         finish(() =>
-          reject(new HerdrError("connect_failed", `cannot reach herdr at ${socketPath}: ${err.message}`)),
+          reject(new HerdrError("connect_failed", `cannot reach the session server at ${socketPath}: ${err.message}`)),
         );
       });
   });
@@ -492,7 +492,7 @@ export function subscribeEvents(
         onData(chunk);
       },
       error(_sock, err) {
-        if (!closed) handlers.onError?.(new HerdrError("socket_error", err?.message ?? "herdr socket error"));
+        if (!closed) handlers.onError?.(new HerdrError("socket_error", err?.message ?? "session server socket error"));
       },
       close() {
         if (!closed) {

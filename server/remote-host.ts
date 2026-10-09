@@ -138,7 +138,7 @@ const WINDOWS_DESCRIPTORS = `if (Test-Path ${WINDOWS_REGISTRY}) { Get-ChildItem 
 
 export const windowsHost: RemoteHost = {
   kind: "windows",
-  bundleDescription: "Private web bridge bundle (Bun only: herdr owns every terminal on Windows)",
+  bundleDescription: "Private web bridge bundle (Bun only: the session server owns every terminal on Windows)",
   logHint: "%USERPROFILE%\\.config\\herdr-web-ui\\bridges\\bridge.log (bridge-<session>.log for a named session)",
   async inspect(ssh, session) {
     const inspection = await ssh.runPowerShell([
@@ -239,11 +239,11 @@ export const windowsHost: RemoteHost = {
       "$ErrorActionPreference = 'Stop'",
       "$tmp = Join-Path $env:TEMP \"herdr-install-$PID\"; New-Item -ItemType Directory -Force $tmp | Out-Null",
       `curl.exe -fsSLo "$tmp\\install.cmd" ${HERDR_INSTALL_CMD}; if ($LASTEXITCODE -ne 0) { throw 'Could not download the herdr installer' }`,
-      "& cmd.exe /d /c \"$tmp\\install.cmd\"; if ($LASTEXITCODE -ne 0) { throw 'The herdr installer failed' }",
+      "& cmd.exe /d /c \"$tmp\\install.cmd\"; if ($LASTEXITCODE -ne 0) { throw 'The session server installer failed' }",
       "Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue",
     ].join("\n"), undefined, 10 * 60_000);
     const herdr = (await ssh.runPowerShell("Write-Output \"$env:LOCALAPPDATA\\Programs\\Herdr\\bin\\herdr.exe\"")).trim();
-    if (!/^[A-Za-z]:\\/.test(herdr)) throw new Error("herdr's installer left no herdr.exe behind");
+    if (!/^[A-Za-z]:\\/.test(herdr)) throw new Error("The session server's installer left no herdr.exe behind");
     return herdr;
   },
   // no SIGTERM on Windows, so the bridge cannot withdraw its descriptor itself; a stale one
@@ -256,7 +256,7 @@ export const windowsHost: RemoteHost = {
     ].join("\n"));
   },
   async start(ssh, { session, herdrPath, inspection }) {
-    if (!herdrPath) throw new Error("herdr is not installed on this PC");
+    if (!herdrPath) throw new Error("The session server is not installed on this PC");
     const files = windowsBridgeFiles(session);
     // a launcher script: cmd can set the environment and redirect the log without any
     // quoting the WMI command line would have to survive

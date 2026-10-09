@@ -275,7 +275,7 @@ try {
   // ---- V1/V2: the footer says what this is ----
   const version = page.locator(".sidebar-version");
   const line = await version.innerText();
-  assert.match(line, /^Data Agile Dev · v\d+\.\d+\.\d+ · [0-9a-f]{7,}$|^Data Agile Dev · v\d+\.\d+\.\d+ · dev$/, `the footer reads brand, version and commit (${line})`);
+  assert.match(line, /^DevDA · v\d+\.\d+\.\d+ · [0-9a-f]{7,}$|^DevDA · v\d+\.\d+\.\d+ · dev$/, `the footer reads brand, version and commit (${line})`);
   assert.deepEqual(line.split(" · ").length, 3);
   assert.match((await version.getAttribute("title")) ?? "", /^herdr \d+\.\d+\.\d+ · build .+/, "the tooltip says the herdr version and the build");
   await version.scrollIntoViewIfNeeded();

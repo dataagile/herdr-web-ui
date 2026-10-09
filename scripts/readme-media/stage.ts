@@ -1,6 +1,6 @@
 /**
  * A staged, fictional herdr session for the README media (capture.ts): its own named herdr
- * session (never the one you work in), five workspaces under /tmp/herdr-demo, and curated
+ * session (never the one you work in), five workspaces under /tmp/devda-demo, and curated
  * chats served in place of real transcripts. The real hostname never reaches the page.
  */
 process.env["HERDR_TEST_SESSION"] = "herdr-web-ui-demo";
@@ -14,7 +14,7 @@ const { hostname } = await import("node:os");
 
 const REAL_HOST = hostname();
 const HOST = "workstation";
-const ROOT = "/tmp/herdr-demo";
+const ROOT = "/tmp/devda-demo";
 
 import { SPECS, CHATS, PROMPT, type DemoSpec } from "../../site/demo/fixtures.ts";
 export { CHATS, PROMPT };

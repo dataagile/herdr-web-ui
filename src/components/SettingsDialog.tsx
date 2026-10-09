@@ -221,7 +221,7 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, herdrVer
               </div>
             </div>
             <div className="settings-row">
-              <div><span className="settings-label">{t("Colors")}</span><span className="settings-description">{t("herdr's amber, a dark report, neutral charcoal, Catppuccin, or lilac")}</span></div>
+              <div><span className="settings-label">{t("Colors")}</span><span className="settings-description">{t("DevDA's amber, a dark report, neutral charcoal, Catppuccin, or lilac")}</span></div>
               <div className="segmented" aria-label={t("Colors")}>
                 {(["amber", "report", "charcoal", "catppuccin", "lilac"] as const).map((palette) => (
                   <button key={palette} type="button" aria-pressed={settings.palette === palette} onClick={() => update({ palette })}>
@@ -551,9 +551,8 @@ export function SettingsDialog({ open, onClose, actions, updates, auth, herdrVer
 
           <section className="settings-section settings-about">
             <h3>{t("About")}</h3>
-            <p><strong>herdr web ui</strong></p>
+            <p><strong>DevDA</strong></p>
             <a className="btn" href="https://github.com/devswha/herdr-web-ui" target="_blank" rel="noreferrer"><Star aria-hidden="true" />{t("Star on GitHub")}</a>
-            <a href="https://devswha.github.io/herdr-web-ui/" target="_blank" rel="noreferrer">devswha.github.io/herdr-web-ui</a>
           </section>
           <UpdateControls updates={updates} bridgesFollow={pcSettings?.auto_update_bridges === true} />
           <HerdrUpdateControls enabled={open} herdrVersion={herdrVersion} />

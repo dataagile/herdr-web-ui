@@ -31,7 +31,7 @@ describe("installed app", () => {
     const answers = serviceWorkerFetch();
     const get = (path: string) => ({ method: "GET", url: `https://app.test${path}`, mode: "no-cors" });
     expect(answers(get("/manifest.webmanifest"))).toBe(false);
-    expect(answers(get("/icons/icon-192.png?v=da1"))).toBe(true);
+    expect(answers(get("/icons/icon-192.png?v=da2"))).toBe(true);
     expect(answers(get("/assets/index-abc123.js"))).toBe(true);
   });
 });

@@ -206,7 +206,7 @@ function resilientSubscription(
 function logSubscriptionError(error: Error): void {
   const code = error instanceof HerdrError ? error.code : "error";
   if (code === "connect_failed" || code === "socket_error") return;
-  console.error(`herdr events: ${code}: ${error.message}`);
+  console.error(`session server events: ${code}: ${error.message}`);
 }
 
 export function startStatusCollector(handlers: StatusCollectorHandlers, overrides: Partial<StatusCollectorDeps> = {}): StatusCollector {

@@ -49,7 +49,7 @@ export function MachineSidebar(props: Props) {
         <UsageMeters />
       </div>
       {props.actions.portalSignOut && <button className="btn btn-ghost sidebar-footer-action" onClick={props.actions.portalSignOut}><LogOut aria-hidden="true" />{t("Sign out")}</button>}
-      <p className="sidebar-version" title={t("herdr {version} · build {date}", { version: props.herdrVersion ?? "—", date: builtLabel(build.built) ?? "—" })}>{versionLine(build)}</p>
+      <p className="sidebar-version" title={t("server {version} · build {date}", { version: props.herdrVersion ?? "—", date: builtLabel(build.built) ?? "—" })}>{versionLine(build)}</p>
     </footer>
   </div>;
 }
@@ -148,7 +148,7 @@ function MachineActionNotice({ machine, onSetup }: { machine: Machine; onSetup(m
   return <div className="machine-action" role="alert">
     <p className="machine-action-text">
       <strong>{t(update ? "Bridge update needed" : "Setup needed")}</strong>
-      <span>{t(update ? "This PC runs a bridge from a different version of herdr web ui. Update it to reconnect; herdr sessions keep running." : "Reconnecting needs your approval on this PC.")}</span>
+      <span>{t(update ? "This PC runs a bridge from a different version of DevDA. Update it to reconnect; sessions keep running." : "Reconnecting needs your approval on this PC.")}</span>
       {/* the two generic reasons only repeat the sentence above */}
       {machine.error && !/different version|setup needs approval/.test(machine.error) && <span className="machine-action-reason">{machine.error}</span>}
     </p>

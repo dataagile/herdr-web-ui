@@ -14,7 +14,7 @@
 // one, and its shell, bundles and font chunks are all there. Deleted at activation, the first
 // reload without a network would find no shell at all. Nothing is copied across, so no hashed
 // file of an old build outlives the first navigation that reaches the server.
-const CACHE_NAME = "herdr-web-ui-v5-da";
+const CACHE_NAME = "herdr-web-ui-v6-da";
 
 const CACHE_FIRST_PATHS = new Set([
   "/favicon.png",
@@ -121,15 +121,15 @@ self.addEventListener("push", (event) => {
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const watching = windows.some((client) => client.visibilityState === "visible");
-      await self.registration.showNotification(payload.title || "herdr", {
+      await self.registration.showNotification(payload.title || "DevDA", {
         body: payload.body || "",
         tag: payload.tag || "herdr",
         renotify: !watching,
         silent: watching,
         data: { pane_id: payload.pane_id || null, machine_id: payload.machine_id || "local" },
-        icon: "/icons/icon-192.png?v=da1",
+        icon: "/icons/icon-192.png?v=da2",
         // Android's status bar and small icon: white on transparent, or Chrome's bell
-        badge: "/icons/badge-96.png?v=da1",
+        badge: "/icons/badge-96.png?v=da2",
       });
     })(),
   );

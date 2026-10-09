@@ -1,5 +1,5 @@
 /**
- * What this client was built from, for the sidebar footer's line ("Data Agile Dev · v0.3.52 ·
+ * What this client was built from, for the sidebar footer's line ("DevDA · v0.3.52 ·
  * fc94649"): the version is package.json's, the commit and the build time are written into the
  * bundle by vite.config.ts. A build that has none of them (a script that bundles the app without
  * vite, a checkout without Git) says "dev" for the commit and shows no date.
@@ -9,7 +9,7 @@ declare const __APP_COMMIT__: string | undefined;
 declare const __APP_BUILT__: string | undefined;
 
 /** The fork's name: a brand, written the same in every language. */
-export const BRAND_NAME = "Data Agile Dev";
+export const BRAND_NAME = "DevDA";
 
 export interface BuildInfo {
   version: string;
@@ -27,7 +27,7 @@ export function currentBuild(): BuildInfo {
   };
 }
 
-/** "Data Agile Dev · v0.3.52 · fc94649": the three parts the footer shows. */
+/** "DevDA · v0.3.52 · fc94649": the three parts the footer shows. */
 export function versionLine(build: BuildInfo): string {
   return [BRAND_NAME, `v${build.version}`, build.commit].join(" · ");
 }

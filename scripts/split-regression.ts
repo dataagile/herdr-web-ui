@@ -236,7 +236,10 @@ try {
   await menu.waitFor();
   for (const name of ["Split right", "Split down", "Zoom", "New tab", "Close pane"]) assert.equal(await menu.getByRole("menuitem", { name }).count(), 1, `the pane menu offers ${name}`);
   assert.equal(await menu.getByRole("combobox", { name: "Agent of the new pane" }).inputValue(), "", "a shell is the default");
-  assert.ok((await menu.getByRole("combobox", { name: "Agent of the new pane" }).locator("option").count()) >= 2, "the agents are offered");
+  // the choices arrive after the menu opens: poll, a slow runner is not a missing agent
+  const choices = menu.getByRole("combobox", { name: "Agent of the new pane" }).locator("option");
+  await page.waitForFunction(() => (document.querySelector('[role="menu"] select[aria-label="Agent of the new pane"]') as HTMLSelectElement | null)?.options.length! >= 2, null, { timeout: 10_000 }).catch(() => undefined);
+  assert.ok((await choices.count()) >= 2, "the agents are offered");
   await page.keyboard.press("Escape");
   await menu.waitFor({ state: "detached" });
 

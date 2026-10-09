@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-import { Download, ExternalLink, FileDiff, FileText, Pencil, X } from "lucide-react";
+import { Code, Download, Eye, ExternalLink, FileDiff, FileText, Pencil, ShieldOff, X } from "lucide-react";
 
 import "./FileViewer.css";
 import { DirectoryBrowser } from "./DirectoryBrowser.tsx";
 import { FileChanges } from "./FileChanges.tsx";
 import { formatTime } from "./diffLines.tsx";
+import { HtmlFrame } from "./HtmlFrame.tsx";
+import { Markdown } from "./Markdown.tsx";
 
 import type { ChangedFile, FileInfo, SessionChangedFile } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";
 import { formatBytes } from "../lib/bridgeProgress.ts";
 import { LOCAL_MACHINE } from "../../shared/machines.ts";
+import { formatOf, readViewMode, writeViewMode, type ViewMode } from "../lib/fileFormats.ts";
 import { useMachineApi, useMachineId } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
 
@@ -61,6 +64,8 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
   const [saving, setSaving] = useState(false);
   const [loadingFull, setLoadingFull] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // markdown and html are drawn first; the choice between drawn and code is kept per format
+  const [modes, setModes] = useState<Record<"md" | "html", ViewMode>>(() => ({ md: readViewMode("md"), html: readViewMode("html") }));
 
   useEffect(() => setPath(asked), [asked]);
 
@@ -186,7 +191,10 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
         return <iframe className="file-viewer-pdf" src={url} title={info.name} />;
       case "text": {
         const tooLarge = info.size > MAX_EDIT_BYTES;
-        return <>
+        const format = formatOf(info.name);
+        const drawn = format !== null && modes[format] === "view" && !editing;
+        const choose = (mode: ViewMode): void => { if (format === null) return; writeViewMode(format, mode); setModes((current) => ({ ...current, [format]: mode })); };
+        const editbar = drawn ? null : (
           <div className="file-viewer-editbar">
             {editing
               ? <>
@@ -198,13 +206,27 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
                 <Pencil aria-hidden="true" /> {t("Edit")}
               </button>}
           </div>
+        );
+        return <>
+          {format === null ? editbar : (
+            <div className="file-viewer-toolbar">
+              <div className="segmented" role="group" aria-label={t("Format")}>
+                <button type="button" aria-pressed={drawn} disabled={editing} onClick={() => choose("view")}><Eye aria-hidden="true" />{t("View")}</button>
+                <button type="button" aria-pressed={!drawn} onClick={() => choose("code")}><Code aria-hidden="true" />{t("Code")}</button>
+              </div>
+              {editbar}
+              {drawn && format === "html" && <span className="file-viewer-sandbox"><ShieldOff aria-hidden="true" />{t("Scripts are off in this view")}</span>}
+            </div>
+          )}
           {saveError !== null && <p className="file-viewer-note" role="alert">{saveError}</p>}
           {editing
             ? <textarea className="file-viewer-editor" value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} autoFocus aria-label={info.name} />
             : text === null ? <p className="file-viewer-note">{t("Opening…")}</p> : <>
-              <pre className="file-viewer-text">{text}</pre>
+              {!drawn ? <pre className="file-viewer-text">{text}</pre>
+                : format === "md" ? <Markdown className="file-viewer-render">{text}</Markdown>
+                : <HtmlFrame html={text} title={info.name} />}
               {truncated && <p className="file-viewer-note">{t("Showing the first {shown} of {total}.", { shown: formatBytes(TEXT_PREVIEW_BYTES), total: formatBytes(info.size) })}</p>}
-              {tooLarge && <p className="file-viewer-note">{t("This file is too large to edit here; download it instead.")}</p>}
+              {tooLarge && !drawn && <p className="file-viewer-note">{t("This file is too large to edit here; download it instead.")}</p>}
             </>}
         </>;
       }

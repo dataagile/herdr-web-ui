@@ -5215,6 +5215,79 @@ button, a, [role="button"] {
   }
 }
 
+/* ===== components/FileTree.css ===== */
+/* the Files dialog's tree: filter, rows, guides, notes, hints (tokens only) */
+
+/* the filter above the list */
+.dir-browser-filter { position: relative; padding: var(--space-2); border-bottom: var(--hairline) solid var(--border); }
+.dir-browser-filter > svg { position: absolute; left: calc(var(--space-2) + var(--space-3)); top: 50%; transform: translateY(-50%); width: var(--icon-size); height: var(--icon-size); color: var(--text-dim); pointer-events: none; }
+.dir-browser-filter .input { width: 100%; padding-left: calc(var(--space-3) + var(--icon-size) + var(--space-2)); padding-right: calc(var(--control-h) + var(--space-1)); }
+.dir-browser-filter .icon-button { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); color: var(--text-dim); }
+.dir-browser-filter .icon-button svg { width: var(--icon-size); height: var(--icon-size); }
+/* the field's own clear mark would sit beside ours */
+.dir-browser-filter input[type="search"]::-webkit-search-cancel-button { appearance: none; display: none; }
+
+/* nothing matched */
+.dir-browser-empty { margin: 0; padding: var(--space-6) var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); color: var(--text-dim); font-size: var(--fs-sm); text-align: center; }
+.dir-browser-empty svg { width: calc(var(--icon-size) * 4 / 3); height: calc(var(--icon-size) * 4 / 3); }
+.dir-browser-empty strong { color: var(--text-strong); font-weight: var(--fw-semibold); }
+
+/* keyboard hints in the footer */
+.dir-browser-hints { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-dim); font-size: var(--fs-xs); }
+.dir-browser-hints span { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+/* the part that matched: bold plus the accent, never colour alone */
+.dir-browser-hit { background: var(--accent-tint); color: var(--accent); font-weight: var(--fw-semibold); border-radius: var(--radius-sm); }
+
+/* the tree */
+.tree-group { margin: 0; padding: 0; list-style: none; }
+.files-dialog.is-tree { width: min(100%, var(--palette-w)); }
+.dir-browser-tree { --tree-indent: 16px; --tree-row-h: calc(var(--control-h) - var(--space-1)); }
+.files-dialog.is-tree .dir-browser-list { max-height: calc(var(--tree-row-h) * 14); }
+.dir-browser-tree .dir-browser-list { padding: var(--space-1) 0; }
+
+/* a row: indent guides + chevron + icon + name (+ size) */
+.tree-row { position: relative; min-height: var(--tree-row-h); padding: 0 var(--space-3) 0 var(--space-2); gap: var(--space-1); }
+.dir-browser-item.tree-row svg { width: var(--icon-size); height: var(--icon-size); }
+.dir-browser-item.tree-row svg.tree-chev { color: var(--text-dim); }
+.tree-twist { flex: none; width: var(--icon-size); height: var(--icon-size); }
+/* one cell per level; the line runs under the centre of the parent's chevron */
+.tree-guides { display: flex; align-self: stretch; flex: none; }
+.tree-guides i { width: var(--tree-indent); background: linear-gradient(var(--border), var(--border)) calc(var(--tree-indent) / 2) 0 / var(--hairline) 100% no-repeat; }
+.dir-browser-item.tree-row .tree-name { flex: 0 1 auto; min-width: 0; color: var(--text); }
+.tree-row:hover .tree-name, .tree-row.is-selected .tree-name { color: var(--text-strong); }
+.tree-name .tree-sep { color: var(--text-dim); }
+.tree-row.is-folder .tree-name { font-weight: var(--fw-medium); }
+
+/* the selected row: an accent rail; the keyboard cursor: a focus ring inside the row */
+.tree-row.is-selected { background: var(--bg-hover); box-shadow: inset var(--rail-w) 0 0 var(--accent); }
+.tree-row.is-active, .tree-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); background: var(--bg-hover); color: var(--text-strong); }
+
+/* a folder being read, and a folder cut at the server's cap: they take the children's place */
+.tree-note { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tree-row-h); padding: 0 var(--space-3) 0 var(--space-2); color: var(--text-dim); font-size: var(--fs-xs); }
+.tree-note svg { flex: none; width: calc(var(--icon-size) - var(--space-1)); height: calc(var(--icon-size) - var(--space-1)); }
+.tree-note .tree-spin { animation: tree-spin 1s steps(8) infinite; color: var(--accent); }
+.tree-note .tree-twist { width: var(--icon-size); }
+@keyframes tree-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tree-note .tree-spin { animation: none; } }
+
+/* what the search covers, just above the footer */
+.dir-browser-scope { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: var(--hairline) solid var(--border); color: var(--text-dim); font-size: var(--fs-xs); }
+.dir-browser-scope svg { flex: none; width: calc(var(--icon-size) - var(--space-1)); height: calc(var(--icon-size) - var(--space-1)); }
+
+@media (pointer: coarse) { .tree-row, .tree-note { min-height: var(--touch-target); } }
+@media (max-width: 640px) {
+  .files-dialog.is-tree { height: 100%; max-height: 100%; }
+  .files-dialog.is-tree .modal-body { padding: var(--space-3); display: flex; flex-direction: column; }
+  .files-dialog.is-tree .dir-browser { flex: 1 1 auto; min-height: 0; }
+  .files-dialog.is-tree .dir-browser-list { flex: 1 1 auto; max-height: none; }
+  .dir-browser-hints { display: none; }
+  .dir-browser-tree { --tree-indent: 12px; }
+  .files-dialog.is-tree { width: 100%; }
+  .files-dialog.is-tree .dir-browser-list { max-height: none; }
+  .tree-row { padding-right: var(--space-2); }
+}
+
 /* ===== components/FileViewer.css ===== */
 .file-viewer-scrim {
   /* above the file browser it may open from */
@@ -5318,7 +5391,9 @@ button, a, [role="button"] {
   width: min(100%, 480px);
 }
 
-.file-viewer-pdf {
+/* rendered html: an isolated frame, white like the PDF's */
+.file-viewer-pdf,
+.file-viewer-html {
   width: 100%;
   height: 78vh;
   border: 0;
@@ -5419,7 +5494,8 @@ button, a, [role="button"] {
   }
 
   .file-viewer-media { max-height: max(0px, calc(var(--app-height, 100dvh) - 120px)); }
-  .file-viewer-pdf { height: max(0px, calc(var(--app-height, 100dvh) - 120px)); }
+  .file-viewer-pdf,
+  .file-viewer-html { height: max(0px, calc(var(--app-height, 100dvh) - 120px)); }
 }
 
 .file-viewer-choices ul {
@@ -5436,6 +5512,22 @@ button, a, [role="button"] {
   font-size: var(--fs-xs);
   text-align: left;
   overflow-wrap: anywhere;
+}
+
+/* the viewer's bar: View | Code on the left, the action on the right */
+.file-viewer-toolbar { align-self: stretch; display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.file-viewer-toolbar .segmented { flex: none; }
+.file-viewer-toolbar .segmented svg { width: var(--icon-size); height: var(--icon-size); }
+.file-viewer-toolbar .file-viewer-editbar { flex: 1 1 auto; margin: 0; }
+.file-viewer-sandbox { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-dim); font-size: var(--fs-xs); }
+.file-viewer-sandbox svg { width: calc(var(--icon-size) - var(--space-1)); height: calc(var(--icon-size) - var(--space-1)); flex: none; }
+
+/* rendered markdown: the chat's own .markdown, on a reading card */
+.file-viewer-render { align-self: stretch; width: 100%; max-width: var(--content-w); margin-inline: auto; padding: var(--space-4) var(--space-5); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg); }
+
+@media (max-width: 640px) {
+  .file-viewer-render { padding: var(--space-3); }
+  .file-viewer-toolbar .segmented > button { padding-inline: var(--space-2); }
 }
 
 /* ===== components/KeyBar.css ===== */

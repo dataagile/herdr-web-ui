@@ -59,8 +59,8 @@ export function actionStep(action: "approve" | "answer"): string {
 function verificationFailure(status: number, body: unknown): string {
   const error = (body as { error?: { code?: unknown; message?: unknown } } | null)?.error;
   // a bridge older than `socket_missing` answers a missing socket with 500 internal_error and stat's ENOENT
-  if (error?.code === "socket_missing" || error?.code === "internal_error" && typeof error.message === "string" && error.message.startsWith("ENOENT")) return "herdr is not running for this session on the PC (its socket is missing). Start herdr there, then reconnect.";
-  if (error?.code === "connect_failed") return "herdr is not answering on the PC (its socket is there, but nothing listens). Restart herdr there, then reconnect.";
+  if (error?.code === "socket_missing" || error?.code === "internal_error" && typeof error.message === "string" && error.message.startsWith("ENOENT")) return "The session server is not running on the PC (its socket is missing). Start it there, then reconnect.";
+  if (error?.code === "connect_failed") return "The session server is not answering on the PC (its socket is there, but nothing listens). Restart it there, then reconnect.";
   return `Bridge verification failed (${status}). Reconnect after checking the remote bridge.`;
 }
 
@@ -364,7 +364,7 @@ export class MachineManager {
     if (herdrPath) {
       const version = await host.herdrVersion(ssh, herdrPath);
       const match = /herdr (\d+)\.(\d+)\.(\d+)/.exec(version);
-      if (!match || Number(match[1]) === 0 && Number(match[2]) < 9) throw new Error("The installed herdr is incompatible. Update it explicitly to 0.9+ before connecting; it was left unchanged.");
+      if (!match || Number(match[1]) === 0 && Number(match[2]) < 9) throw new Error("The installed session server is incompatible. Update it explicitly to 0.9+ before connecting; it was left unchanged.");
     }
     const descriptors = inspection.descriptors.filter((d) => d.socket_path === expectedSocket);
     let descriptor = descriptors.find((d) => d.bridge_protocol === BRIDGE_PROTOCOL && d.bundle_version === REMOTE_BUNDLE_VERSION) ?? descriptors[0];
@@ -394,16 +394,16 @@ export class MachineManager {
     if (descriptor && descriptor.managed_remote && newerBundle(descriptor.bundle_version)) throw new MachineActionRequired(newerBridge(descriptor.bundle_version), "bridge_conflict");
     if (descriptor && (update || descriptor.bridge_protocol !== BRIDGE_PROTOCOL || descriptor.bundle_version !== REMOTE_BUNDLE_VERSION)) {
       if (!descriptor.managed_remote) throw new MachineActionRequired(INDEPENDENT_BRIDGE, "setup");
-      if (!update) throw new MachineActionRequired("This PC runs a bridge from a different version. Update the bridge to reconnect; herdr sessions keep running.", "update_bridge");
+      if (!update) throw new MachineActionRequired("This PC runs a bridge from a different version. Update the bridge to reconnect; sessions keep running.", "update_bridge");
     }
     const hasBundle = inspection.bundleReady;
     // a runtime from another bundle version and no bridge running (the PC rebooted since): an update
-    if (!descriptor && !hasBundle && inspection.bundleOlder && !job) throw new MachineActionRequired("This PC has the bridge runtime of a different version. Update the bridge to reconnect; herdr sessions keep running.", "update_bridge");
+    if (!descriptor && !hasBundle && inspection.bundleOlder && !job) throw new MachineActionRequired("This PC has the bridge runtime of a different version. Update the bridge to reconnect; sessions keep running.", "update_bridge");
     const installs: string[] = [];
-    if (update) installs.push("Download and verify the bridge runtime, then restart this bridge (herdr sessions keep running)");
+    if (update) installs.push("Download and verify the bridge runtime, then restart this bridge (sessions keep running)");
     if (!descriptor && !hasBundle) installs.push(host.bundleDescription);
-    if (!descriptor && !herdrPath) installs.push(host.installHerdr ? `herdr 0.9.3 through its own installer (${HERDR_INSTALL_CMD})` : "Bundled herdr 0.9.3 (existing installations are preserved)");
-    if (!descriptor && job) installs.push("Start the loopback bridge and, only if absent, the herdr daemon");
+    if (!descriptor && !herdrPath) installs.push(host.installHerdr ? `Session server 0.9.3 through its own installer (${HERDR_INSTALL_CMD})` : "Bundled session server 0.9.3 (existing installations are preserved)");
+    if (!descriptor && job) installs.push("Start the loopback bridge and, only if absent, the session server daemon");
     if (ssh.usedSecret) installs.push("Register a dedicated SSH public key for automatic reconnection");
     if (installs.length) {
       if (!job) throw new MachineActionRequired("Remote setup needs approval. Use Reconnect / setup on this PC.", "setup");
@@ -414,7 +414,7 @@ export class MachineManager {
         await this.wait(job);
       }
       if (update || !descriptor && !hasBundle) { this.stage(job, "installing", `Installing verified ${platform} bundle…`); await host.installBundle(ssh, platform, job.abort.signal, { cacheDir: join(this.stateDir, "bundles"), onProgress: (stage, done, total) => this.progress(job, stage, done, total) }); }
-      if (!descriptor && !herdrPath && host.installHerdr) { this.stage(job, "installing", "Installing herdr with its own installer…"); herdrPath = await host.installHerdr(ssh); }
+      if (!descriptor && !herdrPath && host.installHerdr) { this.stage(job, "installing", "Installing the session server with its own installer…"); herdrPath = await host.installHerdr(ssh); }
       if (ssh.usedSecret) {
         this.stage(job, "installing", "Registering the app SSH key…");
         const path = join(this.sshDir, runtime.machine.id);
@@ -482,7 +482,7 @@ export class MachineManager {
       // bridge, is not something an update from here can fix
       if (identity.managed_remote === false) throw new MachineActionRequired(INDEPENDENT_BRIDGE, "setup");
       if (newerBundle(identity.bundle_version)) throw new MachineActionRequired(newerBridge(identity.bundle_version), "bridge_conflict");
-      throw new MachineActionRequired("This PC runs a bridge from a different version. Update the bridge to reconnect; herdr sessions keep running.", "update_bridge");
+      throw new MachineActionRequired("This PC runs a bridge from a different version. Update the bridge to reconnect; sessions keep running.", "update_bridge");
     }
     if (identity.socket_path !== expectedSocket || typeof identity.socket_id !== "string" || !identity.socket_id || !Number.isInteger(identity.herdr?.protocol) || identity.herdr.protocol < 22) throw new Error("Remote bridge/socket is incompatible; update it explicitly");
     return { endpoint, identity };
@@ -508,7 +508,7 @@ export class MachineManager {
         const revision = runtime.snapshotRevision;
         try {
           const r = await fetch(endpoint.url + "/api/session", { headers: { authorization: `Bearer ${endpoint.token}` }, signal: AbortSignal.timeout(15_000) });
-          if (!r.ok) throw new Error(`Remote herdr unavailable (${r.status})`);
+          if (!r.ok) throw new Error(`Remote session server unavailable (${r.status})`);
           const { snapshot } = await r.json() as { snapshot: SessionSnapshot };
           if (generation !== runtime.generation || this.stopped) return;
           if (revision !== runtime.snapshotRevision) { runtime.refreshQueued = true; continue; }

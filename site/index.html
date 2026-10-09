@@ -35,7 +35,7 @@
       }
     </script>
     <link rel="icon" href="favicon.ico" sizes="32x32" />
-    <link rel="icon" type="image/png" href="favicon.png" sizes="64x64" />
+    <link rel="icon" type="image/png" href="favicon.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -708,7 +708,7 @@
             if (view === "live" && !live) {
               live = document.createElement("iframe");
               live.src = "demo/app/";
-              live.title = "herdr web ui, running on a fictional demo session";
+              live.title = "DevDA, running on a fictional demo session";
               live.allow = "clipboard-write; fullscreen";
               win.append(live);
             }

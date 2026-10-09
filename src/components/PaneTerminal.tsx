@@ -774,7 +774,7 @@ export function PaneTerminal({
       }
       if (!range) return;
       const text = fetchPaneSelection(d.pane, range[0], range[1], machineId).catch(() => {
-        if (current() && d.scrolled) noteClipboard("could not read the selection from herdr");
+        if (current() && d.scrolled) noteClipboard("could not read the selection from the session server");
         return visibleText;
       }).then((value) => {
         if (!current()) throw new Error("selection changed");
@@ -953,7 +953,7 @@ export function PaneTerminal({
           term.options.disableStdin = true;
           return;
         }
-        term.writeln(`\r\n\u001b[31m[herdr-web-ui] ${message.code}: ${message.message}\u001b[0m`);
+        term.writeln(`\r\n\u001b[31m[DevDA] ${message.code}: ${message.message}\u001b[0m`);
       }
       setConnected(socket.connected);
     });
@@ -1719,7 +1719,7 @@ export function PaneTerminal({
         <div className="terminal-placeholder is-restore-error" role="status">
           <div className="terminal-placeholder-inner">
             <TriangleAlert aria-hidden="true" />
-            <span>{t("herdr could not restore this pane")}</span>
+            <span>{t("The session server could not restore this pane")}</span>
             <span className="terminal-placeholder-detail">{restoreError}</span>
           </div>
         </div>
@@ -1747,7 +1747,7 @@ export function PaneTerminal({
         )}
         {paneId !== null && !chatView && unsupported && (
           <div className="terminal-banner terminal-banner-soon" role="status">
-            <span>{t("Live terminal is coming to Windows PCs: herdr cannot attach a terminal there yet. The chat lens works now.")}</span>
+            <span>{t("Live terminal is coming to Windows PCs: the session server cannot attach a terminal there yet. The chat lens works now.")}</span>
           </div>
         )}
         {paneId !== null && outputError && (
@@ -1766,7 +1766,7 @@ export function PaneTerminal({
         )}
         {paneId !== null && !chatView && !ended && !connected && (
           <div className="terminal-banner terminal-banner-warning" role="status">
-            reconnecting to herdr web ui…
+            reconnecting to DevDA…
             {draft.text.length > 0 && <span className="draft-held"> input held: “{draft.text}”</span>}
           </div>
         )}

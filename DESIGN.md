@@ -1279,7 +1279,7 @@ One set for both themes: the card is island black wherever it shows.
 - `prefers-reduced-motion` is honored. Lucide/inline SVG decoration is hidden from assistive tech.
 - Global shortcuts use the convention **Mod+Shift+key**: Mod is Command on Apple platforms and Ctrl
   elsewhere. The settings table is the discoverable source of the complete mapping.
-- `document.title` is `<pane title> · herdr` while selected, otherwise `herdr web ui`.
+- `document.title` is `DevDA · <pane title>` while selected, otherwise `DevDA`. The header brand is the "<DA/>" mark beside the wordmark "DevDA" (`--fw-bold`, `--tracking-tight`); no user-visible text says "herdr": the tool reads "session server".
 
 ### Accepted debt
 

@@ -157,10 +157,10 @@ function AppearancePage() {
       <SettingsRow label={t("Sidebar rows")} description={t("Name each workspace on one line, or show what its agent is doing with the workspace under it")} wide>
         <Segmented label={t("Sidebar rows")} value={settings.sidebarRows} onChange={(sidebarRows) => update({ sidebarRows })} options={[{ value: "one", label: t("One line") }, { value: "two", label: t("Two lines") }]} />
       </SettingsRow>
-      <SettingsRow label={t("Agents order")} description={t("Activity keeps a waiting agent on top, then the one that changed last; herdr's own order is not changed")} wide>
+      <SettingsRow label={t("Agents order")} description={t("Activity keeps a waiting agent on top, then the one that changed last; the session server's own order is not changed")} wide>
         <Segmented label={t("Agents order")} value={settings.agentOrder} onChange={(agentOrder) => update({ agentOrder })} options={[{ value: "workspace", label: t("Workspaces") }, { value: "activity", label: t("Activity") }]} />
       </SettingsRow>
-      <SettingsRow label={t("Quiet opened finishes")} description={t("A finished agent you have opened here loses its dot, as herdr's own view would clear it; remembered per PC on this browser")}>
+      <SettingsRow label={t("Quiet opened finishes")} description={t("A finished agent you have opened here loses its dot, as the session server's own view would clear it; remembered per PC on this browser")}>
         <Toggle label={t("Quiet opened finishes")} checked={settings.quietOpenedDone} onChange={(quietOpenedDone) => update({ quietOpenedDone })} />
       </SettingsRow>
     </SettingsGroup>
@@ -506,8 +506,7 @@ function AboutPage({ updates, herdrVersion, bridgesFollow }: { updates: UpdatesM
       <SettingsGroup title={t("About")} className="settings-about">
         <div className="settings-row">
           <div className="settings-row-text">
-            <span className="settings-label">herdr web ui</span>
-            <a className="settings-link" href="https://devswha.github.io/herdr-web-ui/" target="_blank" rel="noreferrer">devswha.github.io/herdr-web-ui</a>
+            <span className="settings-label">DevDA</span>
           </div>
           <a className="btn" href="https://github.com/devswha/herdr-web-ui" target="_blank" rel="noreferrer"><Star aria-hidden="true" />{t("Star on GitHub")}</a>
         </div>

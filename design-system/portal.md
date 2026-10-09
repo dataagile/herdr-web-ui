@@ -29,7 +29,7 @@ Dark only, in every theme of this system (the portal has no light mode).
 
 ## Brand marks
 
-Use `assets/Portal/data-agile-wordmark.png` at 26px tall in the card or top bar, on dark grounds only. App icons (favicon, PWA, apple-touch) are the **Data Agile Dev** set in `assets/DevIcons` — the DA monogram with a green cursor, shared with herdr. Never set the wordmark on light, never recolour the green. The upstream herdr ram is not used in Data Agile products.
+Use `assets/Portal/data-agile-wordmark.png` at 26px tall in the card or top bar, on dark grounds only. App icons (favicon, PWA, apple-touch) are the **Data Agile Dev** set in `assets/DevIcons` — the "<DA/>" mark (DA between green code brackets), shared with DevDA, the app. Never set the wordmark on light, never recolour the green. The upstream herdr ram is not used in Data Agile products.
 
 ## Components
 

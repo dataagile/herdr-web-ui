@@ -76,7 +76,7 @@ Only state changes move: hover/press (`120ms`, `cubic-bezier(0.2, 0, 0, 1)`), th
 
 - Lucide (`lucide-react`), 24 viewBox, `stroke="currentColor"`, stroke-width 2, drawn at `--icon-size` (18px) in chrome and 16px in dense rows; decorative icons are `aria-hidden`. Icon-only controls (`.icon-button`) always carry an `aria-label`.
 - Agent marks sit in a neutral `--avatar-size` box; an unknown agent gets its initial in a disc; the shell gets Lucide's terminal glyph.
-- The app icon of both products is **Data Agile Dev** (`assets/DevIcons`): the DA monogram with a green terminal cursor on navy. In the Data Agile fork it replaces upstream's ram (kept in `assets/Logos` and `assets/Icons` for reference only) — in the header at `--mark-size` (22px) beside the wordmark "herdr" + a dim "web ui" in `--fw-bold`, `--tracking-tight`, and as favicon, PWA and notification icons.
+- The app icon of both products is **Data Agile Dev** (`assets/DevIcons`): the "<DA/>" mark (DA monogram between green code brackets, approved 08/10/2026) on navy. In the Data Agile fork, whose user-facing name is **DevDA** (never "herdr" in the UI), it replaces upstream's ram (kept in `assets/Logos` and `assets/Icons` for reference only) — in the header at `--mark-size` (22px) beside the wordmark "DevDA" in `--fw-bold`, `--tracking-tight`, and as favicon, PWA and notification icons.
 
 ## Accessibility
 

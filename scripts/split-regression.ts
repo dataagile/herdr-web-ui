@@ -236,7 +236,10 @@ try {
   await menu.waitFor();
   for (const name of ["Split right", "Split down", "Zoom", "New tab", "Close pane"]) assert.equal(await menu.getByRole("menuitem", { name }).count(), 1, `the pane menu offers ${name}`);
   assert.equal(await menu.getByRole("combobox", { name: "Agent of the new pane" }).inputValue(), "", "a shell is the default");
-  assert.ok((await menu.getByRole("combobox", { name: "Agent of the new pane" }).locator("option").count()) >= 2, "the agents are offered");
+  // the choices arrive after the menu opens: poll, a slow runner is not a missing agent
+  const choices = menu.getByRole("combobox", { name: "Agent of the new pane" }).locator("option");
+  await page.waitForFunction(() => (document.querySelector('[role="menu"] select[aria-label="Agent of the new pane"]') as HTMLSelectElement | null)?.options.length! >= 2, null, { timeout: 10_000 }).catch(() => undefined);
+  assert.ok((await choices.count()) >= 2, "the agents are offered");
   await page.keyboard.press("Escape");
   await menu.waitFor({ state: "detached" });
 
@@ -275,9 +278,9 @@ try {
   // ---- V1/V2: the footer says what this is ----
   const version = page.locator(".sidebar-version");
   const line = await version.innerText();
-  assert.match(line, /^Data Agile Dev · v\d+\.\d+\.\d+ · [0-9a-f]{7,}$|^Data Agile Dev · v\d+\.\d+\.\d+ · dev$/, `the footer reads brand, version and commit (${line})`);
+  assert.match(line, /^DevDA · v\d+\.\d+\.\d+ · [0-9a-f]{7,}$|^DevDA · v\d+\.\d+\.\d+ · dev$/, `the footer reads brand, version and commit (${line})`);
   assert.deepEqual(line.split(" · ").length, 3);
-  assert.match((await version.getAttribute("title")) ?? "", /^herdr \d+\.\d+\.\d+ · build .+/, "the tooltip says the herdr version and the build");
+  assert.match((await version.getAttribute("title")) ?? "", /^server \d+\.\d+\.\d+ · build .+/, "the tooltip says the session server version and the build");
   await version.scrollIntoViewIfNeeded();
   await page.locator(".sidebar-footer").screenshot({ path: process.env.UI_EVIDENCE_DIR ? join(process.env.UI_EVIDENCE_DIR, "footer.png") : "/dev/null" }).catch(() => undefined);
   console.log(`PASS the sidebar footer reads "${line}"`);

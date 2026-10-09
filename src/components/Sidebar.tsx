@@ -645,7 +645,7 @@ export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName
 
   return (
     <div className={`machine-workspaces${twoLine ? " is-two-line" : ""}`} ref={workspaceRoot}>
-      <nav className="sidebar-list" aria-label={t("Herdr projects")}>
+      <nav className="sidebar-list" aria-label={t("Projects")}>
         <>
           {!snapshot && <p className="tree-state" role="status">{t("Loading projects…")}</p>}
           {snapshot && snapshot.workspaces.length === 0 && (

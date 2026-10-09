@@ -307,7 +307,7 @@ describe("machine snapshot refresh races", () => {
     remote.answer();
     await until(() => runtime.machine.state === "reconnecting");
     expect(remote.calls()).toBe(2);
-    expect(runtime.machine.error).toBe("Remote herdr unavailable (503)");
+    expect(runtime.machine.error).toBe("Remote session server unavailable (503)");
     expect(runtime.endpoint).toBeUndefined();
     expect(runtime.retry).toBeDefined();
     expect(sshCloses()).toBe(1);
@@ -332,7 +332,7 @@ describe("machine snapshot refresh races", () => {
     remote.answer();
     await until(() => runtime.machine.state === "reconnecting");
     expect(remote.calls()).toBe(3);
-    expect(runtime.machine.error).toBe("Remote herdr unavailable (503)");
+    expect(runtime.machine.error).toBe("Remote session server unavailable (503)");
     expect(runtime.retry).toBeDefined();
     expect(sshCloses()).toBe(1);
     expect(terminalCloses()).toBe(1);
@@ -430,7 +430,7 @@ describe("machine snapshot refresh races", () => {
     // The old connection's caller cannot report an error for its replacement.
     expect(await loading.then(() => null, (error: unknown) => error)).toBeNull();
     await until(() => runtime.machine.state === "reconnecting");
-    expect(runtime.machine.error).toBe("Remote herdr unavailable (503)");
+    expect(runtime.machine.error).toBe("Remote session server unavailable (503)");
   });
 
   it("stops a local refresh without publishing or retrying its pending response", async () => {

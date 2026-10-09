@@ -1,8 +1,8 @@
-A rounded mono chip (`.pill`) for small metadata: the Needs you count, row facts like "Already open", and the header's danger-toned "herdr offline".
+A rounded mono chip (`.pill`) for small metadata: the Needs you count, row facts like "Already open", and the header's danger-toned "session server offline".
 
 ## When to use
 - A count or short fact beside a heading or row: `Needs you 2`, worktree rows (`Already open`, `Checkout missing`).
-- `.pill-offline` only for the one header pill that says herdr is unreachable.
+- `.pill-offline` only for the one header pill that says the session server is unreachable.
 - `.pill-soon` inside a segmented option for a lens that is on its way (`soon`).
 - Not for agent state (that is `.badge`) and not for actions.
 

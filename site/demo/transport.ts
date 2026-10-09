@@ -666,8 +666,9 @@ const NOTICE_LINES = [
   "This is the demo.",
   "",
   "In the real app this view is the agent's own TUI,",
-  "live through herdr terminal attach and shared with",
-  "the herdr TUI on the PC. Switch back to Chat above.",
+  "live through the session server and shared with",
+  "the session server's own terminal on the PC.",
+  "Switch back to Chat above.",
 ];
 const NOTICE = (() => {
   const width = Math.max(...NOTICE_LINES.map((line) => line.length)) + 4;
@@ -700,7 +701,7 @@ const SHELL_COMMANDS: Record<string, string> = {
   "ls": "src  package.json",
   "ls src": "money.ts  money.test.ts",
   "bun test": "\x1b[1mbun test\x1b[0m v1.4.2\r\n\r\nsrc/money.test.ts:\r\n\x1b[32m✓\x1b[0m parses amounts to cents\r\n\x1b[32m✓\x1b[0m rounds half a cent\r\n\x1b[32m✓\x1b[0m formats cents\r\n\x1b[32m✓\x1b[0m formats zero\r\n\r\n\x1b[32m 4 pass\x1b[0m\r\n 0 fail\r\nRan 4 tests across 1 file. [28.00ms]",
-  "pwd": "/tmp/herdr-demo/release",
+  "pwd": "/tmp/devda-demo/release",
   "whoami": "demo",
   "cat src/money.ts": "export const cents = (amount: string): number => Math.round(Number(amount) * 100);\r\nexport const format = (cents: number): string => (cents / 100).toFixed(2);",
 };

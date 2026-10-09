@@ -48,11 +48,11 @@ export async function checkUpdateNotice(browser: Browser, origin: string, shots?
     });
 
     await page.goto(origin);
-    const notice = page.locator(".update-notice").filter({ hasText: /herdr web ui|update|Step|Starting/i }).first();
+    const notice = page.locator(".update-notice").filter({ hasText: /DevDA|update|Step|Starting/i }).first();
     const fits = async (label: string) => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `${label}: nothing overflows sideways`);
 
     // one button, and no detour through Settings
-    await page.getByText("herdr web ui v9.9.9 is available.", { exact: true }).waitFor();
+    await page.getByText("DevDA v9.9.9 is available.", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "View update", exact: true }).count(), 0, "the line has no View update button");
     // the line is the pane column's, never a bar across the window between the header and the sidebar
     assert.ok(await page.locator(".pane-column > .update-notice").count() > 0, "the notice is drawn in the pane column");
@@ -90,10 +90,10 @@ export async function checkUpdateNotice(browser: Browser, origin: string, shots?
     await page.getByRole("button", { name: "Details", exact: true }).waitFor();
     // the server refuses an install with nothing available: Try again looks for the release again
     await page.getByRole("button", { name: "Try again", exact: true }).click();
-    await page.getByText("herdr web ui v9.9.9 is available.", { exact: true }).waitFor();
+    await page.getByText("DevDA v9.9.9 is available.", { exact: true }).waitFor();
     assert.deepEqual([checks, installs], [1, 2], "Try again after a failed check asks for a check, not an install");
     status = { ...status, phase: "idle", available: false, error: null };
-    await page.getByText("herdr web ui v9.9.9 is available.", { exact: true }).waitFor({ state: "hidden" });
+    await page.getByText("DevDA v9.9.9 is available.", { exact: true }).waitFor({ state: "hidden" });
     assert.equal(await page.locator(".update-notice").count(), 0, "an installed update leaves no line");
     console.log("PASS a release installs from its line with one button and shows its steps");
 

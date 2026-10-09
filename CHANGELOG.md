@@ -125,6 +125,11 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#6](https://github.com/dataagile/herdr-web-ui/pull/6) by @tbc-joaovitor)
 
 ### Changed
+- **DevDA brand**: the app is now named DevDA ("DevDA, da Data Agile") everywhere a person reads it: header brand,
+  sidebar footer, tab title (`DevDA · <project>`), web manifest, push and tab notifications, Settings,
+  errors and the demo, in every language. The herdr tool reads "session server" ("servidor de
+  sessões"). The app icon is the new "<DA/>" mark (`?v=da2`, new service worker cache). Internal
+  names (binary, `HERDR_*`, storage keys, API paths) are unchanged. ([#18](https://github.com/dataagile/herdr-web-ui/pull/18) by @tbc-joaovitor)
 - Merged upstream v0.4.1 (and v0.4.0). The sidebar now follows upstream's: one grid, workspace
   rows with folder and worktree folds, one or two lines, a right-click menu, a resizable width and
   one **Agents** list for every PC, which replaces each PC's own Agents section. Kept on top of it:

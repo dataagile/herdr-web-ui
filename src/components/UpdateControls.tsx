@@ -95,7 +95,7 @@ export function UpdateControls({ updates, bridgesFollow = false }: { updates: Up
     {/* under the release on offer, when there is one: what runs now stays to be read */}
     {installed && installed.releases.length > 0 && <ReleaseNotes notes={installed} label={t("What the last update brought")} />}
     {status?.managed && <>
-      <p className="settings-hint">{t("Checks for new releases every 5 minutes.")} {t(status.auto_update ? "Automatic installation is enabled." : "Install when you are ready; the bridge briefly reconnects and herdr sessions keep running.")}{bridgesFollow ? ` ${t("Remote PCs' bridges are updated afterwards when the new version needs it.")}` : ""}</p>
+      <p className="settings-hint">{t("Checks for new releases every 5 minutes.")} {t(status.auto_update ? "Automatic installation is enabled." : "Install when you are ready; the bridge briefly reconnects and sessions keep running.")}{bridgesFollow ? ` ${t("Remote PCs' bridges are updated afterwards when the new version needs it.")}` : ""}</p>
       <div className="update-actions">
         <button type="button" className="btn" disabled={busy} onClick={() => void request("check")}>{t("Check for updates")}</button>
         <button type="button" className="btn btn-primary" disabled={busy || !status.available || !!status.blocked_reason} onClick={() => void request("install")}>{t("Update and restart")}</button>
@@ -115,25 +115,25 @@ export function HerdrUpdateControls({ enabled, herdrVersion }: { enabled: boolea
   const t = useT();
   const { status, error, busy, request } = useHerdrUpdate(enabled);
   const version = runningHerdrVersion(status, herdrVersion);
-  // Windows, an older server, a herdr that does not answer: nothing to offer, and the version
+  // Windows, an older server, a session server that does not answer: nothing to offer, and the version
   // the health check reported is still read here, since the sidebar no longer carries it
   if (!status?.supported) {
     return version ? <section className="settings-section settings-herdr-update">
-      <h3>herdr</h3>
-      <div className="settings-card"><p className="settings-item settings-hint">{t("Running herdr {version}", { version })}</p></div>
+      <h3>{t("Session server")}</h3>
+      <div className="settings-card"><p className="settings-item settings-hint">{t("Running session server {version}", { version })}</p></div>
     </section> : null;
   }
   const stale = status.stale && !!status.binary_version && !!status.server_version;
   return <section className="settings-section settings-herdr-update">
-    <h3>herdr</h3>
+    <h3>{t("Session server")}</h3>
     <div className="settings-card"><div className="settings-item">
-    {version && <p className="settings-hint">{t("Running herdr {version}", { version })}</p>}
-    {stale && <p className="settings-hint">{t("herdr {installed} is installed, but the running server is {running}. Updating moves your panes onto the installed version.", { installed: status.binary_version ?? "", running: status.server_version ?? "" })}</p>}
-    <p className="settings-hint">{t("Installs the newest herdr on the PC this app runs on and moves its running panes onto it. Panes and agents keep running, and open terminals reconnect.")}</p>
+    {version && <p className="settings-hint">{t("Running session server {version}", { version })}</p>}
+    {stale && <p className="settings-hint">{t("Session server {installed} is installed, but the running one is {running}. Updating moves your panes onto the installed version.", { installed: status.binary_version ?? "", running: status.server_version ?? "" })}</p>}
+    <p className="settings-hint">{t("Installs the newest session server on the PC this app runs on and moves its running panes onto it. Panes and agents keep running, and open terminals reconnect.")}</p>
     <div className="update-actions">
-      <button type="button" className={stale ? "btn btn-primary" : "btn"} disabled={busy} onClick={() => void request()}>{t("Update herdr")}</button>
+      <button type="button" className={stale ? "btn btn-primary" : "btn"} disabled={busy} onClick={() => void request()}>{t("Update session server")}</button>
     </div>
-    {(error || busy) && <p className="settings-hint" role="status">{error ?? t("Updating herdr…")}</p>}
+    {(error || busy) && <p className="settings-hint" role="status">{error ?? t("Updating session server…")}</p>}
     {/* herdr's own words: what it installed, or why it did not */}
     {!busy && status.output && <pre className="update-output" data-failed={status.phase === "error" || undefined}>{status.output}</pre>}
     </div></div>
@@ -169,7 +169,7 @@ export function UpdateNotice({ updates, onOpen }: { updates: UpdatesModel; onOpe
     const version = installed.version;
     const close = () => { writeAnnounced(version); setAnnounced(version); };
     return <div className="update-notice" role="status">
-      <span>{t("herdr web ui was updated to v{version}.", { version })}</span>
+      <span>{t("DevDA was updated to v{version}.", { version })}</span>
       {installed.releases.length > 0 && <button type="button" className="btn btn-ghost" onClick={() => { close(); onOpen(); }}>{t("What's new")}</button>}
       <button type="button" className="btn btn-ghost" onClick={close}>{t("Dismiss")}</button>
     </div>;
@@ -188,7 +188,7 @@ export function UpdateNotice({ updates, onOpen }: { updates: UpdatesModel; onOpe
   // without a release in reach the server refuses an install: ask it to look again first
   const retry = status?.available ? "install" : "check";
   return <div className="update-notice" role="status">
-    <span>{failed ? t("The update could not be installed.") : status?.latest_version ? t("herdr web ui v{version} is available.", { version: status.latest_version }) : t("A herdr web ui update is available.")}</span>
+    <span>{failed ? t("The update could not be installed.") : status?.latest_version ? t("DevDA v{version} is available.", { version: status.latest_version }) : t("A DevDA update is available.")}</span>
     {failed ? <button type="button" className="btn btn-ghost" onClick={onOpen}>{t("Details")}</button>
       : notes && <button type="button" className="btn btn-ghost" onClick={onOpen}>{t("What's new")}</button>}
     <button type="button" className="btn btn-primary" disabled={busy} onClick={() => { setAttempted(true); setStarted(retry === "install"); void request(retry); }}>{t(failed ? "Try again" : "Update")}</button>

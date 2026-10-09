@@ -129,8 +129,13 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await posted;
     assert.deepEqual(seenBodies, [{ pane_id: `${paneId}-done` }]);
     // a 502 did not use up the one request: the user coming back to the page with the pane in front retries
+    // the app drops the failed request from its sent set a tick after the response: the tab comes
+    // back once that has run, however slow the runner (the event is repeated until a request leaves)
     const retried = page.waitForResponse("**/api/pane/seen");
-    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    for (let attempt = 0; attempt < 20 && seenBodies.length < 2; attempt++) {
+      await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+      await page.waitForTimeout(100);
+    }
     await retried;
     assert.deepEqual(seenBodies, [{ pane_id: `${paneId}-done` }, { pane_id: `${paneId}-done` }]);
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));

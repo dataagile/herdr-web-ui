@@ -120,7 +120,7 @@ export class HerdrUpdater {
     try {
       proc = Bun.spawn([bin, ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe", env: this.env() });
     } catch (error) {
-      return { code: null, output: `herdr could not be started: ${error instanceof Error ? error.message : String(error)}`, stdout: "" };
+      return { code: null, output: `the session server could not be started: ${error instanceof Error ? error.message : String(error)}`, stdout: "" };
     }
     // read as it comes: a process herdr left behind that still holds the pipes must not hold the answer
     const read = (stream: ReadableStream<Uint8Array>) => {
@@ -151,7 +151,7 @@ export class HerdrUpdater {
       const code = await proc.exited;
       await Promise.race([Promise.all([stdout.done, stderr.done]), Bun.sleep(PIPE_GRACE_MS)]);
       const output = plainOutput([stdout.text(), stderr.text()].filter(Boolean).join("\n"));
-      if (timedOut) return { code: null, output: [output, `herdr did not finish within ${Math.round(timeoutMs / 1000)} seconds and was stopped.`].filter(Boolean).join("\n"), stdout: stdout.text() };
+      if (timedOut) return { code: null, output: [output, `the session server did not finish within ${Math.round(timeoutMs / 1000)} seconds and was stopped.`].filter(Boolean).join("\n"), stdout: stdout.text() };
       return { code, output, stdout: stdout.text() };
     } finally {
       clearTimeout(timer);
@@ -218,7 +218,7 @@ export class HerdrUpdater {
       versions = await this.readVersions(true);
     }
     if (versions === null) {
-      return { ok: false, output: [update.output, "herdr's status could not be read after the update: the running server may still be the old one. Update again to check."].filter(Boolean).join("\n") };
+      return { ok: false, output: [update.output, "the session server's status could not be read after the update: the running server may still be the old one. Update again to check."].filter(Boolean).join("\n") };
     }
     if (!versions.stale || !versions.handoff || !versions.binaryPath || !versions.binary) return { ok: true, output: update.output };
     const handoff = await this.exec(
@@ -239,7 +239,7 @@ export async function handleHerdrUpdateRequest(request: Request, updater?: Herdr
   if (request.method !== "POST") return fail("method_not_allowed", "Use GET or POST /api/herdr/update", 405);
   if (!updateRequestAllowed(request)) return fail("invalid_update_request", "Use the update controls from this app.", 403);
   const started = updater?.start() ?? "unsupported";
-  if (started === "unsupported") return fail("herdr_update_unsupported", "herdr cannot be updated from the app on this PC.", 409);
-  if (started === "busy") return fail("herdr_update_busy", "herdr is already being updated.", 409);
+  if (started === "unsupported") return fail("herdr_update_unsupported", "The session server cannot be updated from the app on this PC.", 409);
+  if (started === "busy") return fail("herdr_update_busy", "The session server is already being updated.", 409);
   return reply({ accepted: true }, 202);
 }

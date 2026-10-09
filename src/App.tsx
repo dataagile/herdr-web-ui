@@ -65,7 +65,7 @@ import { ConfirmDialog } from "./components/ConfirmDialog.tsx";
 import { dropletAllows, endedTurn, seedStatuses, showDroplet, trackTurn, type DropletKind } from "./lib/droplet.ts";
 import { playAlertSound, unlockAlertSound, type AlertSoundKind } from "./lib/alertSound.ts";
 
-const APP_TITLE = "herdr web ui";
+const APP_TITLE = "DevDA";
 const POLL_MS = 5000;
 
 /**
@@ -142,9 +142,9 @@ function storedView(paneId: string, machineId: string, hasAgent: boolean | null,
 function Brand() {
   return (
     <h1 className="brand">
-      <img src="/icons/icon-192.png?v=da1" alt="" width="22" height="22" className="brand-mark" />
+      <img src="/icons/icon-192.png?v=da2" alt="" width="22" height="22" className="brand-mark" />
       <span className="brand-name">
-        herdr <span className="brand-sub">web ui</span>
+        DevDA
       </span>
     </h1>
   );
@@ -787,7 +787,7 @@ export function App() {
   }, [context]);
 
   useEffect(() => {
-    document.title = selectedTitle ? `${selectedTitle} · herdr` : APP_TITLE;
+    document.title = selectedTitle ? `DevDA · ${selectedTitle}` : APP_TITLE;
   }, [selectedTitle]);
 
   const doClosePane = useCallback(async (paneId: string): Promise<void> => {
@@ -999,7 +999,7 @@ export function App() {
           <main className="terminal-host">
             <div className="terminal-placeholder">
               <div className="terminal-placeholder-inner">
-                <span>{t("Connecting to herdr web ui…")}</span>
+                <span>{t("Connecting to DevDA…")}</span>
               </div>
             </div>
           </main>
@@ -1120,7 +1120,7 @@ export function App() {
               <MessageSquare />
               <span className="header-desktop-only">{t("Chat")}</span>
             </button>
-            <button type="button" aria-pressed={shownView === "terminal"} aria-label={t("Terminal")} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once herdr can attach there")}>
+            <button type="button" aria-pressed={shownView === "terminal"} aria-label={t("Terminal")} onClick={() => setView("terminal")} title={terminalAttach ? t("Live terminal (⌘⇧J)") : t("Live terminal: coming to Windows PCs once the session server can attach there")}>
               <SquareTerminal />
               <span className="header-desktop-only">{t("Terminal")}</span>
               {!terminalAttach && <span className="pill pill-soon">{t("soon")}</span>}
@@ -1141,12 +1141,12 @@ export function App() {
           <span
             className={`conn ${connected ? "conn-live" : "conn-reconnecting"}`}
             role="status"
-            title={[connected ? null : connWord, targetHerdr ? t("herdr {version} · protocol {protocol}", { version: targetHerdr.version, protocol: targetHerdr.protocol }) : null].filter((part) => part !== null).join(" · ") || undefined}
+            title={[connected ? null : connWord, targetHerdr ? t("server {version} · protocol {protocol}", { version: targetHerdr.version, protocol: targetHerdr.protocol }) : null].filter((part) => part !== null).join(" · ") || undefined}
           >
             <span className="conn-dot" aria-hidden="true" />
             <span className="conn-text">{connWord}</span>
           </span>
-          {!targetHerdr && <span className="pill pill-offline">{t("herdr offline")}</span>}
+          {!targetHerdr && <span className="pill pill-offline">{t("session server offline")}</span>}
           {canSignOut && (
             <button type="button" className="icon-button lock-button header-desktop-only" aria-label={t("Sign out")} title={t("Sign out")} onClick={() => void lock()}>
               <Lock />

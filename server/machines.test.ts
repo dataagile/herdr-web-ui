@@ -392,7 +392,7 @@ describe("bridge verification failures", () => {
     expect({ status: response.status, code: body.error.code }).toEqual({ status: 404, code: "socket_missing" });
     expect(body.error.message).not.toContain(dir);
     const message = await told(port, socket);
-    expect(message).toContain("herdr is not running");
+    expect(message).toContain("The session server is not running");
     expect(message).not.toContain(dir);
   });
 
@@ -401,14 +401,14 @@ describe("bridge verification failures", () => {
     const socket = join(dir, "herdr.sock");
     writeFileSync(socket, "");
     const message = await told(bridge(socket), socket);
-    expect(message).toContain("herdr is not answering");
+    expect(message).toContain("The session server is not answering");
     expect(message).not.toContain(dir);
   });
 
   it("reads a missing socket from the 500 an installed older bridge still answers", async () => {
     const old = JSON.stringify({ error: { code: "internal_error", message: "ENOENT: no such file or directory, stat '/home/u/.config/herdr/herdr.sock'" } });
     const message = await told(answering(500, old));
-    expect(message).toContain("herdr is not running");
+    expect(message).toContain("The session server is not running");
     expect(message).not.toContain("/home/u");
   });
 

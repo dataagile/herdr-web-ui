@@ -20,7 +20,7 @@ export async function bridgeIdentity(sidecar = sidecarAvailable()): Promise<Brid
   try { stat = statSync(socket); } catch (error) {
     // A herdr that is not running leaves no socket (on Windows, no marker). Said by code and
     // without the path: the server that asked shows this to whoever is adding the PC.
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new HerdrError("socket_missing", "herdr's socket is missing; herdr is not running for this session");
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new HerdrError("socket_missing", "the session server's socket is missing; the session server is not running for this session");
     throw error;
   }
   const info = attachableIdentity(await ping(), sidecar);

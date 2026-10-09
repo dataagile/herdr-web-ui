@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, FileDiff, FileText, Pencil, X } from "lucide-react";
-
 import "./FileViewer.css";
 import { DirectoryBrowser } from "./DirectoryBrowser.tsx";
 import { FileChanges } from "./FileChanges.tsx";
@@ -12,6 +11,7 @@ import { formatBytes } from "../lib/bridgeProgress.ts";
 import { LOCAL_MACHINE } from "../../shared/machines.ts";
 import { useMachineApi, useMachineId } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
+import { nativeModalOver, useFocusTrap } from "../lib/useFocusTrap.ts";
 
 /** Bigger images are offered as a download: a phone decodes an image whole. */
 const MAX_INLINE_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -25,6 +25,8 @@ export interface FileViewerProps {
   path: string;
   paneId: string | null;
   onClose: () => void;
+  /** Settings can open above this preview; its Escape must not also close the file. */
+  keyboardActive?: boolean;
   /** a file chosen in a folder's listing: opened as the preview, so history and a reload keep it */
   onOpen?: (path: string) => void;
   /** the file is one the pane's agent (or git) changed: a tab with its changes beside the file itself */
@@ -36,7 +38,7 @@ export interface FileViewerProps {
  * play and seek at once), PDFs, and the start of a text file. A text file can also be edited
  * in place and saved here. Anything can be downloaded.
  */
-export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: FileViewerProps) {
+export function FileViewer({ path: asked, paneId, onClose, onOpen, changes, keyboardActive = true }: FileViewerProps) {
   const t = useT();
   const [tab, setTab] = useState<"changes" | "file">(changes?.first ? "changes" : "file");
   const showChanges = changes !== undefined && paneId !== null && tab === "changes";
@@ -61,7 +63,8 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
   const [saving, setSaving] = useState(false);
   const [loadingFull, setLoadingFull] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
+  // Escape closes it, Tab stays in it, and the focus goes back to the row that opened it
+  const surface = useFocusTrap<HTMLElement>(true);
   useEffect(() => setPath(asked), [asked]);
 
   useEffect(() => {
@@ -153,9 +156,12 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
   };
 
   useEffect(() => {
+    if (!keyboardActive) return;
     // the FilesDialog beneath listens on window too (and stands down while this is open); this
-    // one is the topmost overlay, so it takes the key. Escape leaves the editor first, then closes.
+    // one is the topmost overlay, so it takes the key, unless a native modal (Add PC) is over it.
+    // Escape leaves the editor first, then closes.
     const onKey = (event: KeyboardEvent): void => {
+      if (nativeModalOver(surface.current)) return;
       if (event.key === "Escape") { if (editing) cancelEdit(); else requestClose(); return; }
       if (editing && event.key.toLowerCase() === "s" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void saveEdit(); }
     };
@@ -215,7 +221,7 @@ export function FileViewer({ path: asked, paneId, onClose, onOpen, changes }: Fi
 
   return (
     <div className="modal-scrim file-viewer-scrim" onMouseDown={(event) => event.target === event.currentTarget && requestClose()}>
-      <section className="modal file-viewer" role="dialog" aria-modal="true" aria-label={info?.name ?? path}>
+      <section ref={surface} className="modal file-viewer" role="dialog" aria-modal="true" aria-label={info?.name ?? path} tabIndex={-1}>
         <header className="modal-header file-viewer-header">
           <div className="file-viewer-title">
             <h2 className="modal-title">{info?.name ?? path.split("/").pop()}</h2>

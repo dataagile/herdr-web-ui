@@ -30,16 +30,17 @@ export function NeedsInput({ machine, waiting, selectedPaneId, onSelect }: {
         {t("Needs you")} <span className="pill">{waiting.length}</span>
       </button>
     </h2>
-    <ul className="pane-list" id={listId} hidden={folded}>
+    <ul className="agent-list" id={listId} hidden={folded}>
       {waiting.map(({ pane, workspace }) => {
         const selected = pane.pane_id === selectedPaneId;
         return <li className={`needs-input-item${selected ? " is-selected" : ""}`} key={paneStorageId(machine.id, pane.pane_id)}>
-          <button type="button" className="pane-select needs-input-select" aria-current={selected ? "true" : undefined} onClick={() => onSelect(machine.id, pane.pane_id)}>
-            <span className="agent-mark-holder"><AgentMark agent={pane.agent ?? ""} size={22} /></span>
-            <span className="pane-copy">
-              <span className="pane-title">{displayPaneTitle(pane)}</span>
-              <span className="pane-meta"><StatusBadge status={pane.agent_status} /><span className="pane-subtitle">{workspace.label}</span></span>
+          <button type="button" className="agent-row needs-input-select" aria-current={selected ? "true" : undefined} onClick={() => onSelect(machine.id, pane.pane_id)}>
+            <span className="sidebar-mark" aria-hidden="true"><AgentMark agent={pane.agent ?? pane.display_agent ?? ""} size={18} /></span>
+            <span className="agent-copy">
+              <span className="agent-title pane-title">{displayPaneTitle(pane)}</span>
+              <span className="agent-context">{workspace.label}</span>
             </span>
+            <span className="agent-row-status"><StatusBadge status={pane.agent_status} /></span>
           </button>
         </li>;
       })}

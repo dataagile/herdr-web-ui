@@ -14,6 +14,7 @@ import { chromium, type Browser, type Page } from "playwright-core";
 import { createServer } from "../server/index.ts";
 import { UsageService } from "../server/usage.ts";
 import { VoiceService } from "../server/voice.ts";
+import { openSettingsPage } from "./settings-page.ts";
 
 const KEY = "sk-fake-provider-key";
 const root = realpathSync(mkdtempSync(join(tmpdir(), "herdr-web-ui-voice-browser-")));
@@ -53,6 +54,7 @@ async function openSettings(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");
   await page.keyboard.press("Control+Shift+Comma");
   await page.getByRole("dialog", { name: "Settings" }).waitFor();
+  await openSettingsPage(page, "Voice input");
   await page.getByRole("heading", { name: "Transcription server" }).scrollIntoViewIfNeeded();
 }
 
@@ -197,6 +199,7 @@ try {
   await small.waitForLoadState("networkidle");
   await small.keyboard.press("Control+Shift+Comma");
   await small.getByRole("dialog", { name: "Settings" }).waitFor();
+  await openSettingsPage(small, "Voice input");
   await small.getByRole("heading", { name: "Transcription server" }).scrollIntoViewIfNeeded();
   await small.getByRole("button", { name: "Test and list models" }).click();
   await small.getByText("4 models found").waitFor();

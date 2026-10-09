@@ -14,6 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import "./RowMenu.css";
 
 import { useT } from "../lib/i18n.ts";
+import { useMediaQuery } from "../lib/useMediaQuery.ts";
 
 export interface RowMenuItem {
   id: string;
@@ -53,34 +54,46 @@ interface Props {
 const SHEET_QUERY = "(max-width: 640px)";
 const GAP = 4;
 const EDGE = 8;
+/** a popover never grows past this, however much room the screen has */
+const MAX_HEIGHT = 320;
 const POPOVER_ITEMS = '[role="menuitem"], [role="menuitemcheckbox"]';
 // the sheet is modal: its Cancel is one of the stops
 const SHEET_ITEMS = '.row-sheet-item, .row-sheet-cancel';
 
 export function RowMenu({ anchor, title, subtitle, header, point, items, align = "end", onClose }: Props) {
   const t = useT();
-  const [sheet] = useState(() => window.matchMedia(SHEET_QUERY).matches);
+  const sheet = useMediaQuery(SHEET_QUERY);
   const surface = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
+  const [place, setPlace] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
   // where the button was when the menu was placed: a scroll that leaves it there is not a reason to close
   const placedAt = useRef<{ top: number; left: number } | null>(null);
 
   useLayoutEffect(() => () => { if (anchor.isConnected) anchor.focus({ preventScroll: true }); }, [anchor]);
 
-  // under the button, right edges aligned (left ones for a tab); above it when the screen ends first
+  // under the button, right edges aligned (left ones for a tab); above it when the screen ends
+  // first. The height is capped to the room on that side and the menu scrolls, as AgentPicker's
+  // list does: a tab's pane picker has one item per pane and is unbounded, and an item below the
+  // fold must not be reachable by keyboard while the pointer cannot see it
   useLayoutEffect(() => {
     if (sheet) return;
     const menu = surface.current;
     if (!menu || !anchor.isConnected) { onClose(); return; }
     const rect = anchor.getBoundingClientRect();
     placedAt.current = { top: rect.top, left: rect.left };
-    const desiredLeft = point ? point.left : align === "start" ? rect.left : rect.right - menu.offsetWidth;
-    const left = Math.max(EDGE, Math.min(desiredLeft, window.innerWidth - menu.offsetWidth - EDGE));
-    const below = point ? point.top : rect.bottom + GAP;
-    const top = point
-      ? Math.max(EDGE, Math.min(below, window.innerHeight - menu.offsetHeight - EDGE))
-      : (below + menu.offsetHeight + EDGE <= window.innerHeight ? below : Math.max(EDGE, rect.top - GAP - menu.offsetHeight));
-    setPlace({ top, left });
+    if (point) {
+      // a right-click opens at the cursor, kept on screen
+      const left = Math.max(EDGE, Math.min(point.left, window.innerWidth - menu.offsetWidth - EDGE));
+      const top = Math.max(EDGE, Math.min(point.top, window.innerHeight - menu.offsetHeight - EDGE));
+      setPlace({ top, left, maxHeight: Math.max(EDGE, Math.min(MAX_HEIGHT, window.innerHeight - top - EDGE)) });
+      return;
+    }
+    const left = Math.max(EDGE, Math.min(align === "start" ? rect.left : rect.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - EDGE));
+    const below = rect.bottom + GAP;
+    const roomBelow = window.innerHeight - below - EDGE;
+    const roomAbove = rect.top - GAP - EDGE;
+    const up = below + menu.offsetHeight + EDGE > window.innerHeight && roomAbove > roomBelow;
+    const top = up ? Math.max(EDGE, rect.top - GAP - menu.offsetHeight) : below;
+    setPlace({ top, left, maxHeight: Math.max(EDGE, Math.min(MAX_HEIGHT, up ? roomAbove : roomBelow)) });
   }, [align, anchor, onClose, point, sheet]);
 
   useEffect(() => {

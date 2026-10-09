@@ -41,7 +41,7 @@ Density is a second axis: `[data-density="compact"]` on the root steps the type 
 ## Typography
 
 - `--font-ui` (Pretendard Variable, then system sans) for chrome and chat prose; `--font-mono` (JetBrains Mono, served as "JetBrains Mono Web") for code, paths, keys and terminal-adjacent metadata.
-- Scale: `--fs-2xs` 11 micro (badges, kbd) · `--fs-xs` 12 meta and field labels · `--fs-sm` 13 controls and row titles · `--fs-md` 14 body · `--fs-chat` 15 reading · `--fs-lg` 16 header and modal titles · `--fs-xl` 18 markdown h1 · `--fs-display` 22 the empty chat's greeting · `--fs-input` 16 for text inputs on phones (iOS never zooms it).
+- Scale: `--fs-2xs` 11 micro (badges, kbd) · `--fs-xs` 12 meta and field labels · `--fs-sm` 13 controls and row titles · `--fs-md` 14 body · `--fs-chat` 15 reading · `--fs-lg` 16 header and modal titles · `--fs-xl` 18 markdown h1 · `--fs-display` 22 the empty chat's greeting · `--fs-pairing` 32 the phone pairing code (compact 26) · `--fs-input` 16 for text inputs on phones (iOS never zooms it).
 - Chat prose is `--fs-chat` on `--lh-prose` (1.65); code blocks `--fs-sm` on `--lh-code`; titles `--lh-tight`.
 - Weights: 400 body, 500 controls, 600 labels and titles, 700 the brand only.
 - Uppercase is for operational labels only (field labels, menu headings, state words), always with `--tracking-caps`.

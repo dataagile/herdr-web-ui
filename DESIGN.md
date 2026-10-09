@@ -756,6 +756,24 @@ One set for both themes: the card is island black wherever it shows.
   `.changed-tabs` segmented control, "Changes in this session" (or "Changes in git") and "File":
   the first is a column of `.changed-edit` sections, "Edit 2 of 3 · 10:35" over the chat's own diff
   (`.chat-diff`, `--status-done` / `--status-blocked`), the second the viewer as it was. A watch-only device has no changes tab. A session longer than the server reads shows a `.changed-note`, "Long session: showing the last N parts", above the groups.
+- **Files tree** (`FileTree.tsx`, `FileTree.css`, tokens only): the Files dialog (`.files-dialog.is-tree`, `--palette-w`,
+  full height up to `640px`) shows the pane's folder as a tree in `.dir-browser-tree`. Rows are `.dir-browser-item.tree-row`:
+  `.tree-guides` (a `--border` hairline per level under the parent's chevron; `--tree-indent` 16px, 12px on a phone), a
+  `--text-dim` chevron, a Lucide icon by file type, `.tree-name` (folders `--fw-medium`) and the size in `--text-dim`. The
+  selected row (the last file opened) has `--bg-hover` and an `--accent` rail of `--rail-w`; the keyboard cursor is a 2px `--accent`
+  ring inside the row. A folder reads its children when opened (a `.tree-note` spinner meanwhile; "More items than shown —
+  refine the filter" when the server cut the listing); open folders are remembered per PC and pane folder. The filter above the
+  list ("Filter by name…", × to clear) keeps matches and their open folders, folds single-child chains into one row
+  (`a/b/c`, the leading part `--text-dim`) and marks the hit with `mark.dir-browser-hit` (bold on `--accent-tint`); it covers the
+  open folders and, through `GET /api/pane/files`, the git files below the pane's folder, and says so in `.dir-browser-scope`
+  ("Search by name in git files"). Nothing matched shows `.dir-browser-empty`. Keys follow the WAI-ARIA tree pattern (the focusable row is the `treeitem` itself, children in `role=group`); in the filter a click or Enter
+  on a folder folds it and opens it again; only files whose own name holds the query are listed. Esc clears
+  the filter before it closes the dialog. The new-project folder picker keeps the flat `DirectoryBrowser`.
+- **Viewer formats**: `.md` / `.markdown` and `.html` / `.htm` open drawn, with a `.segmented` "View | Code" in
+  `.file-viewer-toolbar` (the choice kept per format). Markdown is the chat's `.markdown` on a `.file-viewer-render` card (raw html
+  stays text; links open in a new tab, `rel="noopener noreferrer"`, http/https/mailto only). Html is an `iframe.file-viewer-html`
+  with `sandbox=""` (no scripts, forms, popups or access to the app) and a Content-Security-Policy meta first in its document (nothing is fetched; inline styles and `data:` images and fonts draw), and the note "Scripts are off in this view". Edit exists only
+  in Code. See `design-system/components/FileTree`.
 - **History** (`HistorySection.css`, tokens only) is a foldable sidebar section under Agents, titled
   "History · {project}": range chips (the pressed one `--primary`), a search input, then compact rows
   (title with an `OPEN NOW` mark in `--status-working`, then time and prompts in `--text-dim`). A click

@@ -502,3 +502,47 @@ describe("quotes nested beyond reason", () => {
     expect(outer?.type === "blockquote" && outer.blocks.map((block) => block.type)).toEqual(["paragraph", "blockquote"]);
   });
 });
+
+describe("a markdown file drawn in the viewer", () => {
+  const render = (source: string): string => {
+    const languages = Object.getOwnPropertyDescriptor(navigator, "languages");
+    Object.defineProperty(navigator, "languages", { configurable: true, value: ["en"] });
+    try {
+      return renderToStaticMarkup(createElement(SettingsProvider, { children: createElement(Markdown, { className: "file-viewer-render", children: source }) }));
+    } finally {
+      if (languages) Object.defineProperty(navigator, "languages", languages);
+      else Reflect.deleteProperty(navigator, "languages");
+    }
+  };
+  const hostile = [
+    "# <script>alert(1)</script>",
+    "<img src=x onerror=alert(1)>",
+    "> <iframe src=\"javascript:alert(1)\"></iframe>",
+    "- <svg onload=alert(1)>",
+    "```html\n<script>alert(1)</script>\n```",
+    "<a href=\"javascript:alert(1)\" onclick=\"x()\">raw anchor</a>",
+  ].join("\n\n");
+
+  it("shows raw html as text: no element comes out of it", () => {
+    const html = render(hostile);
+    // (the code block's copy button is an <svg> of the app's own, with no handler)
+    expect(html).not.toMatch(/<(?:script|img|iframe|object|embed|style)\b/i);
+    expect(html).not.toMatch(/<[^>]*\bon(?:error|load|click)=/i);
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    // the only anchor-like text is escaped, not an <a>
+    expect(html).not.toContain("<a ");
+  });
+
+  it("opens links in a new tab, without opener, and only for http, https and mailto", () => {
+    const html = render("[web](https://example.com/a) [mail](mailto:a@b.dev) [bad](javascript:alert(1)) [data](data:text/html,x) [rel](./other.md)");
+    expect(html).toContain('<a href="https://example.com/a" target="_blank" rel="noopener noreferrer">');
+    expect(html).toContain('href="mailto:a@b.dev"');
+    expect(html).not.toMatch(/href="(?:javascript|data):/i);
+    for (const anchor of html.match(/<a [^>]*>/g) ?? []) {
+      expect(anchor).toContain('target="_blank"');
+      expect(anchor).toContain('rel="noopener noreferrer"');
+      expect(anchor).toMatch(/href="(?:https?:\/\/|mailto:)/);
+    }
+  });
+});

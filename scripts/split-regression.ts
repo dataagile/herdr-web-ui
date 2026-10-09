@@ -291,8 +291,9 @@ try {
   assert.equal(await phone.locator(".terminal-stack").count(), 1, "a phone draws one pane");
   assert.equal(await phone.locator(".tab-strip-panes-count").first().innerText(), "1/2", "the tab's picker says 1/2");
   assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "nothing overflows sideways");
-  const title = await phone.locator(".context-title-text").boundingBox();
-  assert.ok(title && title.width >= 40, "the header keeps room for the pane's title");
+  // a phone's header is icons only (no title): the tab strip's open tab names the pane
+  const named = await phone.locator(".tab-strip-item.is-active .tab-strip-label").boundingBox();
+  assert.ok(named && named.width >= 40, "the open tab in the strip names the pane");
   await shot(phone, "phone-390");
   // at phone width Split stays in the header, icon only
   assert.equal(await phone.locator(".header-split").isVisible(), true, "the header's own Split button is there on a phone");

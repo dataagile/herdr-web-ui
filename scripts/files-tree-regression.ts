@@ -179,7 +179,7 @@ try {
   const viewer = page.getByRole("dialog", { name: "README.md", exact: true });
   await viewer.locator(".file-viewer-render").waitFor();
   assert.equal(await viewer.getByRole("button", { name: "View", exact: true }).getAttribute("aria-pressed"), "true");
-  assert.equal(await viewer.locator(".file-viewer-render h1").textContent(), "Project title");
+  assert.equal(await viewer.locator(".file-viewer-render .markdown-h1").textContent(), "Project title");
   assert.equal(await viewer.locator(".file-viewer-render li").count(), 2);
   assert.equal(await viewer.locator(".file-viewer-render script, .file-viewer-render img").count(), 0, "raw html in markdown makes no element");
   assert.match(await viewer.locator(".file-viewer-render").textContent() ?? "", /<script>window\.__pwned = 1<\/script>/);

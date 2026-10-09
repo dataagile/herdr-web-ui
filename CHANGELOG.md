@@ -18,7 +18,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 - The file viewer **draws** markdown (`.md`, in the chat's own style) and **html** (`.html`, in a sandboxed frame with no
   scripts) with a View | Code switch, remembered per format; Edit is in Code. Raw html inside markdown is shown as text and
   its links open in a new tab for http, https and mailto only. An html file fetches nothing (no remote images, styles or fonts). Relative images and links of an html file may not load.
-  by @tbc-joaovitor
+  ([#17](https://github.com/dataagile/herdr-web-ui/pull/17) by @tbc-joaovitor)
 - **Modified files** in the header: a button (icon `FileDiff` with a count) after the Chat/Terminal
   switch lists the files the pane's agent changed in its session, read from its whole transcript
   (Claude, Codex, pi, omp, gjc and omo; a failed call changes nothing, except a Codex script that applies a patch and failed as a whole, which is kept and marked "uncertain") and marked with git's letter,

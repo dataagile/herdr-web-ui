@@ -1,117 +1,101 @@
-<!-- @dsCard group="Navigation" height=350 subtitle="PC header, Needs you block and two-line workspace rows: selected, RUN, INPUT, DONE, READY" -->
+<!-- @dsCard group="Navigation" height=420 subtitle="PC header, Needs you block, Projects head with +, two-line workspace rows (RUN, INPUT, DONE, READY) and the Agents list" -->
 <div class="ds-stage">
   <div class="sidebar-shell">
     <div class="machine-list" aria-label="PCs and projects">
       <section class="machine-group is-current" aria-label="PC studio">
         <header class="machine-header">
-          <button class="machine-toggle" aria-expanded="true">
-            <svg class="machine-caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-            <svg class="machine-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+          <div class="machine-title">
+            <span class="sidebar-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></span>
             <span class="machine-name">studio</span>
             <span class="machine-kind" title="The computer this app runs on">Host</span>
             <span class="machine-dot is-connected" title="Connected" aria-hidden="true"></span>
-          </button>
+          </div>
+          <button class="sidebar-row-action machine-toggle" aria-expanded="true" aria-label="Collapse studio" title="Collapse studio"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
         </header>
         <p class="machine-state is-connected visually-hidden" role="status"><span class="machine-state-word">Connected</span></p>
-        <section class="needs-input" aria-label="Needs you">
-          <h2 class="needs-input-heading"><button type="button" class="sidebar-section-header needs-input-toggle" aria-expanded="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>Needs you <span class="pill">2</span></button></h2>
-          <ul class="pane-list">
-            <li class="needs-input-item"><button type="button" class="pane-select needs-input-select"><span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span><span class="pane-copy"><span class="pane-title">Fix token refresh race</span><span class="pane-meta"><span class="badge badge-blocked" data-status="blocked" title="Agent INPUT">INPUT</span><span class="pane-subtitle">api</span></span></span></button></li>
-            <li class="needs-input-item"><button type="button" class="pane-select needs-input-select"><span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span><span class="pane-copy"><span class="pane-title">Draft release notes for 0.9</span><span class="pane-meta"><span class="badge badge-done" data-status="done" title="Agent DONE">DONE</span><span class="pane-subtitle">docs</span></span></span></button></li>
+        <section class="needs-input" aria-label="Needs you on studio">
+          <h2 class="needs-input-heading"><button type="button" class="sidebar-section-header needs-input-toggle" aria-expanded="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>Needs you <span class="pill">2</span></button></h2>
+          <ul class="agent-list">
+            <li class="needs-input-item"><button type="button" class="agent-row needs-input-select"><span class="sidebar-mark" aria-hidden="true"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span><span class="agent-copy"><span class="agent-title pane-title">Fix token refresh race</span><span class="agent-context">api</span></span><span class="agent-row-status"><span class="badge badge-blocked" data-status="blocked" title="Agent INPUT">INPUT</span></span></button></li>
+            <li class="needs-input-item"><button type="button" class="agent-row needs-input-select"><span class="sidebar-mark" aria-hidden="true"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span><span class="agent-copy"><span class="agent-title pane-title">Draft release notes for 0.9</span><span class="agent-context">docs</span></span><span class="agent-row-status"><span class="badge badge-done" data-status="done" title="Agent DONE">DONE</span></span></button></li>
           </ul>
         </section>
         <div>
-          <div class="machine-workspaces">
+          <div class="machine-workspaces is-two-line">
             <nav class="sidebar-list" aria-label="Herdr projects">
               <div class="sidebar-section-row">
                 <button type="button" class="sidebar-section-header" aria-expanded="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><span>Projects · 4</span></button>
-                <button class="sidebar-row-action" aria-label="New project on studio" title="New project"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+                <button type="button" class="sidebar-row-action sidebar-section-new" aria-label="New project on studio" title="New project"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
               </div>
               <ul class="workspace-list">
-
-                <li class="workspace pane-item is-selected">
-                  <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project api" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
-                    <div class="pane-select" role="button" tabindex="0" aria-current="true" title="w1-p1 — Fix token refresh race — ~/dev/api">
-                      <span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
-                      <span class="pane-copy">
-                        <span class="pane-primary"><span class="pane-title">Fix token refresh race</span></span>
-                        <span class="pane-meta">
-                          <span class="badge badge-blocked" data-status="blocked" title="Agent INPUT">INPUT</span>
-                          <span class="pane-subtitle">api</span>
-                        </span>
-                      </span>
+                <li class="workspace workspace-group pane-item is-selected" data-workspace="api">
+                  <div class="workspace-header">
+                    <span class="sidebar-mark workspace-folder" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
+                    <div class="pane-select workspace-select" role="button" tabindex="0" aria-current="true" title="api — Fix token refresh race">
+                      <span class="sidebar-mark" aria-hidden="true"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
+                      <span class="workspace-copy is-two-line"><span class="workspace-line"><span class="workspace-name">Fix token refresh race</span></span><span class="workspace-place">api · server</span></span>
+                      <span class="sidebar-pane-meta"><span class="badge badge-blocked sidebar-status" data-status="blocked" role="status" aria-label="Agent INPUT" title="Agent INPUT"><span class="sidebar-status-mark" aria-hidden="true">?</span><span class="visually-hidden">INPUT</span></span></span>
                     </div>
-                    <div class="pane-actions">
-                      <button type="button" class="sidebar-row-action row-menu-toggle" aria-label="More for Fix token refresh race" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+                    <div class="workspace-actions">
+                      <button type="button" class="sidebar-row-action" aria-label="New tab in api" title="New tab in api"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+                      <button type="button" class="sidebar-row-action row-menu-toggle" aria-label="More for api" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
                     </div>
                   </div>
                 </li>
-
-                <li class="workspace pane-item">
-                  <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project web" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
-                    <div class="pane-select" role="button" tabindex="0" title="w2-p1 — Move settings into tabs — ~/dev/web">
-                      <span class="agent-mark-holder" title="goose"><span class="agent-mark goose"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="goose"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">G</text></svg></span></span>
-                      <span class="pane-copy">
-                        <span class="pane-primary"><span class="pane-title">Move settings into tabs</span></span>
-                        <span class="pane-meta">
-                          <span class="badge badge-working" data-status="working" title="Agent RUN">RUN</span>
-                          <span class="badge badge-background" title="Background tasks running: 2" aria-label="Background tasks running: 2"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>2</span>
-                          <span class="pane-subtitle">web</span>
-                        </span>
-                      </span>
+                <li class="workspace workspace-group pane-item" data-workspace="web">
+                  <div class="workspace-header">
+                    <span class="sidebar-mark workspace-folder" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
+                    <div class="pane-select workspace-select" role="button" tabindex="0" title="web — Move settings into tabs">
+                      <span class="sidebar-mark" aria-hidden="true"><span class="agent-mark codex"><svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="codex"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">C</text></svg></span></span>
+                      <span class="workspace-copy is-two-line"><span class="workspace-line"><span class="workspace-name">Move settings into tabs</span></span><span class="workspace-place">web</span></span>
+                      <span class="sidebar-pane-meta"><span class="badge badge-working sidebar-status" data-status="working" role="status" aria-label="Agent RUN" title="Agent RUN"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><span class="visually-hidden">RUN</span></span></span>
                     </div>
-                    <div class="pane-actions">
-                      <button type="button" class="sidebar-row-action row-menu-toggle" aria-label="More for Move settings into tabs" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+                    <div class="workspace-actions">
+                      <button type="button" class="sidebar-row-action" aria-label="New tab in web" title="New tab in web"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+                      <button type="button" class="sidebar-row-action row-menu-toggle" aria-label="More for web" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
                     </div>
                   </div>
                 </li>
-
-                <li class="workspace pane-item">
-                  <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project docs" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
-                    <div class="pane-select" role="button" tabindex="0" title="w3-p2 — Draft release notes for 0.9 — ~/dev/docs/notes">
-                      <span class="agent-mark-holder" title="aider"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
-                      <span class="pane-copy">
-                        <span class="pane-primary"><span class="pane-title">Draft release notes for 0.9</span></span>
-                        <span class="pane-meta">
-                          <span class="badge badge-done" data-status="done" title="Agent DONE">DONE</span>
-                          <span class="pane-subtitle">docs · notes</span>
-                        </span>
-                      </span>
+                <li class="workspace workspace-group pane-item" data-workspace="docs">
+                  <div class="workspace-header">
+                    <span class="sidebar-mark workspace-folder" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
+                    <div class="pane-select workspace-select" role="button" tabindex="0" title="docs — Draft release notes for 0.9">
+                      <span class="sidebar-mark" aria-hidden="true"><span class="agent-mark aider"><svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="aider"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">A</text></svg></span></span>
+                      <span class="workspace-copy is-two-line"><span class="workspace-line"><span class="workspace-name">Draft release notes for 0.9</span></span><span class="workspace-place">docs · notes</span></span>
+                      <span class="sidebar-pane-meta"><span class="badge badge-done sidebar-status" data-status="done" role="status" aria-label="Agent DONE" title="Agent DONE"><span class="sidebar-status-dot" aria-hidden="true"></span><span class="visually-hidden">DONE</span></span></span>
                     </div>
-                    <div class="pane-actions">
-                      <button type="button" class="sidebar-row-action row-menu-toggle" aria-label="More for Draft release notes for 0.9" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+                    <div class="workspace-actions">
+                      <button type="button" class="sidebar-row-action" aria-label="New tab in docs" title="New tab in docs"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+                      <button type="button" class="sidebar-row-action row-menu-toggle" aria-label="More for docs" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
                     </div>
                   </div>
                 </li>
-
-                <li class="workspace pane-item">
-                  <div class="pane-row">
-                    <button type="button" class="sidebar-drag-handle" aria-label="Reorder project infra" title="Drag to reorder · Alt+↑/↓"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></button>
-                    <div class="pane-select" role="button" tabindex="0" title="w4-p1 — dev@studio:~/dev/infra — ~/dev/infra">
-                      <span class="agent-mark-holder is-shell" title="Shell"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></svg></span>
-                      <span class="pane-copy">
-                        <span class="pane-primary"><span class="pane-title">infra</span></span>
-                        <span class="pane-meta">
-                          <span class="badge badge-idle" data-status="idle" title="Agent READY">READY</span>
-                          <span class="pane-subtitle">ops</span>
-                        </span>
-                      </span>
+                <li class="workspace workspace-group pane-item" data-workspace="infra">
+                  <div class="workspace-header">
+                    <span class="sidebar-mark workspace-folder" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span>
+                    <div class="pane-select workspace-select" role="button" tabindex="0" title="infra — infra">
+                      <span class="sidebar-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg></span>
+                      <span class="workspace-copy is-two-line"><span class="workspace-line"><span class="workspace-name">infra</span></span><span class="workspace-place">ops</span></span>
+                      <span class="sidebar-pane-meta"><span class="badge badge-idle sidebar-status" data-status="idle" role="status" aria-label="Agent READY" title="Agent READY"><span class="visually-hidden">READY</span></span></span>
                     </div>
-                    <div class="pane-actions">
+                    <div class="workspace-actions">
+                      <button type="button" class="sidebar-row-action" aria-label="New tab in infra" title="New tab in infra"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
                       <button type="button" class="sidebar-row-action row-menu-toggle" aria-label="More for infra" aria-haspopup="menu" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
                     </div>
                   </div>
                 </li>
-
               </ul>
             </nav>
           </div>
         </div>
       </section>
     </div>
+    <section class="agents-sidebar" aria-label="Agents">
+      <button type="button" class="agent-section-toggle sidebar-section-label" aria-expanded="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="agent-section-caret" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><span>Agents</span></button>
+      <div class="agent-list-contents"><ul class="agent-list">
+        <li class="agent-item"><button type="button" class="agent-select agent-row"><span class="sidebar-mark" aria-hidden="true"><span class="agent-mark codex"><svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="codex"><circle cx="12" cy="12" r="11" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="currentColor">C</text></svg></span></span><span class="agent-copy"><span class="agent-title">Move settings into tabs</span><span class="agent-context">codex · web</span></span><span class="agent-row-status"><span class="badge badge-working sidebar-status" data-status="working" role="status" aria-label="Agent RUN" title="Agent RUN"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><span class="visually-hidden">RUN</span></span></span></button></li>
+      </ul></div>
+    </section>
   </div>
 </div>
 <style>

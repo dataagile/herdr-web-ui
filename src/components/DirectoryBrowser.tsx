@@ -6,6 +6,7 @@ import "./DirectoryBrowser.css";
 import type { DirectoryListing } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";
 import { formatBytes } from "../lib/bridgeProgress.ts";
+import { childPath } from "../lib/fileTree.ts";
 import { useMachineApi } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
 
@@ -24,17 +25,13 @@ export function homeRelative(path: string, home: string): string {
   return path.startsWith(`${home}/`) ? `~/${path.slice(home.length + 1)}` : path;
 }
 
-function childPath(parent: string, name: string): string {
-  return parent.endsWith("/") ? `${parent}${name}` : `${parent}/${name}`;
-}
-
 /**
  * Keys of a text field inside a dialog. Enter confirms an IME candidate and Escape dismisses it:
  * neither is the field's, and neither may reach the dialog's own Escape, which closes it. Enter
  * never submits a form; Escape is the field's only when `escape` handles it (returns true), and
  * then it stops here. Otherwise it goes on to close the dialog.
  */
-function fieldKeys(event: KeyboardEvent<HTMLInputElement>, on: { enter?: () => void; escape: () => boolean }): void {
+export function fieldKeys(event: KeyboardEvent<HTMLInputElement>, on: { enter?: () => void; escape: () => boolean }): void {
   if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
     event.stopPropagation();
     return;

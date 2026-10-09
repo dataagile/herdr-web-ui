@@ -123,7 +123,8 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     assert.equal(await host.getByRole("button", { name: /Local finished/ }).count(), 1);
     // opening a done pane in the web marks it seen, once, without herdr's focus moving; it leaves the block
     assert.deepEqual(seenBodies, []);
-    const posted = page.waitForRequest("**/api/pane/seen");
+    // the response, not the request: the retry below must not take this first answer (the 502) for its own
+    const posted = page.waitForResponse("**/api/pane/seen");
     await host.getByRole("button", { name: /Local finished/ }).click();
     await posted;
     assert.deepEqual(seenBodies, [{ pane_id: `${paneId}-done` }]);

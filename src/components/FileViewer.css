@@ -100,12 +100,14 @@
   width: min(100%, 480px);
 }
 
-.file-viewer-pdf {
+/* rendered html: an isolated frame, white like the PDF's */
+.file-viewer-pdf,
+.file-viewer-html {
   width: 100%;
   height: 78vh;
   border: 0;
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--pdf-page);
 }
 
 .file-viewer-text {
@@ -201,7 +203,8 @@
   }
 
   .file-viewer-media { max-height: max(0px, calc(var(--app-height, 100dvh) - 120px)); }
-  .file-viewer-pdf { height: max(0px, calc(var(--app-height, 100dvh) - 120px)); }
+  .file-viewer-pdf,
+  .file-viewer-html { height: max(0px, calc(var(--app-height, 100dvh) - 120px)); }
 }
 
 .file-viewer-choices ul {
@@ -218,4 +221,20 @@
   font-size: var(--fs-xs);
   text-align: left;
   overflow-wrap: anywhere;
+}
+
+/* the viewer's bar: View | Code on the left, the action on the right */
+.file-viewer-toolbar { align-self: stretch; display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.file-viewer-toolbar .segmented { flex: none; }
+.file-viewer-toolbar .segmented svg { width: var(--icon-size); height: var(--icon-size); }
+.file-viewer-toolbar .file-viewer-editbar { flex: 1 1 auto; margin: 0; }
+.file-viewer-sandbox { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-dim); font-size: var(--fs-xs); }
+.file-viewer-sandbox svg { width: calc(var(--icon-size) - var(--space-1)); height: calc(var(--icon-size) - var(--space-1)); flex: none; }
+
+/* rendered markdown: the chat's own .markdown, on a reading card */
+.file-viewer-render { align-self: stretch; width: 100%; max-width: var(--content-w); margin-inline: auto; padding: var(--space-4) var(--space-5); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg); }
+
+@media (max-width: 640px) {
+  .file-viewer-render { padding: var(--space-3); }
+  .file-viewer-toolbar .segmented > button { padding-inline: var(--space-2); }
 }

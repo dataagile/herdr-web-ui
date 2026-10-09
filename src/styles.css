@@ -59,6 +59,11 @@
   --shadow-pop: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
   --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
 
+  /* document surfaces: NOT theme-driven. A PDF page is paper, not UI — it is white in either
+     theme, so it is named here and never overridden by the theme blocks below
+     (FileViewer's .file-viewer-pdf) */
+  --pdf-page: #ffffff;
+
   /* terminal theme: mirrored verbatim in src/lib/settings.ts terminalTheme() */
   --term-bg: #181613;
   --term-fg: #d8d0c3;
@@ -78,6 +83,8 @@
   --fs-lg: 16px;
   --fs-xl: 18px;
   --fs-display: 22px;
+  /* the pairing code: a size of its own, still on the density scale (compact overrides it) */
+  --fs-pairing: 32px;
   --fs-input: 16px; /* the one size iOS Safari does not zoom on focus */
   --lh-tight: 1.2;
   --lh-base: 1.5;
@@ -131,6 +138,7 @@
      pane not measured yet. Never a percentage here: each column would resolve it against its
      own box and the columns would differ by their gutters */
   --chat-w: var(--content-w);
+  --pending-max-h: min(20dvh, 12rem);
   --palette-w: 640px;
   --palette-top: 12vh;
 
@@ -155,6 +163,7 @@
   --z-scrim: 15;
   --z-drawer: 20;
   --z-modal: 30;
+  --z-palette: 35;
   --z-droplet: 40;
 
   /* in-app alert (components/Droplet.css): island black in either theme, so one set */
@@ -504,6 +513,7 @@
   --fs-lg: 15px;
   --fs-xl: 17px;
   --fs-display: 21px;
+  --fs-pairing: 26px;
   --lh-base: 1.45;
   --header-h: 46px;
   --sidebar-w: 300px;
@@ -582,6 +592,9 @@ button {
 /* ---------- shell ---------- */
 
 .app {
+  /* the sidebar column's width: the one the user dragged its edge to (--sidebar-user-w, written
+     by App), else the density's; never more than half the window */
+  --sidebar-shown-w: min(var(--sidebar-user-w, var(--sidebar-w)), 50vw);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -611,10 +624,12 @@ button {
 }
 
 .sidebar {
+  /* positioned for its resize grip (SidebarResizer.css) */
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: var(--sidebar-w);
-  flex: 0 0 var(--sidebar-w);
+  width: var(--sidebar-shown-w);
+  flex: 0 0 var(--sidebar-shown-w);
   min-height: 0;
   background: var(--bg-panel);
   border-right: var(--hairline) solid var(--border);
@@ -654,6 +669,11 @@ button {
    well, it stacked under the composer's own padding as a band of another colour */
 .terminal-host:has(.composer) {
   padding-bottom: 0;
+}
+
+/* the tab strip's panel inside .terminal-host: a role for screen readers, no box of its own */
+.terminal-tabpanel {
+  display: contents;
 }
 
 /* ---------- header ---------- */
@@ -924,7 +944,7 @@ button {
      one piece from the window's top down */
   .app:not(.sidebar-collapsed) .header-side {
     display: flex;
-    flex: 0 0 var(--sidebar-w);
+    flex: 0 0 var(--sidebar-shown-w);
     align-items: center;
     align-self: stretch;
     justify-content: space-between;
@@ -1165,12 +1185,6 @@ button {
 .badge-done {
   color: var(--status-done);
   background: var(--status-done-tint);
-}
-
-/* a pane herdr could not restore: no status to show, and nothing runs in it */
-.badge-restore-error {
-  color: var(--danger-text);
-  background: var(--danger-tint);
 }
 
 /* unknown keeps the dim text color (contrast) and is told apart by the dashed edge */

@@ -132,7 +132,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   fold, **History**, the **+** for a new tab on each row, the "project" wording and the footer's
   Add PC, Sign out and build line. Upstream's **By folder** grouping is gone. **Quiet opened
   finishes** leaves Needs you a DONE it already draws as ready. A watch-role device can no longer
-  send a test alert, as upstream decided. (PR_LINK by @tbc-joaovitor)
+  send a test alert, as upstream decided. ([#19](https://github.com/dataagile/herdr-web-ui/pull/19) by @tbc-joaovitor)
 - The **+** for a new project moved from the PC's header to the end of its **Projects** header,
   where it reads as "add a project here"; it keeps the label "New project on {PC}" and is out of
   reach while the PC is offline. ([#13](https://github.com/dataagile/herdr-web-ui/pull/13) by @tbc-joaovitor)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { expandedKey, fileIcon, filterEntries, filterRows, highlight, pendingFolders, readExpanded, treeKey, visibleRows, writeExpanded, type DirState, type TreeRow } from "./fileTree.ts";
+import { expandedKey, fileIcon, filterEntries, filterRows, foldRows, highlight, nestRows, paneRoot, pendingFolders, readExpanded, treeKey, visibleRows, writeExpanded, type DirState, type TreeRow } from "./fileTree.ts";
 
 const root = {
   directories: ["docs", "src"],
@@ -68,6 +68,11 @@ describe("filter", () => {
     expect(filterEntries(root, "/p", {}, [".hid/readme"], "read", true).map((entry) => entry.rel)).toContain(".hid/readme");
   });
 
+  it("keeps a found file only when its own name holds the query (the server's search is fuzzy over the path)", () => {
+    const entries = filterEntries(root, "/p", {}, ["docs/readme.md", "read/other.txt", "src/r/e/a/d.ts", "a/b/Reader.ts"], "read", false);
+    expect(entries.map((entry) => entry.rel).sort()).toEqual(["README.md", "a/b/Reader.ts", "docs/readme.md"]);
+  });
+
   it("folds a chain of single-child folders into one row and keeps the file under it", () => {
     const rows = filterRows(filterEntries(root, "/p", {}, ["src/lib/__tests__/fixtures/readable.txt", "src/lib/__tests__/fixtures/other-read.txt", "docs/readme.md"], "read", false), "/p");
     expect(rows.map((row) => `${row.level}|${row.sep}|${row.name}|${row.type}`)).toEqual([
@@ -84,10 +89,37 @@ describe("filter", () => {
     expect(rows.map((row) => `${row.level}|${row.sep}${row.name}|${row.expanded}`)).toEqual(["0|a/reading|true", "1|x|true", "2|read.md|false", "0|b/reading|false"]);
   });
 
+  it("closes a folder in place: its rows leave and it reads closed", () => {
+    const rows = filterRows(filterEntries(root, "/p", {}, ["docs/readme.md", "docs/deep/read2.md", "src/read3.md"], "read", false), "/p");
+    const folded = foldRows(rows, new Set(["/p/docs"]));
+    expect(folded.map((row) => `${row.path}:${row.expanded}`)).toEqual(["/p/docs:false", "/p/src:true", "/p/src/read3.md:false", "/p/README.md:false"]);
+    expect(foldRows(rows, new Set()).length).toBe(rows.length);
+  });
+
   it("splits a name around the match", () => {
     expect(highlight("README.md", "read")).toEqual({ before: "", hit: "READ", after: "ME.md" });
     expect(highlight("a.ts", "zz")).toBeNull();
     expect(highlight("a.ts", "  ")).toBeNull();
+  });
+});
+
+describe("paneRoot", () => {
+  it("is the pane's folder only: a listing that fell back to home is not it", () => {
+    expect(paneRoot(null, "/p", "/p", "/p")).toBe("/p");
+    expect(paneRoot(null, "", "/gone", "/home/u")).toBeNull();
+    expect(paneRoot(null, "", "", "/home/u")).toBeNull();
+    expect(paneRoot("/p", "", "/p", "/home/u")).toBe("/p");
+  });
+});
+
+describe("nestRows", () => {
+  it("groups deeper rows under their folder and counts the items among siblings, notes apart", () => {
+    const rows = visibleRows(root, "/p", { "/p/src": ok(["lib"], ["a.ts"]) }, new Set(["/p/src", "/p/src/lib"]));
+    const top = nestRows(rows);
+    expect(top.map((node) => `${node.row.name}:${node.pos}/${node.size}`)).toEqual(["docs:1/3", "src:2/3", "README.md:3/3"]);
+    const src = top[1]!;
+    expect(src.children.map((node) => `${node.row.name || node.row.note}:${node.pos}/${node.size}`)).toEqual(["lib:1/2", "a.ts:2/2"]);
+    expect(src.children[0]!.children.map((node) => node.row.note)).toEqual(["loading"]);
   });
 });
 
@@ -106,6 +138,23 @@ describe("memory", () => {
       expect(readExpanded(key).size).toBe(0);
       store.set(key, JSON.stringify(["/ok", 3, null]));
       expect([...readExpanded(key)]).toEqual(["/ok"]);
+    } finally {
+      if (original) Object.defineProperty(globalThis, "localStorage", original); else Reflect.deleteProperty(globalThis, "localStorage");
+    }
+  });
+  it("keeps the 200 most recent open folders, and only those inside the root", () => {
+    const store = new Map<string, string>();
+    const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) } });
+    try {
+      const many = new Set(Array.from({ length: 250 }, (_, n) => `/p/d${n}`));
+      writeExpanded("k", many, "/p");
+      const saved = [...readExpanded("k")];
+      expect(saved.length).toBe(200);
+      expect(saved[0]).toBe("/p/d50");
+      expect(saved.at(-1)).toBe("/p/d249");
+      writeExpanded("k", new Set(["/elsewhere/x", "/p/y", "/pp/z"]), "/p/");
+      expect([...readExpanded("k")]).toEqual(["/p/y"]);
     } finally {
       if (original) Object.defineProperty(globalThis, "localStorage", original); else Reflect.deleteProperty(globalThis, "localStorage");
     }

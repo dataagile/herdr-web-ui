@@ -24,7 +24,7 @@ export interface TreeRow {
   note?: "loading" | "error" | "empty" | "truncated";
 }
 
-export function joinPath(parent: string, name: string): string {
+export function childPath(parent: string, name: string): string {
   return parent.endsWith("/") ? `${parent}${name}` : `${parent}/${name}`;
 }
 
@@ -36,7 +36,7 @@ export function visibleRows(root: DirEntries, rootPath: string, loaded: Record<s
   };
   const walk = (dir: string, entries: DirEntries, level: number): void => {
     for (const name of entries.directories) {
-      const path = joinPath(dir, name);
+      const path = childPath(dir, name);
       const open = expanded.has(path);
       rows.push({ type: "dir", path, name, sep: "", level, expanded: open });
       if (!open) continue;
@@ -46,7 +46,7 @@ export function visibleRows(root: DirEntries, rootPath: string, loaded: Record<s
       else if (state.directories.length === 0 && state.files.length === 0) note(path, level + 1, "empty");
       else walk(path, state, level + 1);
     }
-    for (const file of entries.files) rows.push({ type: "file", path: joinPath(dir, file.name), name: file.name, sep: "", level, expanded: false, size: file.size });
+    for (const file of entries.files) rows.push({ type: "file", path: childPath(dir, file.name), name: file.name, sep: "", level, expanded: false, size: file.size });
     if (entries.truncated) note(dir, level, "truncated");
   };
   walk(rootPath, root, 0);
@@ -99,7 +99,8 @@ export function filterEntries(root: DirEntries, rootPath: string, loaded: Record
   for (const [path, state] of Object.entries(loaded)) {
     if (state.status === "ok" && path.startsWith(`${base}/`)) scan(path.slice(base.length + 1), state);
   }
-  for (const path of found) add({ rel: path, kind: "file" });
+  // the server's search is fuzzy over the whole path: only a file whose own name holds the query stays
+  for (const path of found) if (matches(path.slice(path.lastIndexOf("/") + 1), q)) add({ rel: path, kind: "file" });
   return [...out.values()];
 }
 
@@ -157,6 +158,58 @@ export function filterRows(entries: readonly FilterEntry[], rootPath: string): T
   };
   walk(top, 0);
   return rows;
+}
+
+/**
+ * The folder the search fits: the pane's own, i.e. the first listing that answered the request for
+ * it. A listing that fell back to home (the folder was empty or unreadable) is not it.
+ */
+export function paneRoot(current: string | null, requested: string, start: string, listed: string): string | null {
+  return current ?? (start !== "" && requested === start ? listed : null);
+}
+
+/**
+ * The filter's rows with the folders the user closed folded: their descendants leave and the row
+ * reads as closed, so a click can open it again.
+ */
+export function foldRows(rows: readonly TreeRow[], closed: ReadonlySet<string>): TreeRow[] {
+  if (closed.size === 0) return [...rows];
+  const out: TreeRow[] = [];
+  let hiding: string | null = null;
+  for (const row of rows) {
+    if (hiding !== null && row.path.startsWith(`${hiding}/`)) continue;
+    hiding = null;
+    if (row.type === "dir" && closed.has(row.path)) { hiding = row.path; out.push({ ...row, expanded: false }); continue; }
+    out.push(row);
+  }
+  return out;
+}
+
+export interface TreeNode {
+  row: TreeRow;
+  children: TreeNode[];
+  /** 1-based place among the sibling items (notes do not count), and how many there are */
+  pos: number;
+  size: number;
+}
+
+/** The flat rows as nested nodes (a row's children are the deeper rows right after it), for `role="group"`. */
+export function nestRows(rows: readonly TreeRow[]): TreeNode[] {
+  const top: TreeNode[] = [];
+  const stack: TreeNode[] = [];
+  for (const row of rows) {
+    const node: TreeNode = { row, children: [], pos: 0, size: 0 };
+    while (stack.length > 0 && stack[stack.length - 1]!.row.level >= row.level) stack.pop();
+    (stack.length > 0 ? stack[stack.length - 1]!.children : top).push(node);
+    stack.push(node);
+  }
+  const number = (nodes: TreeNode[]): void => {
+    const items = nodes.filter((node) => node.row.type !== "note");
+    items.forEach((node, index) => { node.pos = index + 1; node.size = items.length; });
+    for (const node of nodes) number(node.children);
+  };
+  number(top);
+  return top;
 }
 
 // ---- keyboard ----
@@ -229,9 +282,11 @@ export function readExpanded(key: string): Set<string> {
   }
 }
 
-export function writeExpanded(key: string, expanded: ReadonlySet<string>): void {
+/** Saves the open folders: the 200 most recent (the set keeps the order they were opened in), only those inside `root` when it is known. */
+export function writeExpanded(key: string, expanded: ReadonlySet<string>, root: string | null = null): void {
+  const inside = root === null ? [...expanded] : [...expanded].filter((path) => path.startsWith(`${root.replace(/\/$/, "")}/`));
   try {
-    if (expanded.size === 0) localStorage.removeItem(key);
-    else localStorage.setItem(key, JSON.stringify([...expanded].slice(0, 200)));
+    if (inside.length === 0) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(inside.slice(-200)));
   } catch {}
 }

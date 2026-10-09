@@ -6,6 +6,7 @@ import "./DirectoryBrowser.css";
 import type { DirectoryListing } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";
 import { formatBytes } from "../lib/bridgeProgress.ts";
+import { childPath } from "../lib/fileTree.ts";
 import { useMachineApi } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
 
@@ -22,10 +23,6 @@ export interface DirectoryBrowserProps {
 export function homeRelative(path: string, home: string): string {
   if (path === home) return "~";
   return path.startsWith(`${home}/`) ? `~/${path.slice(home.length + 1)}` : path;
-}
-
-function childPath(parent: string, name: string): string {
-  return parent.endsWith("/") ? `${parent}${name}` : `${parent}/${name}`;
 }
 
 /**

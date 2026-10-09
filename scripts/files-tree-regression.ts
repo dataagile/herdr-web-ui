@@ -24,7 +24,7 @@ put("README.md", [
   "- first item", "- second item", "",
   "```bash", "npm install", "```",
 ].join("\n"));
-put("page.html", "<!doctype html><html><body><h1>Report</h1><p id=\"x\">script off</p><script>document.getElementById('x').textContent = 'SCRIPT RAN'; window.parent.__pwned = 1;</script></body></html>");
+put("page.html", "<!doctype html><html><body><h1>Report</h1><img src=\"https://example.com/x.png\"><link rel=\"stylesheet\" href=\"https://example.com/s.css\"><p id=\"x\">script off</p><script>document.getElementById('x').textContent = 'SCRIPT RAN'; window.parent.__pwned = 1;</script></body></html>");
 put("docs/a.md", "# A\n");
 put("docs/b.txt", "bee\n");
 put("src/lib/deep/inner/target-note.txt", "needle\n");
@@ -43,7 +43,9 @@ try {
   const pane = created.root_pane.pane_id;
   server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(root, ".state") });
   const origin = `http://127.0.0.1:${server.port}`;
-  browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/opt/google/chrome/chrome", headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/opt/google/chrome/chrome", headless: true,
+    // a sandboxed frame is its own process by default, and Playwright does not see its requests: keep it in the page's so the "nothing was fetched" check can
+    args: ["--no-sandbox", "--disable-features=IsolateSandboxedIframes"] });
   const errors: string[] = [];
   const open = async (phone: boolean): Promise<Page> => {
     const context = await browser!.newContext(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
@@ -67,21 +69,23 @@ try {
   const focused = (page: Page) => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.path?.replace(/^.*\/herdr-web-ui-files-tree-[^/]+/, "") ?? null);
 
   const page = await open(false);
+  const remote: string[] = [];
+  await page.route(/\/\/example\.com\//, (route) => { remote.push(route.request().url()); return route.abort(); });
   let dialog = await openFiles(page);
   const row = (name: string) => dialog.locator(".tree-row", { has: page.locator(".tree-name", { hasText: new RegExp(`^${name.replace(".", "\\.")}$`) }) });
 
   // ---- the tree: folders first, closed, with tree semantics
   assert.deepEqual(await names(page), ["big", "docs", "src", "page.html", "README.md"]);
-  const levels = await dialog.getByRole("treeitem").evaluateAll((items) => items.map((item) => [item.getAttribute("aria-level"), item.getAttribute("aria-expanded")]));
-  assert.deepEqual(levels, [["1", "false"], ["1", "false"], ["1", "false"], ["1", null], ["1", null]]);
+  const levels = await dialog.getByRole("treeitem").evaluateAll((items) => items.map((item) => [item.getAttribute("aria-level"), item.getAttribute("aria-expanded"), item.getAttribute("aria-posinset"), item.getAttribute("aria-setsize")]));
+  assert.deepEqual(levels, [["1", "false", "1", "5"], ["1", "false", "2", "5"], ["1", "false", "3", "5"], ["1", null, "4", "5"], ["1", null, "5", "5"]]);
   assert.equal(await dialog.locator('.tree-row[tabindex="0"]').count(), 1, "one tabbable row (roving tabindex)");
   console.log("PASS the tree lists folders before files, closed, with treeitem levels and one tabbable row");
 
   // ---- expand and collapse by click
   await row("docs").click();
   await row("a.md").waitFor();
-  assert.equal(await row("docs").locator("xpath=..").getAttribute("aria-expanded"), "true");
-  assert.equal(await row("a.md").locator("xpath=..").getAttribute("aria-level"), "2");
+  assert.equal(await row("docs").getAttribute("aria-expanded"), "true");
+  assert.equal(await row("a.md").getAttribute("aria-level"), "2");
   assert.equal(await row("a.md").locator(".tree-guides i").count(), 1, "one indent guide at level 2");
   await row("docs").click();
   await row("a.md").waitFor({ state: "detached" });
@@ -90,6 +94,14 @@ try {
   // ---- the keys of a tree
   await row("docs").click();
   await row("a.md").waitFor();
+  // the focusable element is the treeitem itself; its children sit in a group
+  const itemOf = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement;
+    return { role: el.getAttribute("role"), level: el.getAttribute("aria-level"), expanded: el.getAttribute("aria-expanded"), selected: el.getAttribute("aria-selected"), pos: el.getAttribute("aria-posinset"), size: el.getAttribute("aria-setsize"), tab: el.tabIndex, name: el.querySelector(".tree-name")?.textContent };
+  });
+  assert.deepEqual(itemOf, { role: "treeitem", level: "1", expanded: "true", selected: "false", pos: "2", size: "5", tab: 0, name: "docs" });
+  assert.equal(await dialog.locator('[role="group"].tree-group > li > [role="treeitem"][aria-level="2"][aria-posinset="1"][aria-setsize="2"]').count(), 1, "a.md is the first of two items in docs group");
+  assert.equal(await dialog.locator("button[role=treeitem], li[role=treeitem]").count(), 0);
   await page.keyboard.press("ArrowDown");
   assert.equal(await focused(page), "/docs/a.md", "Down moves to the next row");
   await page.keyboard.press("ArrowLeft");
@@ -119,7 +131,7 @@ try {
   await dialog.waitFor({ state: "hidden" });
   dialog = await openFiles(page);
   await row("a.md").waitFor();
-  assert.equal(await row("docs").locator("xpath=..").getAttribute("aria-expanded"), "true");
+  assert.equal(await row("docs").getAttribute("aria-expanded"), "true");
   console.log("PASS an open folder is open again when the dialog is reopened");
   await row("docs").click();
 
@@ -134,6 +146,17 @@ try {
   await shot(page, "filter.png");
   await filter.press("ArrowDown");
   assert.equal(await focused(page), "/src/lib/deep/inner", "Down from the field enters the tree");
+  // a folder of the result folds and unfolds in place, by Enter or click
+  await page.keyboard.press("Enter");
+  await dialog.getByRole("treeitem", { name: "target-note.txt" }).waitFor({ state: "detached" });
+  assert.deepEqual(await names(page), ["src/lib/deep/inner"]);
+  assert.equal(await dialog.getByRole("treeitem").first().getAttribute("aria-expanded"), "false");
+  await page.keyboard.press("Enter");
+  await dialog.getByRole("treeitem", { name: "target-note.txt" }).waitFor();
+  await dialog.locator(".tree-row.is-folder").click();
+  assert.equal(await dialog.getByRole("treeitem", { name: "target-note.txt" }).count(), 0);
+  await dialog.locator(".tree-row.is-folder").click();
+  await dialog.getByRole("treeitem", { name: "target-note.txt" }).waitFor();
   console.log("PASS the filter finds a nested file in a never-opened folder, folds the chain, marks the hit and says what it covers");
 
   await filter.fill("zzqqxx");
@@ -163,7 +186,8 @@ try {
   assert.equal(await viewer.getByRole("button", { name: "Edit", exact: true }).count(), 0, "no Edit while the file is drawn");
   const links = await viewer.locator(".file-viewer-render a").evaluateAll((anchors) => anchors.map((a) => [a.getAttribute("href"), a.getAttribute("target"), a.getAttribute("rel")]));
   assert.deepEqual(links, [["https://example.com/", "_blank", "noopener noreferrer"]]);
-  await page.waitForTimeout(300);
+  // (a script that was going to run has run by the time two frames are painted)
+  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
   assert.equal(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned), undefined, "nothing in the markdown ran");
   assert.equal(await viewer.locator(".file-viewer-render").evaluate((el) => el.closest("[data-feedback-private]") !== null), true, "the drawn file sits in a private surface");
   await shot(page, "md.png");
@@ -192,6 +216,9 @@ try {
   await html.getByText("Scripts are off in this view").waitFor();
   const inside = html.frameLocator("iframe.file-viewer-html");
   await inside.getByRole("heading", { name: "Report" }).waitFor();
+  await page.waitForLoadState("networkidle"); // the image and the stylesheet would have been asked for by now
+  assert.deepEqual(remote, [], "the html file fetched nothing from outside (the CSP blocks the image and the stylesheet)");
+  assert.equal(await inside.locator("head > meta").first().getAttribute("http-equiv"), "Content-Security-Policy", "the policy is the first element of the head");
   assert.equal(await inside.locator("#x").textContent(), "script off", "the page's script did not run");
   assert.equal(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned), undefined);
   await shot(page, "html.png");

@@ -32,7 +32,7 @@ export function FilesDialog({ start, paneId, viewing, onOpenFile, onClose }: Fil
           <button type="button" className="icon-button" aria-label={t("Close files")} onClick={onClose}><X aria-hidden="true" /></button>
         </header>
         <div className="modal-body" data-feedback-private="">
-          <FileTree start={start} paneId={paneId} onOpenFile={onOpenFile} />
+          <FileTree key={`${start}\n${paneId}`} start={start} paneId={paneId} onOpenFile={onOpenFile} />
         </div>
       </section>
     </div>

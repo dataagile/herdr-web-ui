@@ -12,11 +12,12 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   remembered per PC and pane folder), with file-type icons, a selected-row rail and arrow-key navigation (up/down,
   right/left to open and close, Home/End). A **Filter by name** field keeps the matching names and their folders,
   folding single-child folders into one row and marking the match, and looks in the open folders and in the git files
-  below the pane's folder. Esc clears the filter, then closes the dialog. A folder that holds more than 500 entries says
+  below the pane's folder (only files whose own name holds the text); a click or Enter on a folder in the result folds it.
+  Esc clears the filter, then closes the dialog. A folder that holds more than 500 entries says
   so. The new-project folder picker is unchanged.
 - The file viewer **draws** markdown (`.md`, in the chat's own style) and **html** (`.html`, in a sandboxed frame with no
   scripts) with a View | Code switch, remembered per format; Edit is in Code. Raw html inside markdown is shown as text and
-  its links open in a new tab for http, https and mailto only. Relative images and links of an html file may not load.
+  its links open in a new tab for http, https and mailto only. An html file fetches nothing (no remote images, styles or fonts). Relative images and links of an html file may not load.
   by @tbc-joaovitor
 - **Modified files** in the header: a button (icon `FileDiff` with a count) after the Chat/Terminal
   switch lists the files the pane's agent changed in its session, read from its whole transcript

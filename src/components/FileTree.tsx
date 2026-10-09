@@ -12,8 +12,8 @@ import type { DirectoryListing } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";
 import { formatBytes } from "../lib/bridgeProgress.ts";
 import {
-  expandedKey, fileIcon, filterEntries, filterRows, highlight, pendingFolders, readExpanded, treeKey, visibleRows, writeExpanded,
-  type DirState, type FileIcon, type TreeRow,
+  expandedKey, fileIcon, filterEntries, filterRows, foldRows, highlight, nestRows, paneRoot, pendingFolders, readExpanded, treeKey, visibleRows, writeExpanded,
+  type DirState, type FileIcon, type TreeNode, type TreeRow,
 } from "../lib/fileTree.ts";
 import { useMachineApi, useMachineId } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
@@ -56,13 +56,18 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  /** folders the user closed inside the filter's result (they all start open) */
+  const [closed, setClosed] = useState<Set<string>>(() => new Set());
   const generation = useRef(0);
   const requested = useRef(new Set<string>());
   const homeRoot = useRef<string | null>(null);
-  const items = useRef(new Map<string, HTMLButtonElement>());
+  const items = useRef(new Map<string, HTMLDivElement>());
+  const busy = useRef(false);
   const filterInput = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { writeExpanded(storageKey, expanded); }, [storageKey, expanded]);
+  useEffect(() => { writeExpanded(storageKey, expanded, root?.path ?? null); }, [storageKey, expanded, root]);
+  useEffect(() => { setClosed(new Set()); }, [query]);
 
   // the root: the pane's folder, then wherever Up / Home lead
   useEffect(() => {
@@ -71,7 +76,7 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
     setLoaded({});
     apiRef.current.fetchDirectories(rootRequest, hidden, true).then((listing) => {
       if (mine !== generation.current) return;
-      homeRoot.current ??= listing.path;
+      homeRoot.current = paneRoot(homeRoot.current, rootRequest, start, listing.path);
       setRoot(listing);
       setError(null);
     }).catch((reason: unknown) => {
@@ -93,8 +98,9 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
     if (root === null || rootEntries === null) return [];
     if (!filtering) return visibleRows(rootEntries, root.path, loaded, expanded);
     const paths = found !== null && found.query === query.trim() ? found.paths : [];
-    return filterRows(filterEntries(rootEntries, root.path, loaded, paths, query, hidden), root.path);
-  }, [root, loaded, expanded, filtering, query, found, hidden]);
+    return foldRows(filterRows(filterEntries(rootEntries, root.path, loaded, paths, query, hidden), root.path), closed);
+  }, [root, loaded, expanded, filtering, query, found, hidden, closed]);
+  const nodes = useMemo(() => nestRows(rows), [rows]);
 
   // an open folder with no answer yet is read now
   const pending = pendingFolders(rows).join("\n");
@@ -157,7 +163,14 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
       setSelected(row.path);
       onOpenFile(row.path);
     } else if (!filtering) setOpen(row.path, !row.expanded);
-    else if (!row.expanded) reveal(row.path);
+    else if (closed.has(row.path) || row.expanded) {
+      // inside the filter a folder with matches under it folds and unfolds in place
+      setClosed((current) => {
+        const next = new Set(current);
+        if (!next.delete(row.path)) next.add(row.path);
+        return next;
+      });
+    } else reveal(row.path);
   };
 
   const focusRow = (path: string): void => {
@@ -168,6 +181,11 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
   const onTreeKey = (event: KeyboardEvent<HTMLUListElement>): void => {
     const path = (event.target as HTMLElement).closest<HTMLElement>("[data-path]")?.dataset.path ?? null;
     if (path === null || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === "Enter" || event.key === " ") {
+      const row = rows.find((candidate) => candidate.type !== "note" && candidate.path === path);
+      if (row !== undefined) { event.preventDefault(); activate(row); }
+      return;
+    }
     const action = treeKey(rows, path, event.key, filtering);
     if (action === null) return;
     event.preventDefault();
@@ -186,17 +204,27 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
 
   const create = async (): Promise<void> => {
     const name = newName.trim();
-    if (name === "" || root === null) return;
+    if (name === "" || root === null || busy.current) return;
+    busy.current = true;
+    setSaving(true);
+    const mine = generation.current;
+    const parent = root.path;
     try {
-      await apiRef.current.createDirectory(root.path, name);
+      await apiRef.current.createDirectory(parent, name);
       setCreating(false);
       setNewName("");
       setCreateError(null);
-      setReload((n) => n + 1);
+      // only the folder it was made in is read again; the others stay as they are
+      apiRef.current.fetchDirectories(parent, hidden, true).then((listing) => {
+        if (mine === generation.current) setRoot(listing);
+      }).catch(() => { if (mine === generation.current) setReload((n) => n + 1); });
     } catch (reason: unknown) {
       setCreateError(reason instanceof ApiError && reason.code === "exists" ? t("A folder with that name already exists.")
         : reason instanceof ApiError && reason.code === "invalid_name" ? t("That name cannot be used.")
         : t("The folder could not be created."));
+    } finally {
+      busy.current = false;
+      setSaving(false);
     }
   };
 
@@ -212,6 +240,42 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
     </span>;
   };
   const guides = (level: number): ReactNode => <span className="tree-guides" aria-hidden="true">{Array.from({ length: level }, (_, index) => <i key={index} />)}</span>;
+
+  const renderNode = (node: TreeNode): ReactNode => {
+    const { row } = node;
+    if (row.type === "note") {
+      const text = row.note === "loading" ? t("Loading…") : row.note === "error" ? t("Folders could not be loaded.")
+        : row.note === "empty" ? t("Nothing here") : t("More items than shown — refine the filter");
+      return (
+        <li key={`${row.note}:${row.path}`} role="none">
+          <div className="dir-browser-note tree-note" role={row.note === "loading" ? "status" : undefined}>
+            {guides(row.level)}<span className="tree-twist" />
+            {row.note === "loading" && <LoaderCircle className="tree-spin" aria-hidden="true" />}
+            <span>{text}</span>
+          </div>
+        </li>
+      );
+    }
+    const folder = row.type === "dir";
+    const Icon = folder ? (row.expanded ? FolderOpen : Folder) : FILE_ICON[fileIcon(row.name)];
+    return (
+      <li key={row.path} role="none">
+        <div role="treeitem" data-path={row.path} tabIndex={cursor === row.path ? 0 : -1} title={row.path}
+          aria-level={row.level + 1} aria-setsize={node.size} aria-posinset={node.pos}
+          aria-expanded={folder ? row.expanded : undefined} aria-selected={selected === row.path}
+          ref={(element) => { if (element) items.current.set(row.path, element); else items.current.delete(row.path); }}
+          className={`dir-browser-item tree-row ${folder ? "is-folder" : "is-file"}${selected === row.path ? " is-selected" : ""}`}
+          onClick={() => activate(row)} onFocus={() => setActive(row.path)}>
+          {guides(row.level)}
+          {folder ? (row.expanded ? <ChevronDown className="tree-chev" aria-hidden="true" /> : <ChevronRight className="tree-chev" aria-hidden="true" />) : <span className="tree-twist" aria-hidden="true" />}
+          <Icon aria-hidden="true" />
+          {name(row)}
+          {row.size !== undefined && <span className="dir-browser-size">{formatBytes(row.size)}</span>}
+        </div>
+        {node.children.length > 0 && <ul role="group" className="tree-group">{node.children.map(renderNode)}</ul>}
+      </li>
+    );
+  };
 
   return (
     <div className="dir-browser dir-browser-tree" role="group" aria-label={t("Files of {path}", { path: shown })} aria-busy={root === null && error === null} onKeyDown={onKeyDown}>
@@ -233,7 +297,7 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
             <input className="input" aria-label={t("Folder name")} placeholder={t("Folder name")} autoFocus value={newName}
               onChange={(event) => setNewName(event.target.value)}
               onKeyDown={(event) => fieldKeys(event, { enter: () => void create(), escape: () => { setCreating(false); setNewName(""); setCreateError(null); return true; } })} />
-            <button type="button" className="btn btn-primary" disabled={newName.trim() === ""} onClick={() => void create()}>{t("Create")}</button>
+            <button type="button" className="btn btn-primary" disabled={newName.trim() === "" || saving} onClick={() => void create()}>{t("Create")}</button>
           </div>
           {createError !== null && <p className="dir-browser-error dir-browser-new-error" role="alert">{createError}</p>}
         </div>
@@ -253,37 +317,7 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
       {error !== null ? <p className="dir-browser-note dir-browser-error" role="alert">{error}</p> : (
         <ul className="dir-browser-list" role="tree" aria-label={t("Folders and files")} onKeyDown={onTreeKey}>
           {root === null && <li className="dir-browser-note" role="status">{t("Loading…")}</li>}
-          {rows.map((row) => {
-            if (row.type === "note") {
-              const text = row.note === "loading" ? t("Loading…") : row.note === "error" ? t("Folders could not be loaded.")
-                : row.note === "empty" ? t("Nothing here") : t("More items than shown — refine the filter");
-              return (
-                <li key={`${row.note}:${row.path}`} role="none">
-                  <div className="dir-browser-note tree-note" role={row.note === "loading" ? "status" : undefined}>
-                    {guides(row.level)}<span className="tree-twist" />
-                    {row.note === "loading" && <LoaderCircle className="tree-spin" aria-hidden="true" />}
-                    <span>{text}</span>
-                  </div>
-                </li>
-              );
-            }
-            const folder = row.type === "dir";
-            const Icon = folder ? (row.expanded ? FolderOpen : Folder) : FILE_ICON[fileIcon(row.name)];
-            return (
-              <li key={row.path} role="treeitem" aria-level={row.level + 1} aria-expanded={folder ? row.expanded : undefined} aria-selected={selected === row.path ? true : undefined}>
-                <button type="button" data-path={row.path} tabIndex={cursor === row.path ? 0 : -1} title={row.path}
-                  ref={(node) => { if (node) items.current.set(row.path, node); else items.current.delete(row.path); }}
-                  className={`dir-browser-item tree-row ${folder ? "is-folder" : "is-file"}${selected === row.path ? " is-selected" : ""}`}
-                  onClick={() => activate(row)} onFocus={() => setActive(row.path)}>
-                  {guides(row.level)}
-                  {folder ? (row.expanded ? <ChevronDown className="tree-chev" aria-hidden="true" /> : <ChevronRight className="tree-chev" aria-hidden="true" />) : <span className="tree-twist" aria-hidden="true" />}
-                  <Icon aria-hidden="true" />
-                  {name(row)}
-                  {row.size !== undefined && <span className="dir-browser-size">{formatBytes(row.size)}</span>}
-                </button>
-              </li>
-            );
-          })}
+          {nodes.map(renderNode)}
           {root !== null && rows.length === 0 && (filtering
             ? (settled ? (
               <li className="dir-browser-empty" role="status">

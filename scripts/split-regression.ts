@@ -277,7 +277,7 @@ try {
   const line = await version.innerText();
   assert.match(line, /^DevDA · v\d+\.\d+\.\d+ · [0-9a-f]{7,}$|^DevDA · v\d+\.\d+\.\d+ · dev$/, `the footer reads brand, version and commit (${line})`);
   assert.deepEqual(line.split(" · ").length, 3);
-  assert.match((await version.getAttribute("title")) ?? "", /^herdr \d+\.\d+\.\d+ · build .+/, "the tooltip says the herdr version and the build");
+  assert.match((await version.getAttribute("title")) ?? "", /^server \d+\.\d+\.\d+ · build .+/, "the tooltip says the session server version and the build");
   await version.scrollIntoViewIfNeeded();
   await page.locator(".sidebar-footer").screenshot({ path: process.env.UI_EVIDENCE_DIR ? join(process.env.UI_EVIDENCE_DIR, "footer.png") : "/dev/null" }).catch(() => undefined);
   console.log(`PASS the sidebar footer reads "${line}"`);

@@ -238,7 +238,7 @@ export const windowsHost: RemoteHost = {
     await ssh.runPowerShell([
       "$ErrorActionPreference = 'Stop'",
       "$tmp = Join-Path $env:TEMP \"herdr-install-$PID\"; New-Item -ItemType Directory -Force $tmp | Out-Null",
-      `curl.exe -fsSLo "$tmp\\install.cmd" ${HERDR_INSTALL_CMD}; if ($LASTEXITCODE -ne 0) { throw 'Could not download the herdr installer' }`,
+      `curl.exe -fsSLo "$tmp\\install.cmd" ${HERDR_INSTALL_CMD}; if ($LASTEXITCODE -ne 0) { throw 'Could not download the session server installer' }`,
       "& cmd.exe /d /c \"$tmp\\install.cmd\"; if ($LASTEXITCODE -ne 0) { throw 'The session server installer failed' }",
       "Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue",
     ].join("\n"), undefined, 10 * 60_000);

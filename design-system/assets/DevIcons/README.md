@@ -1,4 +1,4 @@
-**DevDA** — the app icon of both developer products (the Portal Dev Data Agile and the Data Agile fork of herdr web ui, whose user-facing name is DevDA). It is option A "<DA/>" (approved 08/10/2026): the Data Agile "DA" monogram (Montserrat ExtraBold, D white `#ffffff`, A `--portal-accent` green `#05db90`) between green code brackets `<` and `/>`, on the `--portal-bg-elev` navy square (`#1a212b`, corner radius 14/64). Letters are outlined paths, so the SVG renders identically everywhere without the font. Source and alternatives: `docs/marca/`.
+**DevDA** — the app icon of both developer products (the Portal Dev Data Agile and the Data Agile fork of herdr web ui, whose user-facing name is DevDA). It is option A "<DA/>" (approved 08/10/2026): the Data Agile "DA" monogram (Montserrat ExtraBold, D white `#ffffff`, A `--portal-accent` green `#05db90`) between green code brackets `<` and `/>`, on the `--portal-bg-elev` navy square (`#1a212b`, corner radius 14/64). Letters are outlined paths, so the SVG renders identically everywhere without the font. Source and alternatives: `dataagile/portal_desenvolvimento`, `docs/marca/`.
 
 | File | Use |
 |---|---|

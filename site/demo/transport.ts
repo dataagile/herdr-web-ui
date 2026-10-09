@@ -456,7 +456,8 @@ const NOTICE_LINES = [
   "",
   "In the real app this view is the agent's own TUI,",
   "live through the session server and shared with",
-  "the session server's own terminal on the PC. Switch back to Chat above.",
+  "the session server's own terminal on the PC.",
+  "Switch back to Chat above.",
 ];
 const NOTICE = (() => {
   const width = Math.max(...NOTICE_LINES.map((line) => line.length)) + 4;

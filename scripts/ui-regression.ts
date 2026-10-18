@@ -352,8 +352,8 @@ try {
   await agentRow(paneA).locator(`.badge[data-status="${settledAgentStatus}"]`).waitFor();
   console.log("PASS delayed machines poll preserves newer streamed pane status");
 
-  // Agents is global to the sidebar, so collapsing a PC's Spaces does not hide
-  // its reported agents or prevent explicit pane selection from that list.
+  // Agents sits inside its PC: open, the PC's agents list shows in its group;
+  // folding the PC folds its agents too, and selecting from the list works on an open PC.
   await herdrRpc("pane.report_agent", { pane_id: paneB, source: "manual", agent: "codex", state: "idle" });
   await agentRow(paneB).waitFor();
   const machineToggle = page.locator(".machine-group .machine-toggle");
@@ -362,17 +362,21 @@ try {
   assert.equal(await page.locator(".machine-group .sidebar-section-row .sidebar-section-new").count(), 1);
   await machineToggle.click();
   await workspaceGroup(workspaces[0]!).waitFor({ state: "detached" });
-  assert.equal(await agentRow(paneA).isVisible(), true, "PC folding leaves Agents visible");
+  assert.equal(await page.locator(".agents-sidebar").count(), 0, "PC folding folds its Agents with it");
+  assert.equal(await agentRow(paneA).count(), 0, "a folded PC shows none of its agents");
+  await machineToggle.click();
+  await page.locator(".machine-group .agents-sidebar").waitFor();
+  assert.equal(await agentRow(paneA).isVisible(), true, "an open PC shows its Agents inside its group");
+  assert.equal(await page.locator(".sidebar-shell > .agents-sidebar").count(), 0, "no Agents list outside the PC groups");
   await agentRow(paneB).locator(".agent-select").click();
   await agentRow(paneB).locator('.agent-select[aria-current="true"]').waitFor();
   assert.deepEqual(await page.evaluate(() => JSON.parse(sessionStorage.getItem("herdr-web-ui:selection") ?? "null")),
     { machine_id: "local", pane_id: paneB }, "Agent selection retains its machine and pane target");
-  assert.equal(await machineToggle.getAttribute("aria-expanded"), "false", "Agent selection preserves the user's PC fold");
+  assert.equal(await machineToggle.getAttribute("aria-expanded"), "true", "Agent selection leaves the PC open");
   painted.delete(paneA);
   await agentRow(paneA).locator(".agent-select").click();
   await agentRow(paneA).locator('.agent-select[aria-current="true"]').waitFor();
   await until(() => painted.has(paneA), "returning from Agents paints the current pane");
-  await machineToggle.click();
   await workspaceHeader(workspaces[0]!).locator('.workspace-select[aria-current="true"]').waitFor();
 
   // Reuse the real API roster as an offline cache in an isolated context. Its
@@ -1552,7 +1556,12 @@ try {
   await until(() => typing(mobilePage), "a tap on the message box takes the keyboard");
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).blur();
   await mobilePage.locator('button[aria-controls="workspace-drawer"]').click();
-  assert.equal(await mobilePage.locator(".agents-sidebar .agent-section-toggle").getAttribute("aria-expanded"), "false", "a phone's drawer opens with Agents folded");
+  const phoneAgents = mobilePage.locator(".agents-sidebar > .sidebar-section-header").first();
+  assert.equal(await phoneAgents.getAttribute("aria-expanded"), "false", "a phone's drawer opens with Agents folded");
+  assert.match(await phoneAgents.innerText(), /^Agents · \d+$/, "the folded head still says how many agents it holds");
+  await phoneAgents.tap();
+  assert.equal(await phoneAgents.getAttribute("aria-expanded"), "true", "a tap opens the phone's Agents");
+  await phoneAgents.tap();
   await mobilePage.locator(`.pane-select[title^="${paneB} —"]`).click();
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).waitFor();
   console.log("PASS a pane picked on a phone waits for a tap before raising the keyboard");

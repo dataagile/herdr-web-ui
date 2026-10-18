@@ -1,72 +1,12 @@
-/* Agents takes the height of its rows, at most half the sidebar, docked above the footer; the
-   workspace list has the rest. Parted from it by space, not a rule. */
+/* One PC's Agents, between its Projects and its History; the PC list scrolls, this does not. */
 .agents-sidebar {
   display: flex;
-  flex: 0 1 auto;
   flex-direction: column;
-  min-height: 0;
-  max-height: 50%;
-  padding: var(--space-2) var(--side-gutter) 0;
+  padding: var(--space-2) 0 0;
 }
-
-.agents-sidebar.is-collapsed,
-.agents-sidebar.is-empty { flex: 0 0 auto; }
 
 /* positioned: a row's visually hidden label is absolute, and must not size the page instead */
-.agent-list-contents {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scroll-padding-bottom: var(--space-4);
-}
-
-.agents-sidebar.is-empty .agent-list-contents { flex: 0 0 auto; }
-
-/* a list that is cut fades out; at the end of its scroll the fade lies over its own spare space */
-.agent-list-contents::after {
-  content: "";
-  position: sticky;
-  bottom: 0;
-  display: block;
-  height: var(--space-4);
-  background: linear-gradient(transparent, var(--bg-panel));
-  pointer-events: none;
-}
-
-.agents-sidebar.is-empty .agent-list-contents::after { display: none; }
-
-.agent-section-toggle {
-  flex: 0 0 auto;
-  width: 100%;
-  cursor: pointer;
-}
-
-/* the fold's caret hangs in the leading cell and shows when it is of use */
-.agent-section-caret {
-  flex: none;
-  width: var(--space-4);
-  height: var(--space-4);
-  margin-inline: calc((var(--side-box) - var(--space-4)) / 2);
-  opacity: 0;
-}
-
-.agent-section-toggle:focus-visible .agent-section-caret,
-.agents-sidebar.is-collapsed .agent-section-caret { opacity: 1; }
-
-@media (hover: hover) {
-  .agent-section-toggle:hover .agent-section-caret { opacity: 1; }
-}
-
-/* a folded list still says how many agents it holds */
-.agent-section-count {
-  width: var(--side-box);
-  margin-left: auto;
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
+.agent-list-contents { position: relative; }
 
 .agent-list {
   margin: 0;
@@ -142,10 +82,6 @@
   padding: var(--space-2) var(--space-2) var(--space-2) var(--side-box);
   color: var(--text-dim);
   font-size: var(--fs-sm);
-}
-
-@media (pointer: coarse) {
-  .agent-section-caret { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

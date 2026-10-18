@@ -44,7 +44,6 @@ export function MachineSidebar(props: Props) {
       {props.machines.map((machine, index) => <MachineGroup key={machine.id} {...props} machine={machine} waiting={waiting[index]!} />)}
       {!props.machines.length && <p className="tree-state" role="status">{t("Loading PCs…")}</p>}
     </div>
-    <AgentSidebar machines={props.machines} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(machine) => t(STATE_WORD[machine.state])} onSelect={props.onSelect} />
     <footer className="sidebar-footer">
       <button className="btn btn-ghost sidebar-footer-action" onClick={props.actions.openAddPc}><Monitor aria-hidden="true" />{t("Add PC")}</button>
       {/* browsers without an install prompt (iOS, plain HTTP) get the steps instead */}
@@ -116,7 +115,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
     {/* outside the fold: a waiting agent is never hidden by a collapsed PC */}
     <NeedsInput machine={machine} waiting={waiting} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} onSelect={props.onSelect} />
     {!collapsed && <div className={online ? "" : "machine-offline"} {...(!online ? { inert: "" } : {})}>
-      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} /></MachineContext.Provider>}
+      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} agents={<AgentSidebar machine={machine} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(m) => t(STATE_WORD[m.state])} onSelect={props.onSelect} />} /></MachineContext.Provider>}
     </div>}
   </section>;
 }

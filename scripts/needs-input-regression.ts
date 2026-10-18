@@ -58,6 +58,8 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     assert.equal(await remote.getAttribute("aria-label"), "Needs you on QA remote");
     // both PCs are folded: no Projects, and the block is still there
     assert.equal(await page.locator(".machine-group .sidebar-section-header:not(.needs-input-toggle)").count(), 0);
+    // Agents belongs to the PC and folds with it: none while both are folded, and no list outside the groups
+    assert.equal(await page.locator(".agents-sidebar").count(), 0);
     // unfolded, it sits under the PC's header, above its Projects section
     await page.locator('.machine-group[aria-label="PC QA host"] .machine-toggle').click();
     await page.locator('.machine-group[aria-label="PC QA host"] .sidebar-section-header:not(.needs-input-toggle)').first().waitFor();
@@ -66,6 +68,22 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
       const before = (a: Element, b: Element | null) => b !== null && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
       return before(group.querySelector(".machine-header")!, el) && before(el, group.querySelector(".sidebar-section-header:not(.needs-input-toggle)"));
     }), true);
+    // Agents sits inside its PC, after Projects, with that PC's agents only and no PC name on the row
+    const hostAgents = page.locator('.machine-group[aria-label="PC QA host"] .agents-sidebar');
+    await hostAgents.waitFor();
+    assert.equal(await page.locator(".sidebar-shell > .agents-sidebar").count(), 0);
+    assert.deepEqual((await hostAgents.locator(".agent-title").allTextContents()).sort(), ["Local finished", "Local waiting"]);
+    assert.equal(await hostAgents.locator('.agent-context:has-text("QA host")').count(), 0);
+    assert.equal(await hostAgents.evaluate((el) => {
+      const projects = el.closest(".machine-group")!.querySelector(".workspace-list")!;
+      return Boolean(projects.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+    }), true);
+    // the PC's own fold takes its agents with it, while Needs you stays
+    await page.locator('.machine-group[aria-label="PC QA host"] .machine-toggle').click();
+    assert.equal(await hostAgents.count(), 0);
+    await host.getByRole("button", { name: /Local waiting/ }).waitFor();
+    await page.locator('.machine-group[aria-label="PC QA host"] .machine-toggle').click();
+    await hostAgents.waitFor();
     assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
     // the heading folds the rows and keeps the count; the choice survives a reload; unfolding shows the rows again
     const hostToggle = host.getByRole("button", { name: /^Needs you/ });
@@ -103,6 +121,30 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await remoteToggle.click();
     assert.equal(await remoteToggle.getAttribute("aria-expanded"), "true");
     await remote.waitFor();
+    // Agents folds per PC: folding one PC's list leaves the other's open, the count stays, and the choice outlives the list's remount
+    const hostList = page.locator('.machine-group[aria-label="PC QA host"] .agents-sidebar');
+    const remoteList = page.locator('.machine-group[aria-label="PC QA remote"] .agents-sidebar');
+    // the reload above may have left the host folded: open it
+    const hostMachineToggle = page.locator('.machine-group[aria-label="PC QA host"] .machine-toggle');
+    if ((await hostMachineToggle.getAttribute("aria-expanded")) !== "true") await hostMachineToggle.click();
+    await hostList.waitFor();
+    await remoteList.waitFor();
+    assert.equal(await hostList.getAttribute("aria-label"), "Agents on QA host");
+    await hostList.locator(".sidebar-section-header").click();
+    assert.equal(await hostList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "false");
+    assert.equal(await hostList.locator(".sidebar-section-header").textContent(), "Agents · 2");
+    assert.equal(await remoteList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "true");
+    // the PC's fold unmounts the list; reopening reads the stored choice back
+    await hostMachineToggle.click();
+    await hostMachineToggle.click();
+    await hostList.waitFor();
+    assert.equal(await hostList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "false");
+    // the other PC remounts too: a fold kept under one shared key would reach it here, not on the click
+    await remoteToggle.click();
+    await remoteToggle.click();
+    await remoteList.waitFor();
+    assert.equal(await remoteList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "true");
+    await hostList.locator(".sidebar-section-header").click();
     await remoteToggle.click();
     assert.equal(await remoteToggle.getAttribute("aria-expanded"), "false");
     await remote.waitFor();

@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prévia · devda-feedback</title>
+<style>body{background:#0b1512;color:#e6ece9;font:16px system-ui;margin:16px}.g{display:flex;flex-wrap:wrap;gap:12px}figure{margin:0;width:min(270px,100%)}img{width:100%;border-radius:8px}figcaption{text-align:center;color:#8aa}pre{white-space:pre-wrap;background:#13201c;padding:12px;border-radius:8px;font-size:13px}</style>
+<h1>Prévia: devda-feedback (vídeo 4, 55 s)</h1><div class="g"><figure><img src="s002.60.png" loading="lazy"><figcaption>2.60 s</figcaption></figure><figure><img src="s008.50.png" loading="lazy"><figcaption>8.50 s</figcaption></figure><figure><img src="s012.50.png" loading="lazy"><figcaption>12.50 s</figcaption></figure><figure><img src="s016.00.png" loading="lazy"><figcaption>16.00 s</figcaption></figure><figure><img src="s020.50.png" loading="lazy"><figcaption>20.50 s</figcaption></figure><figure><img src="s026.00.png" loading="lazy"><figcaption>26.00 s</figcaption></figure><figure><img src="s030.50.png" loading="lazy"><figcaption>30.50 s</figcaption></figure><figure><img src="s033.50.png" loading="lazy"><figcaption>33.50 s</figcaption></figure><figure><img src="s039.00.png" loading="lazy"><figcaption>39.00 s</figcaption></figure><figure><img src="s046.50.png" loading="lazy"><figcaption>46.50 s</figcaption></figure><figure><img src="s053.50.png" loading="lazy"><figcaption>53.50 s</figcaption></figure></div><h2>Roteiro</h2><pre># Enviar feedback (série &quot;Veja em ação&quot; do DevDA, vídeo 4)
+
+- **Formato:** 9:16 (1080x1920), **55 s**, sem áudio, paleta Data Agile. Material de treinamento.
+- **Para que serve:** o megafone no topo abre um chamado na equipe Data Agile (erro, sugestão de melhoria ou feedback geral), com descrição, dados técnicos mascarados e, se quiser, o print de um elemento da tela.
+- **Material:** prints da **sessão de demonstração** com textos fictícios em pt-BR. O portal é **simulado na cópia da demo** (`_captura/prep-feedback.py`: `/api/portal/me` com feedback ligado e o `POST /api/portal/feedback` respondendo 201 sem número nem link): nada foi enviado ao GLPI, nenhum chamado, número ou entidade real aparece. Desktop 1440x900 @2x. Captura: `_captura/shoot-feedback.ts`.
+- **Rótulos exatos** (`i18n.pt.ts`, `FeedbackButton.tsx`, `FeedbackDialog.tsx`, `ElementPicker.tsx`): &quot;Enviar feedback&quot;, &quot;Reportar erro&quot;, &quot;Sugestão de melhoria&quot;, &quot;Feedback geral&quot;, &quot;Descrição (obrigatório)&quot;, &quot;Incluir dados técnicos no chamado&quot;, &quot;Selecionar elemento na tela&quot;, &quot;Clique num elemento ou arraste para recortar&quot;, &quot;Elemento selecionado: {name}&quot;, &quot;Enviar&quot;, &quot;Chamado aberto&quot;.
+
+## Gramática de movimento
+
+Igual aos vídeos 1 a 3. Barra de 7 passos.
+
+## Tabela
+
+| tempo | passo | câmera | objetos e motion | legenda (título / apoio · rótulo) |
+|---|---|---|---|---|
+| 0–4,4 | Capa | — | — | **Envie um feedback / sem sair do DevDA** / erro, sugestão ou comentário vira chamado na equipe Data Agile |
+| 4,4–11,0 | 1 | tela, zoom no topo (5,6) | cursor no megafone (7,4); contorno; clique (9,8); menu (10,2) | Abra o feedback / fica no topo, ao lado do sino · &quot;Enviar feedback&quot; |
+| 11,0–16,6 | 2 | topo, depois o formulário (15,7) | contorno no menu; clique em Reportar erro (15,2) | Escolha o tipo / erro, sugestão de melhoria ou feedback geral · &quot;Reportar erro / Sugestão de melhoria / Feedback geral&quot; |
+| 16,6–23,0 | 3 | formulário | o texto aparece (18,6); contorno no campo | Descreva com detalhes / a equipe recebe como chamado · &quot;Descrição (obrigatório)&quot; |
+| 23,0–29,0 | 4 | desce no formulário | contorno na caixa marcada | Inclua os dados técnicos / ajudam a equipe; senhas e tokens vão mascarados · &quot;Incluir dados técnicos no chamado&quot; |
+| 29,0–36,4 | 5 | formulário, tela inteira (31,9), formulário (35,9) | contorno no botão; clique (31,4); seletor sobre a tela; contorno na dica; clique na conversa (35,4) | Aponte o problema na tela / o print da tela vai junto · &quot;Selecionar elemento na tela&quot;; &quot;Clique num elemento ou arraste para recortar&quot; |
+| 36,4–42,4 | 6 | formulário | contorno no print anexado | Confira o print / veja se não aparece nenhum dado sensível · &quot;Elemento selecionado: div.chat-transcript&quot; |
+| 42,4–49,0 | 7 | confirmação (44,3) | clique em Enviar (43,8); confirmação (44,2); contorno | Envie o chamado / ele chega à equipe Data Agile · &quot;Chamado aberto&quot; |
+| 49,0–55 | Fechamento | — | círculo, visto, frase | **Seu relato, / direto para a equipe** / erro, sugestão ou feedback em poucos cliques |
+</pre>

@@ -129,6 +129,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   one list for every PC after the last one (upstream v0.4.1, merged in #19). Each PC lists only its own agents,
   with no PC name on the row; the section folds per PC (stored, starting folded on a phone) and folds away with
   the PC, while **Needs you** stays visible when the PC is folded.
+  ([#20](https://github.com/dataagile/herdr-web-ui/pull/20) by @tbc-joaovitor)
 - **DevDA brand**: the app is now named DevDA ("DevDA, da Data Agile") everywhere a person reads it: header brand,
   sidebar footer, tab title (`DevDA · <project>`), web manifest, push and tab notifications, Settings,
   errors and the demo, in every language. The herdr tool reads "session server" ("servidor de

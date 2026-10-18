@@ -145,13 +145,15 @@ export interface SidebarProps {
   actions: AppActions;
   /** Names the PC in the Projects `+`; the roster is one per PC. */
   machineName?: string;
+  /** This PC's Agents list; it sits between Projects and History. */
+  agents?: ReactNode;
 }
 
 /**
  * Spaces follow herdr's workspace roster. A workspace opens its current pane; tabs and split
  * panes are navigated through the tab strip, while Agents is an independent API-backed list.
  */
-export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName }: SidebarProps) {
+export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName, agents: agentsList }: SidebarProps) {
   const t = useT();
   const { settings } = useSettings();
   const twoLine = settings.sidebarRows === "two";
@@ -669,6 +671,7 @@ export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName
               </ul></li>}
             </Fragment>
           ))}</ul>}
+          {agentsList}
           {historyWorkspace && historyFolderList && snapshot && <>
             <SectionHeader section="history" label={t("History · {project}", { project: historyWorkspace.label })} folded={historyFolded} onToggle={toggleSection} />
             {!historyFolded && <HistorySection

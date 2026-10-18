@@ -1,7 +1,7 @@
 The sidebar roster: per PC a header, the Needs you block, a Projects head and one row per herdr workspace (its current pane and rolled-up state), then one Agents list across all PCs. Upstream's v0.4 sidebar (one grid, quiet heads) with the Data Agile additions on top.
 
 ## When to use
-- The left sidebar (`--sidebar-w`, or the width its edge was dragged to; on `--bg-panel`) is the only place this lives: one `.machine-group` per PC, one `.workspace` row per workspace, one `.agents-sidebar` for every PC's agents.
+- The left sidebar (`--sidebar-w`, or the width its edge was dragged to; on `--bg-panel`) is the only place this lives: one `.machine-group` per PC, one `.workspace` row per workspace, one `.agents-sidebar` per PC, inside its `.machine-group` between Projects and History (folds with the PC; Needs you stays outside the fold).
 - Not for a list of panes: the other panes of a workspace are reached from the tab strip and the command palette. Needs you and Agents are the lists that name panes.
 
 ## Anatomy

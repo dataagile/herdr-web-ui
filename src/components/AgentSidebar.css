@@ -8,37 +8,6 @@
 /* positioned: a row's visually hidden label is absolute, and must not size the page instead */
 .agent-list-contents { position: relative; }
 
-.agent-section-toggle {
-  flex: 0 0 auto;
-  width: 100%;
-  cursor: pointer;
-}
-
-/* the fold's caret hangs in the leading cell and shows when it is of use */
-.agent-section-caret {
-  flex: none;
-  width: var(--space-4);
-  height: var(--space-4);
-  margin-inline: calc((var(--side-box) - var(--space-4)) / 2);
-  opacity: 0;
-}
-
-.agent-section-toggle:focus-visible .agent-section-caret,
-.agents-sidebar.is-collapsed .agent-section-caret { opacity: 1; }
-
-@media (hover: hover) {
-  .agent-section-toggle:hover .agent-section-caret { opacity: 1; }
-}
-
-/* a folded list still says how many agents it holds */
-.agent-section-count {
-  width: var(--side-box);
-  margin-left: auto;
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
 .agent-list {
   margin: 0;
   padding: 0;
@@ -113,10 +82,6 @@
   padding: var(--space-2) var(--space-2) var(--space-2) var(--side-box);
   color: var(--text-dim);
   font-size: var(--fs-sm);
-}
-
-@media (pointer: coarse) {
-  .agent-section-caret { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1556,7 +1556,12 @@ try {
   await until(() => typing(mobilePage), "a tap on the message box takes the keyboard");
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).blur();
   await mobilePage.locator('button[aria-controls="workspace-drawer"]').click();
-  assert.equal(await mobilePage.locator(".agents-sidebar .agent-section-toggle").getAttribute("aria-expanded"), "false", "a phone's drawer opens with Agents folded");
+  const phoneAgents = mobilePage.locator(".agents-sidebar > .sidebar-section-header").first();
+  assert.equal(await phoneAgents.getAttribute("aria-expanded"), "false", "a phone's drawer opens with Agents folded");
+  assert.match(await phoneAgents.innerText(), /^Agents · \d+$/, "the folded head still says how many agents it holds");
+  await phoneAgents.tap();
+  assert.equal(await phoneAgents.getAttribute("aria-expanded"), "true", "a tap opens the phone's Agents");
+  await phoneAgents.tap();
   await mobilePage.locator(`.pane-select[title^="${paneB} —"]`).click();
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).waitFor();
   console.log("PASS a pane picked on a phone waits for a tap before raising the keyboard");

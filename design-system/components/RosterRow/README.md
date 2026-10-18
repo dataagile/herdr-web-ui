@@ -1,4 +1,4 @@
-The sidebar roster: per PC a header, the Needs you block, a Projects head and one row per herdr workspace (its current pane and rolled-up state), then one Agents list across all PCs. Upstream's v0.4 sidebar (one grid, quiet heads) with the Data Agile additions on top.
+The sidebar roster: per PC a header, the Needs you block, a Projects head and one row per herdr workspace (its current pane and rolled-up state), then an Agents list per PC, between Projects and History. Upstream's v0.4 sidebar (one grid, quiet heads) with the Data Agile additions on top.
 
 ## When to use
 - The left sidebar (`--sidebar-w`, or the width its edge was dragged to; on `--bg-panel`) is the only place this lives: one `.machine-group` per PC, one `.workspace` row per workspace, one `.agents-sidebar` per PC, inside its `.machine-group` between Projects and History (folds with the PC; Needs you stays outside the fold).
@@ -11,7 +11,7 @@ The sidebar roster: per PC a header, the Needs you block, a Projects head and on
 - Projects head (fork) `.sidebar-section-row`: `button.sidebar-section-header` ("Projects · n", chevron in the leading cell) and `button.sidebar-row-action.sidebar-section-new` (New project on the PC) in the status column. History (local PC) follows the rows under the same kind of head.
 - List: `.machine-workspaces > nav.sidebar-list > ul.workspace-list > li.workspace.workspace-group`, each `.workspace-header`: the folder (`.workspace-folder`, or the `.workspace-toggle` fold of a repository with linked worktrees), `.pane-select.workspace-select` (`role="button"`: agent `.sidebar-mark`, `.workspace-copy` one or two lines, `.sidebar-pane-meta` with the compact status), then `.workspace-actions` (fork `+` New tab, then the `⋯` `.row-menu-toggle`).
 - Worktree children sit indented in `li.worktree-children`.
-- Agents `.agents-sidebar`: `.agent-section-toggle` head, `.agent-list-contents > ul.agent-list > li.agent-item > button.agent-row` (mark, `.agent-title`, `.agent-context`, `.agent-row-status`).
+- Agents `.agents-sidebar`: `.sidebar-section-header` head ("Agents · n", the same as Projects and History), `.agent-list-contents > ul.agent-list > li.agent-item > button.agent-row` (mark, `.agent-title`, `.agent-context`, `.agent-row-status`).
 
 ## States & variants
 - Selected `.is-selected`: `--side-selected` fill, title in `--text-strong`. Hover (pointer only): `--side-hover`. Keyboard focus: ring inside the row.

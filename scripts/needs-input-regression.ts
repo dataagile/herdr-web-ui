@@ -130,21 +130,21 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await hostList.waitFor();
     await remoteList.waitFor();
     assert.equal(await hostList.getAttribute("aria-label"), "Agents on QA host");
-    await hostList.locator(".agent-section-toggle").click();
-    assert.equal(await hostList.locator(".agent-section-toggle").getAttribute("aria-expanded"), "false");
-    assert.equal(await hostList.locator(".agent-section-count").textContent(), "2");
-    assert.equal(await remoteList.locator(".agent-section-toggle").getAttribute("aria-expanded"), "true");
+    await hostList.locator(".sidebar-section-header").click();
+    assert.equal(await hostList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "false");
+    assert.equal(await hostList.locator(".sidebar-section-header").textContent(), "Agents · 2");
+    assert.equal(await remoteList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "true");
     // the PC's fold unmounts the list; reopening reads the stored choice back
     await hostMachineToggle.click();
     await hostMachineToggle.click();
     await hostList.waitFor();
-    assert.equal(await hostList.locator(".agent-section-toggle").getAttribute("aria-expanded"), "false");
+    assert.equal(await hostList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "false");
     // the other PC remounts too: a fold kept under one shared key would reach it here, not on the click
     await remoteToggle.click();
     await remoteToggle.click();
     await remoteList.waitFor();
-    assert.equal(await remoteList.locator(".agent-section-toggle").getAttribute("aria-expanded"), "true");
-    await hostList.locator(".agent-section-toggle").click();
+    assert.equal(await remoteList.locator(".sidebar-section-header").getAttribute("aria-expanded"), "true");
+    await hostList.locator(".sidebar-section-header").click();
     await remoteToggle.click();
     assert.equal(await remoteToggle.getAttribute("aria-expanded"), "false");
     await remote.waitFor();

@@ -446,7 +446,7 @@ One set for both themes: the card is island black wherever it shows.
 - Mono metadata at `--chip-h`. Offline is the one header pill and uses danger tokens.
 
 ### Sidebar roster row and footer
-- No top bar. The sidebar opens with the plan panel (when Settings puts it there), the PC groups and a separate **Agents** list spanning the connected PCs. A project (herdr's workspace) starts from the `+` at the end of its PC's **Projects** head, or from the **New project**
+- No top bar. The sidebar opens with the plan panel (when Settings puts it there), the PC groups and, inside each PC, its own **Agents** list. A project (herdr's workspace) starts from the `+` at the end of its PC's **Projects** head, or from the **New project**
   button in the dashed **No projects yet** box of an empty PC. **Add PC** lives in the sidebar footer, Settings →
   Remote PCs and in the command palette. Search lives in the command palette, not the roster.
 - Fork (Data Agile): **Needs you** lives inside each PC group, under its header row and above
@@ -466,8 +466,8 @@ One set for both themes: the card is island black wherever it shows.
   notification is one; stepping with the keyboard (Mod+Shift+arrow) is not. On a PC whose bridge
   refuses the call (an old bridge: 404; a watch-role device: 403) this device could never clear a
   DONE row, so Needs you lists only that PC's INPUT rows there.
-- Fork: above a PC's workspace rows a **Projects** head (`.sidebar-section-header`, the Agents
-  head's quiet words with the fold chevron in the leading cell) reads "Projects · n", n the
+- Fork: above a PC's workspace rows a **Projects** head (`.sidebar-section-header`, quiet
+  words with the fold chevron in the leading cell, shared by Agents and History) reads "Projects · n", n the
   workspaces that draw a row; it ends in a `+` in the status column (`.sidebar-section-new`, New
   project on that PC, disabled offline), beside the fold button and not inside it. On the local PC
   the selected project's **History · name** follows the rows, under the same kind of head. Both
@@ -479,12 +479,11 @@ One set for both themes: the card is island black wherever it shows.
   Hover is `color-mix(in srgb, var(--bg-hover) 50%, var(--bg-panel))`, only where a pointer hovers;
   selection is `--bg-hover`; keyboard focus draws the ring inside the row and no fill. No rule
   separates sections: `--space-4` and a dim `--fs-sm` head do.
-- The PC/workspace list and the lower Agents list scroll independently above the fixed footer.
-  Agents takes the height of its rows, at most half the sidebar, docked above the footer; the
-  workspace list has the rest. The Agents heading stays outside its scroll area and shows its
-  count only while folded. A list that is cut fades out at its lower edge. An empty or folded
-  Agents list gives its space back; PC and workspace folds do not hide agent rows. In the drawer
-  (`max-width: 768px`) the list starts folded.
+- Agents is a list per PC, inside that PC between Projects and History, under the same kind of
+  head as both ("Agents · n", the fold chevron always shown). It scrolls with the PC, and
+  folding the PC takes its agents along; Needs you stays outside that fold. Its fold is its own,
+  kept per PC, and in the drawer (`max-width: 768px`) it starts folded, the count still showing.
+  An empty list says "No agents running".
 - A PC's header is the head of its projects, and its caret is the one fold over them (Needs you
   stays outside it).
 - A repository's parent row keeps `workspace.label`; its opened linked

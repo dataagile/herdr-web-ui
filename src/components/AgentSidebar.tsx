@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Terminal } from "lucide-react";
+import { Terminal } from "lucide-react";
 
 import type { Machine } from "../../shared/machines.ts";
 import { paneStorageId } from "../../shared/machines.ts";
@@ -10,6 +10,7 @@ import { useSettings } from "../lib/settings.ts";
 import { useSidebarActivity } from "../lib/sidebarActivity.tsx";
 import { activityOrder } from "../lib/sidebarOrder.ts";
 import { AgentMark } from "./AgentMark.tsx";
+import { FoldChevron } from "./FoldChevron.tsx";
 import { BackgroundBadge, displayPaneTitle, StatusBadge } from "./Sidebar.tsx";
 import "./AgentSidebar.css";
 
@@ -38,7 +39,7 @@ function AgentRowBody({ mark, title, context, backgroundTasks, status }: AgentRo
 }
 
 export interface AgentSidebarProps {
-  machines: Machine[];
+  machine: Machine;
   selectedMachineId: string;
   selectedPaneId: string | null;
   /** a PC's state in words, for the tooltip of a row whose PC is not connected */
@@ -53,10 +54,10 @@ const DRAWER_QUERY = "(max-width: 768px)";
  * One PC's live agents, drawn inside that PC between Projects and History: the project folds do
  * not hide these rows, the PC's own fold does. In the phone's drawer the list starts folded.
  */
-export function AgentSidebar({ machines, selectedMachineId, selectedPaneId, stateWord, onSelect }: AgentSidebarProps) {
+export function AgentSidebar({ machine, selectedMachineId, selectedPaneId, stateWord, onSelect }: AgentSidebarProps) {
   const t = useT();
   const listId = useId();
-  const foldKey = `herdr-web-ui:sidebar-section:${machines[0]?.id}:agents`;
+  const foldKey = `herdr-web-ui:sidebar-section:${machine.id}:agents`;
   // one fold per PC. Not useStoredFold: that is open unless stored, and here the phone's drawer starts
   // folded until the user picks one, so the open choice ("0") is stored too.
   const [collapsed, setCollapsed] = useState(() => {
@@ -71,15 +72,15 @@ export function AgentSidebar({ machines, selectedMachineId, selectedPaneId, stat
   const activity = useSidebarActivity();
   // Settings → Agents order: herdr's order, or Activity within each PC (each herdr counts its own changes)
   const byActivity = settings.agentOrder === "activity";
-  const rows = useMemo(() => machines.flatMap((machine) => {
+  const rows = useMemo(() => {
     const agents = sidebarAgents(machine.snapshot);
     return (byActivity ? activityOrder(agents, (entry) => entry.pane, activity.seqs(machine.id)) : agents).map((entry) => ({ machine, entry }));
-  }), [machines, byActivity, activity]);
-  return <section className={`agents-sidebar${collapsed ? " is-collapsed" : ""}${rows.length === 0 ? " is-empty" : ""}`} aria-label={t("Agents on {machine}", { machine: machines[0]?.name ?? "" })}>
-    <button type="button" className="agent-section-toggle sidebar-section-label" aria-expanded={!collapsed} aria-controls={listId} onClick={toggle}>
-      {collapsed ? <ChevronRight className="agent-section-caret" aria-hidden="true" /> : <ChevronDown className="agent-section-caret" aria-hidden="true" />}
-      <span>{t("Agents")}</span>
-      {collapsed && rows.length > 0 && <span className="agent-section-count">{rows.length}</span>}
+  }, [machine, byActivity, activity]);
+  return <section className={`agents-sidebar${collapsed ? " is-collapsed" : ""}${rows.length === 0 ? " is-empty" : ""}`} aria-label={t("Agents on {machine}", { machine: machine.name })}>
+    {/* the same head as Projects and History (Sidebar.css): chevron always shown, "Agents · n" */}
+    <button type="button" className="sidebar-section-header" aria-expanded={!collapsed} aria-controls={listId} onClick={toggle}>
+      <FoldChevron folded={collapsed} />
+      <span>{`${t("Agents")} · ${rows.length}`}</span>
     </button>
     <div className="agent-list-contents" id={listId} hidden={collapsed}>
       {rows.length === 0 ? <p className="agent-empty" role="status">{t("No agents running")}</p> : <ul className="agent-list">

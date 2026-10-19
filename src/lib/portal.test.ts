@@ -20,6 +20,11 @@ describe("fetchPortalSession portal", () => {
     expect((await fetchPortalSession((async () => { throw new TypeError("network"); }) as unknown as typeof fetch)).portal).toBe(false);
   });
 
+  it("gives up on an answer that never comes", async () => {
+    const hung = ((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason)))) as unknown as typeof fetch;
+    expect(await fetchPortalSession(hung, 20)).toEqual({ portal: false, feedback: { enabled: false, attachments: false }, pc: { name: null, addPc: true } });
+  });
+
   it("asks the same origin with the session cookie", async () => {
     const seen: { url?: string; credentials?: string } = {};
     await fetchPortalSession((async (url: string, init?: RequestInit) => { seen.url = url; seen.credentials = init?.credentials; return new Response("{}"); }) as unknown as typeof fetch);

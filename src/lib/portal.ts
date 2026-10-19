@@ -5,7 +5,8 @@
  * `{ authenticated: true }` JSON means "no portal", and never an error.
  *
  * The same answer says whether the portal takes feedback: `feedback: { enabled, attachments }`.
- * A portal that does not send the field is read as feedback off.
+ * A portal that does not send the field is read as feedback off. An answer that takes over 10 s is read as "no portal":
+ * the controls the portal can turn off wait for this answer, so a hang must not hold them back for good.
  *
  * `pc: { name, add_pc }` is what the portal resolved for the target this app serves: `name` is the
  * display name of the local PC and `add_pc: false` turns adding and setting up PCs off. A portal
@@ -33,9 +34,9 @@ export interface PortalSession {
 const NO_PC: PortalPc = { name: null, addPc: true };
 const NO_PORTAL: PortalSession = { portal: false, feedback: { enabled: false, attachments: false }, pc: NO_PC };
 
-export async function fetchPortalSession(request: typeof fetch = fetch): Promise<PortalSession> {
+export async function fetchPortalSession(request: typeof fetch = fetch, timeoutMs = 10_000): Promise<PortalSession> {
   try {
-    const response = await request("/api/portal/me", { credentials: "same-origin", headers: { accept: "application/json" } });
+    const response = await request("/api/portal/me", { credentials: "same-origin", headers: { accept: "application/json" }, signal: AbortSignal.timeout(timeoutMs) });
     if (response.status !== 200) return NO_PORTAL;
     const body: unknown = await response.json();
     if (typeof body !== "object" || body === null || (body as { authenticated?: unknown }).authenticated !== true) return NO_PORTAL;

@@ -12,11 +12,12 @@ const snapshot = { version: "0.9.3", protocol: 22, focused_workspace_id: null, f
 const local = { id: "local", name: "QA host", kind: "local", state: "connected", enabled: true, error: null, snapshot } as Machine;
 const remote = { ...local, id: "qa-remote", name: "QA remote", kind: "ssh", target: { destination: "qa.invalid" }, state: "error", error: null, action_required: "setup" } as unknown as Machine;
 let remoteAction = "setup";
+let meDelay = 0;
 let me: unknown = { authenticated: true };
 const setups: string[] = [];
 const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
   const path = new URL(request.url).pathname;
-  if (path === "/api/portal/me") return Response.json(me);
+  if (path === "/api/portal/me") { if (meDelay) await Bun.sleep(meDelay); return Response.json(me); }
   if (path === "/api/health") return Response.json({ ok: true, auth: { authenticated: true, required: false, role: "drive" }, herdr: { version: "0.9.3", protocol: 22 }, web_ui: { revision: null, boot_id: "qa" } });
   if (path === "/api/machines") return Response.json({ machines: [local, { ...remote, action_required: remoteAction }] });
   if (path === "/api/session") return Response.json({ snapshot });
@@ -70,6 +71,22 @@ try {
   assert.equal(await page.getByText("QA host", { exact: true }).count(), 0);
   assert.deepEqual(setups, [], "no setup request was made");
   await page.close();
+
+  // the setup controls wait for the portal's answer: a slow /me never lets them flash for add_pc false
+  meDelay = 1500;
+  for (const addPc of [false, true]) {
+    remoteAction = "setup";
+    me = { authenticated: true, pc: { name: null, add_pc: addPc } };
+    const slow = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await slow.addInitScript(() => localStorage.setItem("herdr-web-ui:settings", JSON.stringify({ language: "en" })));
+    await slow.goto(server.url.href);
+    await slow.locator(".machine-action").waitFor({ timeout: 10_000 });
+    const footer = slow.locator(".sidebar-footer").getByRole("button", { name: "Add PC", exact: true });
+    assert.equal(await footer.count(), 0, "no Add PC before /api/portal/me answers");
+    if (addPc) await footer.waitFor(); else { await slow.waitForTimeout(2500); assert.equal(await footer.count(), 0, "still off after the answer"); }
+    await slow.close();
+  }
+  meDelay = 0;
 
   // the other two reasons a PC waits: only the sign-in and the plain reconnect need a setup
   const waiting = async (action: string, addPc: boolean) => {

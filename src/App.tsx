@@ -207,7 +207,6 @@ export function App() {
   const portal = portalSession?.portal === true;
   // off until /api/portal/me answers, so the setup controls never flash for a user the portal turns them off for
   const canAddPc = portalSession !== null && portalSession.pc.addPc;
-  useEffect(() => { if (!canAddPc) setMachineDialog(null); }, [canAddPc]);
   const canSignOut = !portal && auth?.authenticated === true && (auth.via === "token" || auth.via === "device");
   // a device that is in only because nothing is paired yet still pairs from the QR code's address
   const pairedFromAddress = useRef(false);

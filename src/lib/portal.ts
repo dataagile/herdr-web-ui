@@ -35,8 +35,11 @@ const NO_PC: PortalPc = { name: null, addPc: true };
 const NO_PORTAL: PortalSession = { portal: false, feedback: { enabled: false, attachments: false }, pc: NO_PC };
 
 export async function fetchPortalSession(request: typeof fetch = fetch, timeoutMs = 10_000): Promise<PortalSession> {
+  // not AbortSignal.timeout: older Safari and Chrome throw on it, which would read as "no portal" for good
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), timeoutMs);
   try {
-    const response = await request("/api/portal/me", { credentials: "same-origin", headers: { accept: "application/json" }, signal: AbortSignal.timeout(timeoutMs) });
+    const response = await request("/api/portal/me", { credentials: "same-origin", headers: { accept: "application/json" }, signal: abort.signal });
     if (response.status !== 200) return NO_PORTAL;
     const body: unknown = await response.json();
     if (typeof body !== "object" || body === null || (body as { authenticated?: unknown }).authenticated !== true) return NO_PORTAL;
@@ -47,5 +50,7 @@ export async function fetchPortalSession(request: typeof fetch = fetch, timeoutM
     return { portal: true, feedback: { enabled, attachments: enabled && feedback?.attachments === true }, pc: typeof pc === "object" && pc !== null ? { name: name || null, addPc: pc.add_pc !== false } : NO_PC };
   } catch {
     return NO_PORTAL;
+  } finally {
+    clearTimeout(timer);
   }
 }

@@ -192,7 +192,8 @@ export function MachineActionBanner({ machines, onSetup }: { machines: Machine[]
   // a PC that cannot be updated right now would hold this line open for good: it can be closed,
   // and the PC's own row in the sidebar keeps saying what it needs
   const [dismissed, setDismissed] = useState(readDismissed);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState<{ id: string; message: string } | null>(null);
+  const [sending, setSending] = useState(false);
   useEffect(() => {
     const kept = keepDismissed(dismissed, machines);
     if (kept.length !== dismissed.length) { setDismissed(kept); writeDismissed(kept); }
@@ -212,8 +213,12 @@ export function MachineActionBanner({ machines, onSetup }: { machines: Machine[]
   const others = waiting.length > 1 ? t(" (+{n} more)", { n: waiting.length - 1 }) : "";
   return <div className="update-notice" role="status">
     <span>{t(conflict ? "{name} has a bridge connection conflict{others}." : update ? "{name} needs a bridge update to reconnect{others}." : "{name} needs setup approval to reconnect{others}.", { name: first.name, others })}</span>
-    {(update || onSetup) && <button type="button" className="btn" onClick={() => update ? void machineRequest(`/${encodeURIComponent(first.id)}/update-bridge`, "POST").then(() => setError(null), (e) => { if (onSetup) onSetup(first, true); else setError(e instanceof Error ? e.message : String(e)); }) : onSetup?.(first, false)}>{t(conflict ? "Reconnect" : update ? "Update bridge" : "Set up…")}</button>}
-    {error && <span className="machine-error" role="alert">{error}</span>}
+    {(update || onSetup) && <button type="button" className="btn" disabled={sending} onClick={() => {
+      if (!update) { onSetup?.(first, false); return; }
+      setFailed(null); setSending(true);
+      machineRequest(`/${encodeURIComponent(first.id)}/update-bridge`, "POST").catch((e) => { if (onSetup) onSetup(first, true); else setFailed({ id: first.id, message: e instanceof Error ? e.message : String(e) }); }).finally(() => setSending(false));
+    }}>{t(conflict ? "Reconnect" : update ? "Update bridge" : "Set up…")}</button>}
+    {failed?.id === first.id && <span className="machine-error" role="alert">{failed.message}</span>}
     <button type="button" className="icon-button update-notice-dismiss" aria-label={t("Dismiss")} title={t("Dismiss")} onClick={() => { const next = [...dismissed, ...waiting.map(noticeKey)]; setDismissed(next); writeDismissed(next); }}><X /></button>
   </div>;
 }

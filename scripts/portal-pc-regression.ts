@@ -13,6 +13,7 @@ const local = { id: "local", name: "QA host", kind: "local", state: "connected",
 const remote = { ...local, id: "qa-remote", name: "QA remote", kind: "ssh", target: { destination: "qa.invalid" }, state: "error", error: null, action_required: "setup" } as unknown as Machine;
 let remoteAction = "setup";
 let meDelay = 0;
+let updatePosts = 0;
 let me: unknown = { authenticated: true };
 const setups: string[] = [];
 const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
@@ -22,7 +23,7 @@ const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) 
   if (path === "/api/machines") return Response.json({ machines: [local, { ...remote, action_required: remoteAction }] });
   if (path === "/api/session") return Response.json({ snapshot });
   if (path === "/api/machines/settings") return Response.json({ auto_update_bridges: false });
-  if (path === "/api/machines/qa-remote/update-bridge") return Response.json({ error: { code: "qa", message: "Bridge update refused" } }, { status: 500 });
+  if (path === "/api/machines/qa-remote/update-bridge") { updatePosts++; await Bun.sleep(300); } if (path === "/api/machines/qa-remote/update-bridge") return Response.json({ error: { code: "qa", message: "Bridge update refused" } }, { status: 500 });
   if (path === "/api/machines/setup") { setups.push(request.method); return Response.json({ error: { code: "add_pc_disabled", message: "off" } }, { status: 403 }); }
   if (path.startsWith("/api/") || path === "/ws") return Response.json({ error: { code: "qa", message: "Unavailable in fixture" } }, { status: 404 });
   const file = Bun.file(resolve("dist", path === "/" ? "index.html" : path.slice(1)));
@@ -34,8 +35,11 @@ try {
     me = answer;
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.addInitScript(() => localStorage.setItem("herdr-web-ui:settings", JSON.stringify({ language: "en" })));
+    const answered = page.waitForResponse("**/api/portal/me");
     await page.goto(server.url.href);
+    await answered;
     await page.locator(".machine-action").waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(500);
     return page;
   };
   const buttons = async (page: import("playwright-core").Page) => {
@@ -102,9 +106,11 @@ try {
   w = await waiting("update_bridge", false);
   assert.deepEqual(w.seen, { signIn: 0, noticeUpdate: 1, noticeReconnect: 0, bannerUpdate: 1, bannerReconnect: 0 });
   // a refused one-click update has no setup dialog to fall back to: the banner says why
-  await w.p.locator(".update-notice").getByRole("button", { name: "Update bridge", exact: true }).click();
+  const bannerUpdate = w.p.locator(".update-notice").getByRole("button", { name: "Update bridge", exact: true });
+  await bannerUpdate.dblclick();
   await w.p.locator(".update-notice .machine-error").getByText("Bridge update refused").waitFor();
   assert.equal(await w.p.getByRole("dialog").count(), 0);
+  assert.equal(updatePosts, 1, "a double click sends one update-bridge request");
   await w.p.close();
   w = await waiting("bridge_conflict", true);
   assert.deepEqual(w.seen, { signIn: 0, noticeUpdate: 0, noticeReconnect: 1, bannerUpdate: 0, bannerReconnect: 1 });

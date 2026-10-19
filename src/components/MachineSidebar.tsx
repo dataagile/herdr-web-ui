@@ -26,7 +26,8 @@ export const STATE_WORD: Readonly<Record<MachineState, string>> = {
   error: "Connection error",
 };
 
-interface Props { herdrVersion: string | null; machines: Machine[]; /** PCs whose bridge refuses `pane/seen`: this device could never clear a DONE row there */ seenRefused: ReadonlySet<string>; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup(machine: Machine, update?: boolean): void }
+type SetupFn = (machine: Machine, update?: boolean) => void;
+interface Props { herdrVersion: string | null; machines: Machine[]; /** PCs whose bridge refuses `pane/seen`: this device could never clear a DONE row there */ seenRefused: ReadonlySet<string>; selectedMachineId: string; selectedPaneId: string | null; actions: AppActions; onSelect(machineId: string, paneId: string | null): void; onNew(machineId: string): void; onSetup: SetupFn | null }
 export function MachineSidebar(props: Props) {
   const t = useT();
   const { canInstall, installed, install, help } = useInstallPrompt();
@@ -45,7 +46,7 @@ export function MachineSidebar(props: Props) {
       {!props.machines.length && <p className="tree-state" role="status">{t("Loading PCs…")}</p>}
     </div>
     <footer className="sidebar-footer">
-      <button className="btn btn-ghost sidebar-footer-action" onClick={props.actions.openAddPc}><Monitor aria-hidden="true" />{t("Add PC")}</button>
+      {props.actions.openAddPc && <button className="btn btn-ghost sidebar-footer-action" onClick={props.actions.openAddPc}><Monitor aria-hidden="true" />{t("Add PC")}</button>}
       {/* browsers without an install prompt (iOS, plain HTTP) get the steps instead */}
       {!installed && <button className="btn btn-ghost sidebar-footer-action" aria-expanded={canInstall ? undefined : installHelpOpen} onClick={() => { if (canInstall) void install(); else setInstallHelpOpen(!installHelpOpen); }}><Download aria-hidden="true" />{t("Install app")}</button>}
       {!installed && !canInstall && installHelpOpen && <p className="sidebar-install-help" role="status">{help}</p>}
@@ -108,7 +109,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
       <form onSubmit={(e) => { e.preventDefault(); void mutate("PATCH", { name }); }}><label className="field"><span className="field-label">{t("PC name")}</span><input className="input" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} /></label><button className="btn" type="submit" disabled={busy}>{t("Rename")}</button></form>
       {/* the first click only arms the removal, so it does not look destructive; the second one
           is, as in DevicesPanel's revoke */}
-      <div className="machine-control-buttons"><button className="btn" disabled={busy} onClick={() => void mutate("PATCH", { enabled: !machine.enabled })}>{t(machine.enabled ? "Disconnect" : "Connect")}</button><button className="btn" onClick={() => props.onSetup(machine)}>{t("Reconnect / setup")}</button><button className="btn" onClick={() => props.onSetup(machine, true)}>{t("Update bridge…")}</button><button className={confirmDelete ? "btn btn-danger" : "btn btn-ghost"} disabled={busy} onClick={() => { if (confirmDelete) void mutate("DELETE"); else setConfirmDelete(true); }}>{t(confirmDelete ? "Confirm remove PC" : "Remove PC")}</button></div>
+      <div className="machine-control-buttons"><button className="btn" disabled={busy} onClick={() => void mutate("PATCH", { enabled: !machine.enabled })}>{t(machine.enabled ? "Disconnect" : "Connect")}</button>{props.onSetup && <><button className="btn" onClick={() => props.onSetup?.(machine)}>{t("Reconnect / setup")}</button><button className="btn" onClick={() => props.onSetup?.(machine, true)}>{t("Update bridge…")}</button></>}<button className={confirmDelete ? "btn btn-danger" : "btn btn-ghost"} disabled={busy} onClick={() => { if (confirmDelete) void mutate("DELETE"); else setConfirmDelete(true); }}>{t(confirmDelete ? "Confirm remove PC" : "Remove PC")}</button></div>
       {confirmDelete && <p className="field-hint">{t("Removes this registration. Remote sessions keep running.")}</p>}
     </div>}
     {error && <p className="machine-error" role="alert">{error}</p>}
@@ -145,7 +146,7 @@ export function BridgeUpdateProgress({ update }: { update: MachineUpdate }) {
 }
 
 /** Retrying can't reconnect this PC: say what the user has to do, with the button that does it. */
-function MachineActionNotice({ machine, onSetup }: { machine: Machine; onSetup(machine: Machine, update?: boolean): void }) {
+function MachineActionNotice({ machine, onSetup }: { machine: Machine; onSetup: SetupFn | null }) {
   const t = useT();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -166,7 +167,7 @@ function MachineActionNotice({ machine, onSetup }: { machine: Machine; onSetup(m
   // so it is named as what it is, with the server's reason and a plain reconnect
   if (machine.action_required === "bridge_conflict") return <div className="machine-action" role="alert">
     <p className="machine-action-text"><strong>{t("Bridge connection conflict")}</strong><span>{t("Update the apps connected to this PC to the same version, or disconnect the other app, then reconnect here. Sessions keep running.")}</span>{machine.error && <span className="machine-action-reason">{machine.error}</span>}</p>
-    <button type="button" className="btn btn-primary" onClick={() => onSetup(machine, false)}>{t("Reconnect")}</button>
+    {onSetup && <button type="button" className="btn btn-primary" onClick={() => onSetup(machine, false)}>{t("Reconnect")}</button>}
   </div>;
   const update = machine.action_required === "update_bridge";
   return <div className="machine-action" role="alert">
@@ -179,18 +180,20 @@ function MachineActionNotice({ machine, onSetup }: { machine: Machine; onSetup(m
     {update ? <div className="machine-action-buttons">
       <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run(() => machineRequest(`/${encodeURIComponent(machine.id)}/update-bridge`, "POST"))}>{t("Update bridge")}</button>
       {/* a PC that needs a password or a new host key goes through its dialog */}
-      <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => onSetup(machine, true)}>{t("Sign in and update…")}</button>
-    </div> : <button type="button" className="btn btn-primary" onClick={() => onSetup(machine, false)}>{t("Set up…")}</button>}
+      {onSetup && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => onSetup(machine, true)}>{t("Sign in and update…")}</button>}
+    </div> : onSetup && <button type="button" className="btn btn-primary" onClick={() => onSetup(machine, false)}>{t("Set up…")}</button>}
     {error && <p className="machine-error" role="alert">{error}</p>}
   </div>;
 }
 
 /** The app-wide line for PCs that wait on the user, so a closed drawer on a phone still says so. */
-export function MachineActionBanner({ machines, onSetup }: { machines: Machine[]; onSetup(machine: Machine, update?: boolean): void }) {
+export function MachineActionBanner({ machines, onSetup }: { machines: Machine[]; onSetup: SetupFn | null }) {
   const t = useT();
   // a PC that cannot be updated right now would hold this line open for good: it can be closed,
   // and the PC's own row in the sidebar keeps saying what it needs
   const [dismissed, setDismissed] = useState(readDismissed);
+  const [failed, setFailed] = useState<{ id: string; message: string } | null>(null);
+  const [sending, setSending] = useState(false);
   useEffect(() => {
     const kept = keepDismissed(dismissed, machines);
     if (kept.length !== dismissed.length) { setDismissed(kept); writeDismissed(kept); }
@@ -210,7 +213,12 @@ export function MachineActionBanner({ machines, onSetup }: { machines: Machine[]
   const others = waiting.length > 1 ? t(" (+{n} more)", { n: waiting.length - 1 }) : "";
   return <div className="update-notice" role="status">
     <span>{t(conflict ? "{name} has a bridge connection conflict{others}." : update ? "{name} needs a bridge update to reconnect{others}." : "{name} needs setup approval to reconnect{others}.", { name: first.name, others })}</span>
-    <button type="button" className="btn" onClick={() => update ? void machineRequest(`/${encodeURIComponent(first.id)}/update-bridge`, "POST").catch(() => onSetup(first, true)) : onSetup(first, false)}>{t(conflict ? "Reconnect" : update ? "Update bridge" : "Set up…")}</button>
+    {(update || onSetup) && <button type="button" className="btn" disabled={sending} onClick={() => {
+      if (!update) { onSetup?.(first, false); return; }
+      setFailed(null); setSending(true);
+      machineRequest(`/${encodeURIComponent(first.id)}/update-bridge`, "POST").catch((e) => { if (onSetup) onSetup(first, true); else setFailed({ id: first.id, message: e instanceof Error ? e.message : String(e) }); }).finally(() => setSending(false));
+    }}>{t(conflict ? "Reconnect" : update ? "Update bridge" : "Set up…")}</button>}
+    {failed?.id === first.id && <span className="machine-error" role="alert">{failed.message}</span>}
     <button type="button" className="icon-button update-notice-dismiss" aria-label={t("Dismiss")} title={t("Dismiss")} onClick={() => { const next = [...dismissed, ...waiting.map(noticeKey)]; setDismissed(next); writeDismissed(next); }}><X /></button>
   </div>;
 }

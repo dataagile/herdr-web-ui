@@ -20,8 +20,8 @@ export interface AppActions {
   openNewTab: (target?: { machineId: string; workspaceId: string }) => void;
   openPalette: () => void;
   openSettings: () => void;
-  /** the Add PC dialog, from the sidebar footer, Settings → Remote PCs and the palette; Settings closes first */
-  openAddPc: () => void;
+  /** the Add PC dialog, from the sidebar footer, Settings → Remote PCs and the palette; Settings closes first. Null when the portal turned adding PCs off */
+  openAddPc: (() => void) | null;
   toggleSidebar: () => void;
   /** flips dark/light (a `system` setting becomes the opposite of the resolved theme) */
   toggleTheme: () => void;

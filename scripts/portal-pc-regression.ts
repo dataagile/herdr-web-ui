@@ -11,15 +11,17 @@ import { openSettingsPage } from "./settings-page.ts";
 const snapshot = { version: "0.9.3", protocol: 22, focused_workspace_id: null, focused_tab_id: null, focused_pane_id: null, workspaces: [], tabs: [], panes: [], layouts: [], agents: [] };
 const local = { id: "local", name: "QA host", kind: "local", state: "connected", enabled: true, error: null, snapshot } as Machine;
 const remote = { ...local, id: "qa-remote", name: "QA remote", kind: "ssh", target: { destination: "qa.invalid" }, state: "error", error: null, action_required: "setup" } as unknown as Machine;
+let remoteAction = "setup";
 let me: unknown = { authenticated: true };
 const setups: string[] = [];
 const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
   const path = new URL(request.url).pathname;
   if (path === "/api/portal/me") return Response.json(me);
   if (path === "/api/health") return Response.json({ ok: true, auth: { authenticated: true, required: false, role: "drive" }, herdr: { version: "0.9.3", protocol: 22 }, web_ui: { revision: null, boot_id: "qa" } });
-  if (path === "/api/machines") return Response.json({ machines: [local, remote] });
+  if (path === "/api/machines") return Response.json({ machines: [local, { ...remote, action_required: remoteAction }] });
   if (path === "/api/session") return Response.json({ snapshot });
   if (path === "/api/machines/settings") return Response.json({ auto_update_bridges: false });
+  if (path === "/api/machines/qa-remote/update-bridge") return Response.json({ error: { code: "qa", message: "Bridge update refused" } }, { status: 500 });
   if (path === "/api/machines/setup") { setups.push(request.method); return Response.json({ error: { code: "add_pc_disabled", message: "off" } }, { status: 403 }); }
   if (path.startsWith("/api/") || path === "/ws") return Response.json({ error: { code: "qa", message: "Unavailable in fixture" } }, { status: 404 });
   const file = Bun.file(resolve("dist", path === "/" ? "index.html" : path.slice(1)));
@@ -68,5 +70,30 @@ try {
   assert.equal(await page.getByText("QA host", { exact: true }).count(), 0);
   assert.deepEqual(setups, [], "no setup request was made");
   await page.close();
+
+  // the other two reasons a PC waits: only the sign-in and the plain reconnect need a setup
+  const waiting = async (action: string, addPc: boolean) => {
+    remoteAction = action;
+    const p = await open({ authenticated: true, pc: { name: null, add_pc: addPc } });
+    const count = (scope: string, name: string) => p.locator(scope).getByRole("button", { name, exact: true }).count();
+    const seen = { signIn: await count(".machine-action", "Sign in and update…"), noticeUpdate: await count(".machine-action", "Update bridge"), noticeReconnect: await count(".machine-action", "Reconnect"), bannerUpdate: await count(".update-notice", "Update bridge"), bannerReconnect: await count(".update-notice", "Reconnect") };
+    return { p, seen };
+  };
+  let w = await waiting("update_bridge", true);
+  assert.deepEqual(w.seen, { signIn: 1, noticeUpdate: 1, noticeReconnect: 0, bannerUpdate: 1, bannerReconnect: 0 });
+  await w.p.close();
+  w = await waiting("update_bridge", false);
+  assert.deepEqual(w.seen, { signIn: 0, noticeUpdate: 1, noticeReconnect: 0, bannerUpdate: 1, bannerReconnect: 0 });
+  // a refused one-click update has no setup dialog to fall back to: the banner says why
+  await w.p.locator(".update-notice").getByRole("button", { name: "Update bridge", exact: true }).click();
+  await w.p.locator(".update-notice .machine-error").getByText("Bridge update refused").waitFor();
+  assert.equal(await w.p.getByRole("dialog").count(), 0);
+  await w.p.close();
+  w = await waiting("bridge_conflict", true);
+  assert.deepEqual(w.seen, { signIn: 0, noticeUpdate: 0, noticeReconnect: 1, bannerUpdate: 0, bannerReconnect: 1 });
+  await w.p.close();
+  w = await waiting("bridge_conflict", false);
+  assert.deepEqual(w.seen, { signIn: 0, noticeUpdate: 0, noticeReconnect: 0, bannerUpdate: 0, bannerReconnect: 0 });
+  await w.p.close();
   console.log("PASS: add_pc false hides every PC setup control and a portal name renames the local PC; absent or null pc changes nothing");
 } finally { await browser.close(); server.stop(true); }

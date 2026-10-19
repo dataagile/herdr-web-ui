@@ -10,7 +10,7 @@ Série de 7 vídeos curtos (9:16, pt-BR) para a página `/ajuda` do portal. Os v
 | 2 | `devda-arquivos` | pronto | nada |
 | 3 | `devda-arquivos-modificados` | pronto | nada |
 | 4 | `devda-feedback` | pronto (mp4 + poster; aprovado pelo João em 18/10) | entregar à sessão do portal |
-| 5 | `devda-precisa-de-voce` | roteiro e prévia (`previa/index.html`, 12 quadros) | aprovação do João e render |
+| 5 | `devda-precisa-de-voce` | pronto (mp4 + poster; aprovado pelo João em 18/10) | entregar à /ajuda do portal |
 | 6 | `devda-celular` | roteiro e prévia (`previa/index.html`, 13 quadros) | aprovação do João e render |
 | 7 | `devda-barra-lateral` | roteiro e prévia (`previa/index.html`, 11 quadros) | aprovação do João e render |
 

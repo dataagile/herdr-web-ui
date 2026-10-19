@@ -12,7 +12,7 @@ Série de 7 vídeos curtos (9:16, pt-BR) para a página `/ajuda` do portal. Os v
 | 4 | `devda-feedback` | pronto (mp4 + poster; aprovado pelo João em 18/10) | entregar à sessão do portal |
 | 5 | `devda-precisa-de-voce` | pronto (mp4 + poster; aprovado pelo João em 18/10) | entregar à /ajuda do portal |
 | 6 | `devda-celular` | pronto (mp4 + poster; aprovado pelo João em 18/10) | no PR #37 do portal |
-| 7 | `devda-barra-lateral` | roteiro e prévia (`previa/index.html`, 11 quadros) | aprovação do João e render |
+| 7 | `devda-barra-lateral` | pronto (mp4 + poster; aprovado pelo Gianluka em 18/10) | no PR #37 do portal |
 
 Os vídeos 1 a 3 já foram entregues à sessão do portal (branch `docs/ajuda-videos` do herdr-portal), que vai publicar os 7 de uma vez. Quando cada vídeo novo ficar pronto, mandar o `.mp4` e o `-poster.webp` para lá.
 

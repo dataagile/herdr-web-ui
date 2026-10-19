@@ -10,7 +10,7 @@ Série de 7 vídeos curtos (9:16, pt-BR) para a página `/ajuda` do portal. Os v
 | 2 | `devda-arquivos` | pronto | nada |
 | 3 | `devda-arquivos-modificados` | pronto | nada |
 | 4 | `devda-feedback` | roteiro e prévia (`previa/index.html`, 9 prints) | aprovação do João e render |
-| 5 | `devda-precisa-de-voce` | só prints | refazer a captura em pt-BR, porque o prompt "Allow command?" e as opções saem em inglês, e escrever o roteiro |
+| 5 | `devda-precisa-de-voce` | prints em pt-BR (18/10, com `prep-ptbr.py`) | roteiro, prévia, aprovação do João e render |
 | 6 | `devda-celular` | não começou (já existe `_captura/shoot-celular.ts`) | captura, roteiro e render. Mostrar o sino de Alertas |
 | 7 | `devda-barra-lateral` | não começou (já existe `_captura/shoot-barra.ts`) | captura, roteiro e render. Mostrar os Agentes dentro de cada PC (PR #20) |
 
@@ -34,6 +34,8 @@ bun docs/videos-como-usar/_captura/shoot-precisa.ts docs/videos-como-usar/devda-
 python3 docs/videos-como-usar/_captura/previa-index.py devda-precisa-de-voce "Precisa de você"                    # gera previa/index.html
 ```
 
+- Os vídeos 5 a 7 usam `prep-ptbr.py` no lugar do `prep.py`: ele traduz as conversas e a pergunta "Permitir o comando?".
+- Na VM sem as libs gráficas (sem sudo), use o `chrome-headless-shell` do Playwright com as libs baixadas por `apt-get download` + `dpkg-deb -x` em `~/.local/share/devda-chrome-libs/root`, e `export LD_LIBRARY_PATH=~/.local/share/devda-chrome-libs/root/usr/lib/x86_64-linux-gnu`.
 - O script de captura de cada vídeo é `shoot-<nome>.ts`.
 - O `prep-<nome>.py` acrescenta as trocas de texto específicas daquele vídeo.
 - `bun _captura/serve-videos.ts` serve esta pasta com suporte a range, o que permite ver os vídeos no Safari do iPhone.

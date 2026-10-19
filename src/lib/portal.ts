@@ -6,6 +6,10 @@
  *
  * The same answer says whether the portal takes feedback: `feedback: { enabled, attachments }`.
  * A portal that does not send the field is read as feedback off.
+ *
+ * `pc: { name, add_pc }` is what the portal resolved for the target this app serves: `name` is the
+ * display name of the local PC and `add_pc: false` turns adding and setting up PCs off. A portal
+ * that does not send it (or sends anything but that object) leaves both as they are.
  */
 
 export interface PortalFeedback {
@@ -14,12 +18,20 @@ export interface PortalFeedback {
   attachments: boolean;
 }
 
+export interface PortalPc {
+  /** the local PC's display name; null keeps the machine's own */
+  name: string | null;
+  addPc: boolean;
+}
+
 export interface PortalSession {
   portal: boolean;
   feedback: PortalFeedback;
+  pc: PortalPc;
 }
 
-const NO_PORTAL: PortalSession = { portal: false, feedback: { enabled: false, attachments: false } };
+const NO_PC: PortalPc = { name: null, addPc: true };
+const NO_PORTAL: PortalSession = { portal: false, feedback: { enabled: false, attachments: false }, pc: NO_PC };
 
 export async function fetchPortalSession(request: typeof fetch = fetch): Promise<PortalSession> {
   try {
@@ -29,7 +41,9 @@ export async function fetchPortalSession(request: typeof fetch = fetch): Promise
     if (typeof body !== "object" || body === null || (body as { authenticated?: unknown }).authenticated !== true) return NO_PORTAL;
     const feedback = (body as { feedback?: { enabled?: unknown; attachments?: unknown } | null }).feedback;
     const enabled = feedback?.enabled === true;
-    return { portal: true, feedback: { enabled, attachments: enabled && feedback?.attachments === true } };
+    const pc = (body as { pc?: { name?: unknown; add_pc?: unknown } | null }).pc;
+    const name = typeof pc?.name === "string" ? pc.name.trim() : "";
+    return { portal: true, feedback: { enabled, attachments: enabled && feedback?.attachments === true }, pc: typeof pc === "object" && pc !== null ? { name: name || null, addPc: pc.add_pc !== false } : NO_PC };
   } catch {
     return NO_PORTAL;
   }

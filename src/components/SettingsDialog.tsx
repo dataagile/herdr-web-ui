@@ -483,9 +483,9 @@ function RemotePcsPage({ actions, pcSettings, pcSettingsError, onPcSettings }: {
   const t = useT();
   return (
     <SettingsGroup>
-      <SettingsRow label={t("Add PC")} description={t("Connect another PC over an SSH alias or user@host. Its projects join the sidebar.")}>
+      {actions.openAddPc && <SettingsRow label={t("Add PC")} description={t("Connect another PC over an SSH alias or user@host. Its projects join the sidebar.")}>
         <button type="button" className="btn" onClick={actions.openAddPc}><Monitor aria-hidden="true" />{t("Add PC")}</button>
-      </SettingsRow>
+      </SettingsRow>}
       {/* the switch is the server's and waits for its answer; Add PC never does */}
       {pcSettings && (
         <SettingsRow label={t("Update PC bridges automatically")} description={t("When an app update needs a newer bridge, PCs that connect with their saved key are updated in the background. PCs that need a password ask first.")}>

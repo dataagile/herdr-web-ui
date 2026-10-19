@@ -24,7 +24,7 @@ import { MachineDialog } from "./components/MachineDialog.tsx";
 import { copyText } from "./lib/clipboard.ts";
 import { focusWorkspaceListToggle } from "./lib/focus.ts";
 import { headerCrumb, showsChat } from "./lib/headerCrumb.ts";
-import { paneStorageId, type Machine, type MachineEvent } from "../shared/machines.ts";
+import { LOCAL_MACHINE, paneStorageId, type Machine, type MachineEvent } from "../shared/machines.ts";
 import { takeAuthTokenFromUrl } from "./lib/authLink.ts";
 import { applyLayout, applyPaneStatus, pinLayouts, type LayoutPin } from "./lib/snapshot.ts";
 import { showsSplit, SPLIT_MIN_WIDTH, tabLayout, type ResizeStep } from "./lib/splitLayout.ts";
@@ -161,7 +161,10 @@ export function App() {
   const alertsOn = settings.alertsOn;
   const alertsOnRef = useRef(alertsOn);
   alertsOnRef.current = alertsOn;
-  const [machines, setMachines] = useState<Machine[]>([]);
+  const [rawMachines, setMachines] = useState<Machine[]>([]);
+  // the portal names the local PC for its user: one mapping here, so every path that sets the roster shows it
+  const [portalPcName, setPortalPcName] = useState<string | null>(null);
+  const machines = useMemo(() => portalPcName ? rawMachines.map((m) => m.id === LOCAL_MACHINE ? { ...m, name: portalPcName } : m) : rawMachines, [rawMachines, portalPcName]);
   const [selectedMachineId, setSelectedMachineId] = useState(() => {
     const query = new URLSearchParams(window.location.search);
     if (query.has("pane")) return query.get("machine") ?? "local";
@@ -196,11 +199,13 @@ export function App() {
   useEffect(() => {
     void fetchPortalSession().then((session) => {
       setPortalSession(session);
+      setPortalPcName(session.pc.name);
       // the feedback's technical data (console, failed requests) is recorded only for a portal that takes feedback
       if (session.portal && session.feedback.enabled) installFeedbackBuffer();
     });
   }, []);
   const portal = portalSession?.portal === true;
+  const canAddPc = portalSession?.pc.addPc !== false;
   const canSignOut = !portal && auth?.authenticated === true && (auth.via === "token" || auth.via === "device");
   // a device that is in only because nothing is paired yet still pairs from the QR code's address
   const pairedFromAddress = useRef(false);
@@ -938,13 +943,13 @@ export function App() {
         setSettingsSection(null);
         setSettingsOpen(true);
       },
-      openAddPc: () => {
+      openAddPc: canAddPc ? () => {
         // the new PC reports its progress in the sidebar: nothing should sit over it
         setSettingsOpen(false);
         setUpdateRemote(false);
         addPcFocusReturn.current = true;
         setMachineDialog("new");
-      },
+      } : null,
       toggleSidebar: () => {
         if (window.matchMedia("(max-width: 768px)").matches) setDrawerOpen((open) => !open);
         else setSidebarCollapsed((collapsed) => !collapsed);
@@ -956,7 +961,7 @@ export function App() {
       refresh: () => void load(),
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
     }),
-    [pickPane, selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, lock, portal, portalSignOut, bellVisible, bell.run, enableNotifications, load],
+    [pickPane, selectPane, selectedPaneId, selectedMachineId, setView, view, splitting, updateSettings, resolvedTheme, canSignOut, canAddPc, lock, portal, portalSignOut, bellVisible, bell.run, enableNotifications, load],
   );
 
   useShortcuts(actions, locked === false);
@@ -1167,7 +1172,7 @@ export function App() {
             </button>
           </div>
           {error && <div className="error-state" role="alert"><p>{error}</p><button className="btn" onClick={() => void load()}>{t("Retry")}</button></div>}
-          <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} seenRefused={seenRefusedIds} onSelect={pickTarget} onSetup={(machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); }} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
+          <MachineSidebar herdrVersion={targetHerdr?.version ?? null} machines={machines} selectedMachineId={selectedMachineId} selectedPaneId={selectedPaneId} actions={actions} seenRefused={seenRefusedIds} onSelect={pickTarget} onSetup={canAddPc ? (machine, update = false) => { setUpdateRemote(update); setMachineDialog(machine); } : null} onNew={(id) => { setNewSessionMachineId(id); setNewTab(null); setNewSessionOpen(true); setDrawerOpen(false); }} />
           <SidebarResizer width={sidebarWidth} onResize={setSidebarWidth} />
         </aside>
 
@@ -1178,7 +1183,7 @@ export function App() {
         <div className={`pane-column${chatShown ? " is-chat" : ""}`}>
         {/* over the pane only: a bar across the window would cut the sidebar off from its top row in the header */}
         <UpdateNotice updates={updates} onOpen={() => { setSettingsSection("updates"); setSettingsOpen(true); }} />
-        <MachineActionBanner machines={machines} onSetup={(machine, update = false) => { setDrawerOpen(false); setUpdateRemote(update); setMachineDialog(machine); }} />
+        <MachineActionBanner machines={machines} onSetup={canAddPc ? (machine, update = false) => { setDrawerOpen(false); setUpdateRemote(update); setMachineDialog(machine); } : null} />
         {snapshot && selectedPane && selectedWorkspace && (
           <TabStrip snapshot={snapshot} workspace={selectedWorkspace} selectedPane={selectedPane} onSelectPane={pickPane} onNewTab={() => actions.openNewTab()} sideBySide={splitting} />
         )}

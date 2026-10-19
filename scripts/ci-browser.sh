@@ -39,3 +39,4 @@ bun scripts/voice-server-regression.ts
 bun scripts/machine-dialog-regression.ts
 bun scripts/feedback-regression.ts
 bun scripts/machine-conflict-regression.ts
+bun scripts/portal-pc-regression.ts

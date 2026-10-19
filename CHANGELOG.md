@@ -8,6 +8,11 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- Behind the Data Agile portal, the portal can name the local PC for its user (`pc.name` in `/api/portal/me`) and turn
+  adding PCs off for them (`pc.add_pc: false`). With it off, Add PC (sidebar footer, command palette, Settings →
+  Remote PCs) and every control that starts a PC setup (Reconnect / setup, Update bridge…, Set up…, Sign in and
+  update…, and the banner's Set up… / Reconnect) are not shown; Connect / Disconnect, Remove PC and the bridge
+  update that needs no sign-in stay. Without the field nothing changes.
 - The **Files** dialog is a tree: folders open in place and read their children on demand (open folders are
   remembered per PC and pane folder), with file-type icons, a selected-row rail and arrow-key navigation (up/down,
   right/left to open and close, Home/End). A **Filter by name** field keeps the matching names and their folders,

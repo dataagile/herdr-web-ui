@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Monitor, X } from "lucide-react";
 import type { Machine, SetupAction, SetupJob } from "../../shared/machines.ts";
 import { answerMachineSetup, fetchMachineSetup, startMachineSetup } from "../lib/api.ts";
+import { hostKeyFingerprints } from "../lib/hostKey.ts";
 import { sshOutputParts } from "../lib/sshOutput.ts";
+import { useAnnouncedText } from "../lib/useAnnouncedText.ts";
 import { BridgeUpdateProgress } from "./MachineSidebar.tsx";
 import "./Machines.css";
 import { useT } from "../lib/i18n.ts";
@@ -17,6 +19,7 @@ export function MachineDialog({ machine, updateRemote = false, onClose, onConnec
   const [key, setKey] = useState(machine?.target?.identity_file ?? "");
   const [session, setSession] = useState(machine?.target?.session ?? "");
   const [job, setJob] = useState<SetupJob | null>(null);
+  const mounted = useRef(true);
   const jobRef = useRef(job); jobRef.current = job;
   const [secret, setSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export function MachineDialog({ machine, updateRemote = false, onClose, onConnec
   // approved install keeps going on the server and shows in the sidebar
   // React's autoFocus runs at mount, while the dialog is still closed; showModal() then moves focus
   // to the first focusable element (Close), so the field is focused again once the dialog is open
-  useEffect(() => { dialog.current?.showModal(); destinationField.current?.focus(); return () => { const current = jobRef.current; if (current && !["connected", "failed", "cancelled", "installing", "starting"].includes(current.phase)) void answerMachineSetup(current.id, { action: "cancel" }).catch(() => {}); }; }, []);
+  useEffect(() => { mounted.current = true; dialog.current?.showModal(); destinationField.current?.focus(); return () => { mounted.current = false; const current = jobRef.current; if (current && !["connected", "failed", "cancelled", "installing", "starting"].includes(current.phase)) void answerMachineSetup(current.id, { action: "cancel" }).catch(() => {}); }; }, []);
   const running = !!job && ["installing", "starting"].includes(job.phase);
   useEffect(() => {
     if (!job || finished) return;
@@ -48,10 +51,20 @@ export function MachineDialog({ machine, updateRemote = false, onClose, onConnec
   const begin = async () => {
     if (pending) return;
     setError(null); setPending(true);
-    try { setJob(await startMachineSetup({ destination: destination.trim(), ...(name.trim() ? { name: name.trim() } : {}), ...(port ? { port: Number(port) } : {}), ...(key.trim() ? { identity_file: key.trim() } : {}), ...(session.trim() ? { session: session.trim() } : {}), ...(machine ? { machine_id: machine.id } : {}), ...(needsBridgeUpdate || updateRemote ? { update_remote: true } : {}) })); }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-    finally { setPending(false); }
+    // a PC saved in herdr keeps its catalog name, which the server does not read from here
+    try { const next = await startMachineSetup({ destination: destination.trim(), ...(name.trim() && !machine?.herdr_profile_id ? { name: name.trim() } : {}), ...(port ? { port: Number(port) } : {}), ...(key.trim() ? { identity_file: key.trim() } : {}), ...(session.trim() ? { session: session.trim() } : {}), ...(machine ? { machine_id: machine.id } : {}), ...(needsBridgeUpdate || updateRemote ? { update_remote: true } : {}) });
+      if (mounted.current) setJob(next);
+      else if (!["connected", "failed", "cancelled", "installing", "starting"].includes(next.phase)) await answerMachineSetup(next.id, { action: "cancel" });
+    }
+    catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : String(e)); }
+    finally { if (mounted.current) setPending(false); }
   };
+  const inheritedStarted = useRef(false);
+  useEffect(() => {
+    if (!machine?.herdr_profile_id || inheritedStarted.current) return;
+    inheritedStarted.current = true;
+    void begin();
+  }, []);
   const act = async (action: SetupAction) => {
     if (!job || pending) return;
     setPending(true); setError(null); setSecret("");
@@ -60,9 +73,10 @@ export function MachineDialog({ machine, updateRemote = false, onClose, onConnec
     finally { setPending(false); }
   };
   return <dialog ref={dialog} className="modal machine-dialog" aria-labelledby="machine-dialog-title" onCancel={(e) => { e.preventDefault(); onClose(); }}>
-    <header className="modal-header"><h2 id="machine-dialog-title" className="modal-title"><Monitor size={18} /> {t(updateRemote ? "Update remote bridge" : machine ? "Reconnect PC" : "Add PC")}</h2><button className="icon-button" aria-label={t("Close PC setup")} onClick={onClose}><X /></button></header>
+    <header className="modal-header"><h2 id="machine-dialog-title" className="modal-title"><Monitor size={18} /> {t(updateRemote ? "Update remote bridge" : machine?.action_required === "connect" ? "Connect" : machine?.action_required === "setup" ? "Set up web access" : machine ? "Reconnect PC" : "Add PC")}</h2><button className="icon-button" aria-label={t("Close PC setup")} onClick={onClose}><X /></button></header>
     <div className="modal-body">
       {(!job || finished && job.phase !== "connected") && <form id="machine-connect-form" onSubmit={(e) => { e.preventDefault(); void begin(); }}>
+        {machine?.herdr_profile_id ? <p className="field-hint">{machine.name} — {destination} / {session}</p> : <>
         <label className="field"><span className="field-label">{t("SSH alias or user@address")}</span><input ref={destinationField} autoFocus className="input" required autoComplete="off" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="devbox or user@192.168.1.20" /></label>
         <label className="field"><span className="field-label">{t("PC name")}</span><input className="input" maxLength={100} value={name} placeholder={destination || t("Filled from the SSH address")} onChange={(e) => setName(e.target.value)} /></label>
         <details><summary>{t("Advanced settings")}</summary><div className="machine-advanced">
@@ -71,16 +85,17 @@ export function MachineDialog({ machine, updateRemote = false, onClose, onConnec
           <label className="field"><span className="field-label">{t("Session name")}</span><input className="input" value={session} placeholder={t("Default session")} onChange={(e) => setSession(e.target.value)} /></label>
         </div></details>
         <p className="field-hint">{t("Uses the web server account’s SSH config and ssh-agent. Agent CLI tools and logins use the environment on the target PC.")}</p>
+        </>}
       </form>}
-      {job && <div className="machine-progress" role="status">{running && job.progress ? <BridgeUpdateProgress update={{ job_id: job.id, step: job.step, progress: job.progress }} /> : <strong>{job.step}</strong>}{job.error && <p>{job.error}</p>}{job.ssh_output && <pre className="machine-ssh-output" aria-label={t("SSH output")}>{sshOutputParts(job.ssh_output).map((part, i) => part.type === "link" ? <a key={i} href={part.href} target="_blank" rel="noopener noreferrer">{part.value}</a> : part.value)}</pre>}</div>}
+      {job && job.challenge?.kind !== "host_key" && <div className="machine-progress" role="status">{running && job.progress ? <BridgeUpdateProgress update={{ job_id: job.id, step: job.step, progress: job.progress }} /> : <strong>{job.step}</strong>}{job.error && <p>{job.error}</p>}{job.ssh_output && <SshOutput text={job.ssh_output} />}</div>}
       {needsBridgeUpdate && <p className="field-hint">{t("This PC runs a bridge from a different version of DevDA. Update it to reconnect; sessions keep running.")}</p>}
       {running && <p className="field-hint">{t("You can close this; the install keeps going and the sidebar shows it.")}</p>}
       {job?.phase === "approval" && <><ul className="machine-install-list">{job.installations.map((item) => <li key={item}>{item}</li>)}</ul><p className="field-hint">{t("Installs into your home directory. Existing sessions keep running.")}</p></>}
-      {job?.challenge && <div className="machine-challenge"><pre>{job.challenge.prompt}</pre>{job.challenge.kind === "host_key" ? <p className="field-hint">{t("Compare this fingerprint with the PC before accepting it.")}</p> : <form onSubmit={(e) => { e.preventDefault(); void act({ action: "answer", challenge_id: job.challenge!.id, answer: secret }); }}>
+      {job?.challenge && <div className="machine-challenge">{job.challenge.kind === "host_key" ? <HostKeyQuestion prompt={job.challenge.prompt} host={job.target.destination} sshOutput={job.ssh_output} /> : <><pre>{job.challenge.prompt}</pre><form onSubmit={(e) => { e.preventDefault(); void act({ action: "answer", challenge_id: job.challenge!.id, answer: secret }); }}>
         <label className="field"><span className="field-label">{t("Password or key passphrase")}</span><input autoFocus className="input" type="password" autoComplete="off" value={secret} disabled={!secretAllowed || pending} onChange={(e) => setSecret(e.target.value)} /></label>
         {!secretAllowed && <p className="field-hint">{t("Open this app over HTTPS or localhost to enter a password.")}</p>}
         <button type="submit" className="btn btn-primary" disabled={!secretAllowed || pending || !secret}>{t("Continue")}</button>
-      </form>}</div>}
+      </form></>}</div>}
       {error && <p className="machine-error" role="alert">{error}</p>}
     </div>
     <footer className="modal-footer">
@@ -91,4 +106,32 @@ export function MachineDialog({ machine, updateRemote = false, onClose, onConnec
       {job?.phase === "connected" ? <button className="btn btn-primary" onClick={() => onConnected(job.machine_id)}>{t("Open PC")}</button> : (!job || finished) && <button className="btn btn-primary" form="machine-connect-form" type="submit" disabled={pending}>{t(pending ? "Connecting…" : needsBridgeUpdate ? "Update bridge and connect" : job ? "Retry connection" : "Connect")}</button>}
     </footer>
   </dialog>;
+}
+
+function SshOutput({ text }: { text: string }) {
+  const t = useT();
+  return <pre className="machine-ssh-output" aria-label={t("SSH output")}>{sshOutputParts(text).map((part, i) => part.type === "link" ? <a key={i} href={part.href} target="_blank" rel="noopener noreferrer">{part.value}</a> : part.value)}</pre>;
+}
+
+/**
+ * The host-key decision: the fingerprint to compare and one sentence; ssh's own words wait behind
+ * a fold. No status box above it: the question is the state. The sentence is the announcement of
+ * that state, so its words land a frame after the box (lib/useAnnouncedText.ts).
+ */
+function HostKeyQuestion({ prompt, host, sshOutput }: { prompt: string; host: string; sshOutput: string | null }) {
+  const t = useT();
+  const fingerprints = hostKeyFingerprints(prompt);
+  const sentence = useAnnouncedText(t("Trust it only if it matches the fingerprint shown on the PC."));
+  return <>
+    {fingerprints.length > 0 ? <>
+      <p className="machine-fingerprint-label">{t("Fingerprint of {host}", { host })}</p>
+      {fingerprints.map((fingerprint) => <p key={fingerprint} className="machine-fingerprint">{fingerprint}</p>)}
+    </> : <pre>{prompt}</pre>}
+    <p className="field-hint" role="status">{sentence}</p>
+    {(fingerprints.length > 0 || sshOutput !== null) && <details className="machine-ssh-fold">
+      <summary>{t("Show SSH output")}</summary>
+      {fingerprints.length > 0 && <pre>{prompt}</pre>}
+      {sshOutput !== null && <SshOutput text={sshOutput} />}
+    </details>}
+  </>;
 }

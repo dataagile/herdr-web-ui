@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { appFaces } from "./app-faces.ts";
-import { herdrRpc, tabCreate, tabRename, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+import { herdrRpc, paneSplit, tabCreate, tabRename, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+import { chromePath } from "./chrome-path.ts";
 import { setLens } from "./lens.ts";
 
 type Box = { left: number; top: number; right: number; bottom: number; width: number; height: number };
@@ -58,12 +59,16 @@ async function activeTabInView(page: Page, label: string): Promise<void> {
 export async function checkMobileTabs(browser: Browser, origin: string): Promise<void> {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "herdr-web-ui-mobile-tabs-")));
   let workspaceId: string | null = null;
+  let otherWorkspaceId: string | null = null;
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "en-US" });
   try {
     const created = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-mobile-tabs" });
     workspaceId = created.workspace.workspace_id;
     const first = created.root_pane.pane_id;
-    await herdrRpc("pane.split", { target_pane_id: first, direction: "right", focus: false });
+    // herdr keeps the first pane in front: the split one is seen only where the browser opens it
+    const second = (await paneSplit(first, "right", false)).pane_id;
+    const other = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-mobile-tabs-other" });
+    otherWorkspaceId = other.workspace.workspace_id;
     const panes: string[] = [];
     for (const label of TAB_LABELS) panes.push((await tabCreate({ workspaceId, cwd: root, label })).root_pane.pane_id);
     const last = panes.at(-1)!;
@@ -89,7 +94,8 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.locator(".conn-live").waitFor();
     await page.locator(".tab-strip").waitFor();
     await setLens(page, "chat");
-    const composer = page.getByRole("textbox", { name: "Message", exact: true });
+    const firstFrame = page.locator(`[data-layout-pane=${JSON.stringify(first)}]`);
+    const composer = firstFrame.getByRole("textbox", { name: "Message", exact: true });
     await composer.waitFor();
     await assertShell(page, "chat");
     const chat = await box(page, ".chat-view");
@@ -106,13 +112,17 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.waitForFunction(() => !document.documentElement.hasAttribute("data-keyboard"));
 
     await setLens(page, "terminal");
-    await page.locator(".key-bar").waitFor();
+    await firstFrame.locator(".key-bar").waitFor();
+    assert.equal(await page.locator(".pane-frame:visible").count(), 1, "a phone shows the split tab's open pane alone");
+    assert.equal(await page.locator(".pane-frame").count(), 2, "and keeps its sibling mounted");
     await assertShell(page, "terminal");
 
+    assert.equal(await page.locator(".tab-strip-close, .tab-strip-panes").count(), 0, "tabs have no close buttons or chevrons");
+    assert.equal(await page.locator(".tab-strip-menu:visible").count(), 1, "only the active tab exposes a touch menu");
     const tab = await box(page, ".tab-strip-item.is-active .tab-strip-tab");
-    const picker = await box(page, ".tab-strip-item.is-active .tab-strip-panes");
-    assert.ok(picker.left >= tab.right - 0.5, `a split tab's pane picker is beside its name, not over it (${picker.left} vs ${tab.right})`);
-    assert.ok(picker.width >= 40 && picker.height >= 40, "the pane picker is a touch target");
+    const menu = await box(page, ".tab-strip-item.is-active .tab-strip-menu");
+    assert.ok(menu.left >= tab.right - 0.5, `the tab's menu button is beside its name, not over it (${menu.left} vs ${tab.right})`);
+    assert.ok(menu.width >= 40 && menu.height >= 40, "the tab menu button is a touch target");
     await activeTabInView(page, "the first tab");
     await screenshot("terminal");
 
@@ -128,6 +138,40 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.locator(".tab-strip-tab").first().tap();
     await page.locator('.tab-strip-item:first-child [role="tab"][aria-selected="true"]').waitFor();
     await activeTabInView(page, "the first tab, tapped");
+    assert.equal(await page.locator(".tab-strip-menu:visible").count(), 1, "the menu button follows a tab selected by touch");
+    await page.getByRole("button", { name: "Actions for Tab 1", exact: true }).tap();
+    const tabSheet = page.getByRole("dialog", { name: "Tab 1", exact: true });
+    await tabSheet.waitFor();
+    const tabItems = await tabSheet.locator(".row-sheet-item").allTextContents();
+    assert.equal(tabItems.indexOf("Rename pane"), 2, "a split tab's menu lists its two panes first on a phone");
+    assert.ok(tabItems.includes("Rename pane") && tabItems.includes("Close pane"), "the open pane's actions are in the tab's menu on a phone");
+    assert.deepEqual(tabItems.slice(-4), ["Move tab right", "New tab with agent…", "Rename tab", "Close tab"], "the first tab offers only its available adjacent move, and the agent's dialog beside the strip's shell +");
+    await tabSheet.getByRole("button", { name: "Cancel", exact: true }).tap();
+    await tabSheet.waitFor({ state: "detached" });
+
+    // The pane a tab and a workspace row were last seen on outlives a reload (a phone drops a page
+    // left in the background): both open the split pane last seen, not the one herdr has in front.
+    const shown = (pane: string) => page.locator(`[data-layout-pane=${JSON.stringify(pane)}]`).waitFor({ state: "visible" });
+    await page.goto(`${origin}/?pane=${encodeURIComponent(second)}`);
+    await page.locator(".conn-live").waitFor();
+    await shown(second);
+    await page.getByRole("tab", { name: "docs", exact: true }).tap();
+    await shown(last);
+    await page.reload();
+    await page.locator(".conn-live").waitFor();
+    await shown(last);
+    await page.locator(".tab-strip").evaluate((node) => { node.scrollLeft = 0; });
+    await page.getByRole("tab", { name: "Tab 1", exact: true }).tap();
+    await shown(second);
+    assert.equal(await page.locator(`[data-layout-pane=${JSON.stringify(first)}]`).isVisible(), false, "a tab opened again after a reload shows the pane it was left on");
+    await page.goto(`${origin}/?pane=${encodeURIComponent(other.root_pane.pane_id)}`);
+    await page.locator(".conn-live").waitFor();
+    await page.reload();
+    await page.locator(".conn-live").waitFor();
+    await page.getByRole("button", { name: "Open workspace list", exact: true }).tap();
+    await page.locator(`.workspace-group[data-workspace=${JSON.stringify(workspaceId)}] > .workspace-header .workspace-select`).tap();
+    await shown(second);
+    assert.equal(await page.locator(`[data-layout-pane=${JSON.stringify(first)}]`).isVisible(), false, "a workspace row picked after a reload opens the pane it was left on");
 
     await page.setViewportSize({ width: 320, height: 640 });
     await activeTabInView(page, "a 320px phone");
@@ -212,10 +256,11 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
         assert.deepEqual(lateErrors, []);
       } finally { await slow.close(); }
     }
-    console.log("PASS a phone names the pane in the strip (its open tab) and keeps the + there, in both lenses and with the keyboard up");
+    console.log("PASS a phone names the pane in the strip (its open tab) and keeps the + there, in both lenses and with the keyboard up, and reopens a tab and a workspace on the pane last seen after a reload");
   } finally {
     await context.close();
     if (workspaceId) await workspaceClose(workspaceId).catch(() => undefined);
+    if (otherWorkspaceId) await workspaceClose(otherWorkspaceId).catch(() => undefined);
     rmSync(root, { recursive: true, force: true });
   }
 }
@@ -227,7 +272,7 @@ if (import.meta.main) {
   const { UsageService } = await import("../server/usage.ts");
   const state = mkdtempSync(join(tmpdir(), "herdr-web-ui-mobile-tabs-state-"));
   const server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: state, usage: new UsageService(undefined, []) });
-  const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/opt/google/chrome/chrome", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: chromePath(), headless: true, args: ["--no-sandbox"] });
   try {
     await checkMobileTabs(browser, `http://127.0.0.1:${server.port}`);
   } finally {

@@ -31,8 +31,9 @@ import { DEFAULT_PORT } from "../shared/protocol.ts";
 import type { RemoteAccess } from "../shared/protocol.ts";
 import { canBind, FALLBACK_PORTS, freePort, savedPort } from "./plugin-port.ts";
 import { activePluginScript } from "./plugin-runtime.ts";
+import { herdrStateDir } from "./plugin-state.ts";
 import { parseTailscale, parseTailscaleIp, parseTailscaleOwner, readTailscale, tailscaleBinary } from "../server/tailscale.ts";
-import { windowsArgv, windowsProcessTable } from "../server/windows-processes.ts";
+import { descendantProcesses, windowsArgv, windowsProcessTable } from "../server/windows-processes.ts";
 
 /**
  * Read in this order, so `.env` wins: `env` is what this plugin read first, `.env` is what herdr's
@@ -41,7 +42,12 @@ import { windowsArgv, windowsProcessTable } from "../server/windows-processes.ts
  */
 const ENV_FILES = ["env", ".env"];
 const ROOT = resolve(process.env["HERDR_PLUGIN_ROOT"] ?? join(import.meta.dir, ".."));
-const STATE_DIR = process.env["HERDR_PLUGIN_STATE_DIR"] ?? join(homedir(), ".local", "state", "herdr-web-ui");
+const DEFAULT_STATE_DIR = join(homedir(), ".local", "state", "herdr-web-ui");
+const MANAGED_STATE_DIR = join(herdrStateDir(process.env, platform(), homedir()), "plugins", "devswha.herdr-web-ui");
+// run by hand, without herdr's HERDR_PLUGIN_STATE_DIR: a server started from a checkout keeps its
+// own dir while it runs; otherwise the dir herdr gives the plugin, where its startup hook wrote
+const STATE_DIR = process.env["HERDR_PLUGIN_STATE_DIR"]
+  ?? (pidIn(join(DEFAULT_STATE_DIR, "server.pid")) !== null || !existsSync(MANAGED_STATE_DIR) ? DEFAULT_STATE_DIR : MANAGED_STATE_DIR);
 const CONFIG_DIR = process.env["HERDR_PLUGIN_CONFIG_DIR"] ?? herdrConfigDir() ?? join(homedir(), ".config", "herdr-web-ui");
 const PID_FILE = join(STATE_DIR, "server.pid");
 const LOG_FILE = join(STATE_DIR, "server.log");
@@ -55,8 +61,8 @@ const KILL_WAIT_MS = 3_000;
 const SERVE_TIMEOUT_MS = 180_000;
 /** how to come back to `phone` once Tailscale is set up: an action's output goes to herdr's log, not a terminal */
 const PHONE_AGAIN = platform() === "win32"
-  ? "irm https://devswha.github.io/herdr-web-ui/install.ps1 | iex"
-  : "curl -fsSL https://devswha.github.io/herdr-web-ui/install.sh | sh";
+  ? "irm https://herdrweb.dev/install.ps1 | iex"
+  : "curl -fsSL https://herdrweb.dev/install.sh | sh";
 
 /**
  * Run by hand (`pair` on a headless PC), herdr's env is not there to name the config dir:
@@ -93,6 +99,8 @@ const fileVars = CONFIG_FILES.map(readEnvFile);
 /** keys both files set to different values: `.env` wins, which someone editing `env` would not expect */
 const shadowed = fileVars.length === 2 ? Object.keys(fileVars[0]!).filter((key) => key in fileVars[1]! && fileVars[0]![key] !== fileVars[1]![key]) : [];
 const env = { ...process.env, ...Object.assign({}, ...fileVars) as Record<string, string> };
+/** HERDR_SOCKET the user put in the config files: it names the session to show, so herdr's own socket does not replace it */
+const configuredSocket = fileVars.some((vars) => (vars["HERDR_SOCKET"] ?? "") !== "");
 const PATH_KEY = platform() === "win32" ? Object.keys(env).sort().find(key => key.toLowerCase() === "path") ?? "PATH" : "PATH";
 /** the app's own state, as the server finds it (server/update-state.ts): the same path with or without herdr's env */
 const APP_STATE_DIR = env["HERDR_WEB_STATE_DIR"] || join(env["XDG_CONFIG_HOME"] || join(homedir(), ".config"), "herdr-web-ui");
@@ -175,8 +183,13 @@ async function healthError(): Promise<string | null> {
 }
 
 function recordedPid(): number | null {
-  if (!existsSync(PID_FILE)) return null;
-  const pid = Number(readFileSync(PID_FILE, "utf8").trim());
+  return pidIn(PID_FILE);
+}
+
+/** the live process a pid file names, or null */
+function pidIn(file: string): number | null {
+  if (!existsSync(file)) return null;
+  const pid = Number(readFileSync(file, "utf8").trim());
   if (!Number.isInteger(pid) || pid <= 0) return null;
   try {
     process.kill(pid, 0);
@@ -185,6 +198,7 @@ function recordedPid(): number | null {
     return null;
   }
 }
+
 
 /** names the keys only, never their values: a token must not reach herdr's log */
 function warnShadowed(): void {
@@ -289,8 +303,8 @@ async function start(): Promise<number> {
       HOST: host,
       PORT: String(port),
       // herdr hands the plugin HERDR_SOCKET_PATH; the server (and the attach it
-      // spawns) reads HERDR_SOCKET
-      ...(env["HERDR_SOCKET_PATH"] !== undefined ? { HERDR_SOCKET: env["HERDR_SOCKET_PATH"] } : {}),
+      // spawns) reads HERDR_SOCKET. A HERDR_SOCKET set in the config files wins.
+      ...(env["HERDR_SOCKET_PATH"] !== undefined && !configuredSocket ? { HERDR_SOCKET: env["HERDR_SOCKET_PATH"] } : {}),
     },
   });
   child.unref();
@@ -346,12 +360,36 @@ function liveProcess(target: number): boolean | null {
   });
 }
 
+type StopDependencies = {
+  readonly isWindows: boolean;
+  readonly processTable: typeof windowsProcessTable;
+  readonly isAlive: (pid: number) => boolean;
+  readonly terminateTree: (pid: number) => { status: number | null; error: Error | undefined; stderr: string };
+};
+
+const stopDependencies: StopDependencies = {
+  isWindows: platform() === "win32",
+  processTable: windowsProcessTable,
+  isAlive(pid) {
+    try { process.kill(pid, 0); return true; }
+    catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
+  },
+  terminateTree(pid) {
+    const result = spawnSync("taskkill", ["/pid", String(pid), "/t", "/f"], { windowsHide: true, encoding: "utf8" });
+    return {
+      status: result.status,
+      error: result.error,
+      stderr: result.stderr?.trim() ?? "",
+    };
+  },
+};
+
 /**
  * Returns once the server is gone. It stops answering at once, but its supervisor holds the
  * checkout's lock until the bridge under it exits, and a `start` before then finds that lock,
  * gives up, and leaves nothing running.
  */
-async function stop(): Promise<number> {
+export async function stop(dependencies: StopDependencies = stopDependencies): Promise<number> {
   const pid = recordedPid();
   if (pid === null) {
     rmSync(PID_FILE, { force: true });
@@ -359,11 +397,12 @@ async function stop(): Promise<number> {
     return 0;
   }
   // the whole process group when the server leads one, as `start` spawns it
-  let target = platform() === "win32" ? pid : -pid;
-  if (platform() === "win32") {
+  let target = dependencies.isWindows ? pid : -pid;
+  if (dependencies.isWindows) {
     // A stale PID can belong to another app, or a newer instance of this plugin.
     const recordedAt = statSync(PID_FILE).mtimeMs;
-    const owner = (await windowsProcessTable()).find(row => row.pid === pid);
+    const processes = await dependencies.processTable();
+    const owner = processes.find(row => row.pid === pid);
     const argv = windowsArgv(owner?.commandLine ?? "");
     if (owner?.path?.toLowerCase() !== process.execPath.toLowerCase()
       || argv[1]?.toLowerCase() !== join(ROOT, "server", "managed.ts").toLowerCase()
@@ -373,20 +412,27 @@ async function stop(): Promise<number> {
       process.stderr.write("could not verify the recorded herdr web ui process; it was left running and its pid file was kept\n");
       return 1;
     }
+    const tree = [owner, ...descendantProcesses(processes, pid).flatMap(({ pid: memberPid }) => {
+      const member = processes.find(row => row.pid === memberPid);
+      return member ? [member] : [];
+    })];
     // Windows has no Unix process groups or graceful SIGTERM: include the supervisor and bridge.
-    const killed = spawnSync("taskkill", ["/pid", String(pid), "/t", "/f"], { windowsHide: true, encoding: "utf8" });
+    const killed = dependencies.terminateTree(pid);
     if (killed.status !== 0 && recordedPid() !== null) {
       process.stderr.write(`could not stop herdr web ui: ${killed.error?.message ?? killed.stderr.trim()}\n`);
       return 1;
     }
-    const deadline = Date.now() + STOP_TIMEOUT_MS;
+    const deadline = Date.now() + 10_000;
     let exited = false;
     while (Date.now() < deadline) {
-      try { process.kill(pid, 0); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") { exited = true; break; } }
-      const current = (await windowsProcessTable(Math.max(1, deadline - Date.now()))).find(row => row.pid === pid);
-      if (current?.started !== undefined && current.started !== owner.started) { exited = true; break; }
-      await Bun.sleep(100);
+      const currentProcesses = await dependencies.processTable(Math.max(1, deadline - Date.now()));
+      const running = tree.some(member => {
+        if (!dependencies.isAlive(member.pid)) return false;
+        const current = currentProcesses.find(row => row.pid === member.pid);
+        return !(member.started !== undefined && current?.started !== undefined && current.started !== member.started);
+      });
+      if (!running) { exited = true; break; }
+      await Bun.sleep(50);
     }
     if (!exited) {
       process.stderr.write("could not confirm herdr web ui stopped; its pid file was kept\n");
@@ -580,14 +626,16 @@ async function status(): Promise<number> {
   return 0;
 }
 
-const command = process.argv[2] ?? "status";
-if (command === "start") process.exit(await start());
-else if (command === "stop") process.exit(await stop());
-else if (command === "status") process.exit(await status());
-else if (command === "pair") process.exit(await pair());
-else if (command === "phone") process.exit(await phone());
-else if (command === "phone-setup") process.exit(await phoneSetup());
-else {
-  process.stderr.write(`usage: bun scripts/plugin.ts <start|stop|status|pair|phone|phone-setup>\n`);
-  process.exit(2);
+if (import.meta.main) {
+  const command = process.argv[2] ?? "status";
+  if (command === "start") process.exit(await start());
+  else if (command === "stop") process.exit(await stop());
+  else if (command === "status") process.exit(await status());
+  else if (command === "pair") process.exit(await pair());
+  else if (command === "phone") process.exit(await phone());
+  else if (command === "phone-setup") process.exit(await phoneSetup());
+  else {
+    process.stderr.write(`usage: bun scripts/plugin.ts <start|stop|status|pair|phone|phone-setup>\n`);
+    process.exit(2);
+  }
 }

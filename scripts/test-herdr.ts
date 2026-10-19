@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { ping, sessionSnapshot, workspaceCreate } from "../server/herdr/client.ts";
+import { testShellEnv } from "./test-shell.ts";
 
 // macOS's temp dir is behind a symlink (/var -> /private/var): herdr reports a pane's cwd
 // resolved, so a fixture made under the unresolved path never matches the pane it is for
@@ -21,10 +22,15 @@ process.env["TMPDIR"] = realpathSync(tmpdir());
 
 export const TEST_SESSION = process.env["HERDR_TEST_SESSION"] || "herdr-web-ui-test";
 
-/** Where herdr puts a named session's socket (it follows XDG_CONFIG_HOME, as remote-entry.ts does). */
-export function testSocketPath(): string {
-  const config = join(process.env["XDG_CONFIG_HOME"] || join(homedir(), ".config"), "herdr");
-  return join(config, "sessions", TEST_SESSION, "herdr.sock");
+/**
+ * Where herdr puts a named session's socket: under XDG_CONFIG_HOME when it is set, on Windows too
+ * (live-verified, herdr 0.9.3; `bun run check` isolates herdr through it), else under APPDATA on
+ * Windows and ~/.config elsewhere.
+ */
+export function testSocketPath(env: Record<string, string | undefined> = process.env, platform: NodeJS.Platform = process.platform): string {
+  const root = env["XDG_CONFIG_HOME"]
+    || (platform === "win32" ? env["APPDATA"] || join(homedir(), "AppData", "Roaming") : join(homedir(), ".config"));
+  return join(root, "herdr", "sessions", TEST_SESSION, "herdr.sock");
 }
 
 function herdrBinary(): string | null {
@@ -78,7 +84,7 @@ export async function useTestHerdr(): Promise<string | null> {
       // run from inside a herdr pane, this process carries that pane's HERDR_* variables; run by
       // an agent, it carries the agent's too (OMO_CODING_AGENT_DIR moves where a pane's omo is
       // read from), and every pane of this server would inherit them
-      env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(HERDR|OMO|SENPI|PI)_/.test(name))), ZDOTDIR: zdotdir },
+      env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(HERDR|OMO|SENPI|PI)_/.test(name))), ...testShellEnv(dirname(socket)), ZDOTDIR: zdotdir },
     }).unref();
     const deadline = Date.now() + 15_000;
     while (!(existsSync(socket) && await answers(socket))) {

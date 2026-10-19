@@ -3,9 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright-core";
+import { browserEvidencePage, browserEvidenceTracing, startBrowserEvidence } from "./browser-evidence.ts";
+import type { BrowserEvidenceSession } from "./browser-evidence.ts";
 import { appFaces } from "./app-faces.ts";
 import panes from "../site/demo/fixtures/panes.json";
 import { buildDemoApp } from "./demo-build.ts";
+import { chromePath } from "./chrome-path.ts";
 
 // The prompt card's place, on the unmodified app over the demo's fixture transport: the demo's
 // "web" pane has an approval open. A second, tall form (steps, reference text, descriptions, a
@@ -16,6 +19,8 @@ import { buildDemoApp } from "./demo-build.ts";
 const repo = join(import.meta.dir, "..");
 const app = mkdtempSync(join(tmpdir(), "herdr-prompt-dock-demo-"));
 const shots = process.env.PROMPT_DOCK_SHOTS ?? null;
+const evidenceDirectory = process.env.CHECK_BROWSER_EVIDENCE_DIR;
+const evidenceTrace = process.env.CHECK_BROWSER_EVIDENCE_TRACE === "1";
 
 /** omo's form on its second question, as server/prompt.ts hands it over */
 const FORM = {
@@ -30,6 +35,17 @@ const FORM = {
   ],
   multi_select: false, custom_option_index: 3,
   steps: [{ label: "Scope", answered: true, current: false }, { label: "Store", answered: false, current: true }, { label: "Rollout", answered: false, current: false }],
+};
+/** Claude's review of several answers, as server/prompt.ts hands it over: the pane wrapped the
+ * second question, and the card reads it whole */
+const ANSWERS_REVIEW = {
+  id: "demo-review", agent: "claude", kind: "menu", title: "Review your answers", question: "Ready to submit your answers?", body: null,
+  answers: [
+    { question: "What should the two top-level rows be called?", answer: "Fictional repo names (Recommended)" },
+    { question: "The demo's terminal replay (git log, bun test, the pretend shell) lives in the 'release' shell workspace. What happens to it?", answer: "Second tab in a repo (Recommended)" },
+  ],
+  options: [{ label: "Submit answers", description: null }, { label: "Cancel", description: null }],
+  multi_select: false, custom_option_index: null,
 };
 /** the same form as a plan to approve: a typed pick waits for Confirm */
 const PLAN = { ...FORM, id: "demo-plan", kind: "plan", title: "Ready to code?", steps: undefined };
@@ -95,7 +111,7 @@ const layoutOf = (page: Page): Promise<Layout> => page.evaluate(() => {
   };
 });
 
-/** What a press at the middle of an element's visible box lands on, as a class of the card or the grip. */
+/** What a press at the middle of an element's visible box lands on, as a class of the card. */
 const hitOf = (page: Page, selector: string, at: "middle" | "bottom" = "middle"): Promise<{ hit: string | null; visible: boolean }> => page.evaluate(([target, where]) => {
   const node = [...document.querySelectorAll(target!)].at(-1)!;
   const card = document.querySelector(".prompt-card")!.getBoundingClientRect();
@@ -104,7 +120,7 @@ const hitOf = (page: Page, selector: string, at: "middle" | "bottom" = "middle")
   const x = rect.left + rect.width / 2;
   const y = where === "bottom" ? rect.bottom - 2 : rect.top + rect.height / 2;
   const found = document.elementFromPoint(x, y);
-  return { hit: found?.closest(".composer-resize") ? "composer-resize" : found?.closest(target!) === node ? "self" : found === null ? null : (found as HTMLElement).className || found.tagName, visible };
+  return { hit: found?.closest(target!) === node ? "self" : found === null ? null : (found as HTMLElement).className || found.tagName, visible };
 }, [selector, at] as const);
 
 /** Scrolls the card (never the page) until the element is in its box, as a finger or a wheel would. */
@@ -214,9 +230,16 @@ try {
   const url = `http://127.0.0.1:${server.port}/herdr-web-ui/demo/app/?pane=${encodeURIComponent(panes.web)}`;
   if (shots !== null) mkdirSync(shots, { recursive: true });
   try {
-    const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/opt/google/chrome/chrome", headless: true, args: ["--no-sandbox"] });
+    const browser = await chromium.launch({ executablePath: chromePath(), headless: true, args: ["--no-sandbox"] });
     try {
       interface Opened { page: Page; errors: string[]; shot: (name: string) => Promise<void>; close: () => Promise<void> }
+      const evidenceByPage = new WeakMap<Page, BrowserEvidenceSession>();
+      const preserveFailure = async (page: Page, error: unknown): Promise<never> => {
+        const evidence = evidenceByPage.get(page);
+        if (evidence) await evidence.captureFailure(error);
+        throw error;
+      };
+      let evidenceSequence = 0;
       const open = async ({ width, height, touch = false, finePointer = false, held = [], prompt = null, theme = "dark", language = "en", settings = {} }: { width: number; height: number; touch?: boolean; finePointer?: boolean; held?: string[]; prompt?: unknown; theme?: string; language?: string; settings?: Record<string, unknown> }): Promise<Opened> => {
         const context = await browser.newContext({ viewport: { width, height }, locale: "en-US", hasTouch: touch, isMobile: touch && !finePointer });
         // a laptop with a touch screen: Chromium calls any screen with touch a coarse pointer, and
@@ -237,16 +260,35 @@ try {
         });
         if (prompt !== null) await context.addInitScript((next) => { window.addEventListener("DOMContentLoaded", () => { (window as unknown as { formPrompt: unknown }).formPrompt = next; }); }, prompt);
         const page = await context.newPage();
+        const evidence = evidenceDirectory ? await startBrowserEvidence({
+          page: browserEvidencePage(page),
+          tracing: browserEvidenceTracing(context),
+          directory: evidenceDirectory,
+          script: "prompt-dock-demo-regression",
+          scenario: `page-${++evidenceSequence}-${width}x${height}-${theme}-${language}`,
+          trace: evidenceTrace,
+        }) : undefined;
+        if (evidence) evidenceByPage.set(page, evidence);
         const errors: string[] = [];
         page.on("pageerror", (error) => errors.push(error.message));
-        await page.goto(url);
-        await page.locator(".conn-live").waitFor({ state: "attached" });
-        await page.locator(".terminal-stack.is-chat").waitFor();
-        if (prompt !== null) await setPrompt(page, prompt);
-        await page.locator(".prompt-card").waitFor();
-        if (prompt !== null) await page.locator(".prompt-card").getByText((prompt as { question: string }).question).waitFor();
-        await appFaces(page);
-        return { page, errors, close: () => context.close(), shot: async (name) => { if (shots !== null) await page.screenshot({ path: join(shots, `${name}.png`) }); } };
+        try {
+          await page.goto(url);
+          await page.locator(".conn-live").waitFor({ state: "attached" });
+          await page.locator(".terminal-stack.is-chat").waitFor();
+          if (prompt !== null) await setPrompt(page, prompt);
+          await page.locator(".prompt-card").waitFor();
+          if (prompt !== null) await page.locator(".prompt-card").getByText((prompt as { question: string }).question).waitFor();
+          await appFaces(page);
+          return {
+            page,
+            errors,
+            close: async () => { if (evidence) await evidence.finish(); await context.close(); },
+            shot: async (name) => { if (shots !== null) await page.screenshot({ path: join(shots, `${name}.png`) }); },
+          };
+        } catch (error) {
+          if (evidence) await evidence.captureFailure(error);
+          throw error;
+        }
       };
 
       /** the card's place in the stack, the same at every size */
@@ -287,16 +329,14 @@ try {
             // the keycap draws the number alone; the option is still named as the agent's menu shows it
             assert.deepEqual(await page.locator(".prompt-card-number > [aria-hidden]").allTextContents(), ["1", "2", "3"]);
             for (const name of ["1. Yes", "2. Yes, and don't ask again for git push", "3. No, and tell Codex what to do differently"]) assert.equal(await page.locator(".prompt-card").getByRole("button", { name, exact: true }).count(), 1, name);
-            // the grip's hit strip is the composer's own: the card's last row is pressed, not the grip
+            // the card's last row is pressed at its bottom edge
             assert.deepEqual(await hitOf(page, ".prompt-card-option", "bottom"), { hit: "self", visible: true });
-            const grip = await page.evaluate(() => { const strip = document.querySelector(".composer-resize")!.getBoundingClientRect(); return { top: strip.top, card: document.querySelector(".prompt-card")!.getBoundingClientRect().bottom }; });
-            assert.ok(grip.top >= grip.card - 0.5, `the grip's strip starts under the card (${grip.top} against ${grip.card})`);
             // the open work block says who waits: the sidebar's words, a still red dot
             const head = await page.locator(".work-block.is-live .work-block-title").evaluate((node) => ({ text: node.textContent, waiting: node.closest(".work-block")!.classList.contains("is-waiting"), dot: getComputedStyle(node, "::before").animationName }));
             assert.deepEqual(head, { text: "Needs you", waiting: true, dot: "none" });
             assert.deepEqual(errors, []);
             await shot(`approval-${size.width}-${theme}`);
-          } finally { await close(); }
+          } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         }
       }
       console.log("PASS the approval card sits outside the transcript, directly over the input card on its column, at 1440 and 390, dark and light");
@@ -341,7 +381,7 @@ try {
           await setPrompt(page, FORM);
           await page.locator(".prompt-dock > .prompt-card").getByText(FORM.question).waitFor();
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS an empty Enter answers nothing, a typed pick waits for Confirm, a press answers and hands the focus to the message box");
       }
 
@@ -362,7 +402,7 @@ try {
           placed(opened, "held rows opened");
           assert.ok(opened.queue!.bottom <= opened.card.top);
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS a held caption sits over the card, on its column");
       }
 
@@ -409,7 +449,7 @@ try {
           await page.locator(".prompt-card").getByText(PLAN.question).waitFor({ state: "detached" });
           assert.deepEqual(await answersOf(page), [{ pane_id: panes.web, prompt_id: "demo-plan", option_index: 1 }]);
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log(`PASS at ${label} the tall form's options, custom answer and Confirm are all reachable, and Confirm sends the pick once`);
       }
 
@@ -426,7 +466,7 @@ try {
           assert.equal(layout.scrolls, true, "the form is taller than a phone with its keyboard up: the card scrolls");
           await shot("form-held-390x500");
           assert.deepEqual(await reach(page, ".prompt-card-custom .input"), { hit: "self", visible: true });
-          // the card's last row is pressed at its bottom edge, where the grip's strip would have been
+          // the card's last row is pressed at its bottom edge
           assert.deepEqual(await reach(page, ".prompt-card-custom .btn"), { hit: "self", visible: true });
           assert.deepEqual(await hitOf(page, ".prompt-card-custom .btn", "bottom"), { hit: "self", visible: true });
           await page.locator(".prompt-card-custom .input").fill("sqlite, one file");
@@ -436,7 +476,7 @@ try {
           // a tap: the answer does not raise the keyboard by moving focus to the message box
           assert.notEqual(await page.evaluate(() => document.activeElement?.className.split(" ")[0]), "composer-text");
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS omo's form under a held caption on a short phone: steps, the agent's own Recommended tag, a custom answer sent as text");
       }
 
@@ -460,7 +500,7 @@ try {
           assert.doesNotMatch(type.keycap.family, /Georgia/);
           placed(await layoutOf(page), "chat font 22px");
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS the card follows the chat's font size and font; its reference text and keycaps stay mono");
       }
 
@@ -506,7 +546,7 @@ try {
           assert.equal(await typing(), true, "an option is a button: its tap is not a request to read");
           assert.deepEqual(await answersOf(page), [{ pane_id: panes.web, prompt_id: "demo-form", option_index: 0 }], "and it still answers");
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS with a phone's keyboard up, a tap on the card's text or a drag down it at its top puts the keyboard away; an option still answers");
       }
 
@@ -517,17 +557,17 @@ try {
         try {
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 600; });
           await page.locator(".prompt-card").getByRole("button", { name: /^1\. In memory/ }).click();
-          await page.locator(".prompt-card[aria-busy=true]").waitFor();
+          await page.locator(".prompt-card-options[aria-busy=true]").waitFor();
           // the user goes on to something else while the answer is on its way
           const elsewhere = page.locator(".app-header button:not([disabled]):visible").first();
           await elsewhere.focus();
           assert.equal(await elsewhere.evaluate((node) => document.activeElement === node), true);
-          assert.equal(await page.locator(".prompt-card").getAttribute("aria-busy"), "true", "the answer is still on its way");
+          assert.equal(await page.locator(".prompt-card-options").getAttribute("aria-busy"), "true", "the answer is still on its way");
           await page.locator(".prompt-card").getByText(FORM.question).waitFor({ state: "detached" });
           assert.equal((await answersOf(page)).length, 1);
           assert.equal(await elsewhere.evaluate((node) => document.activeElement === node), true, "focus stays where the user put it while the answer was on its way");
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS an answer that comes back late does not pull the focus from where the user went");
       }
 
@@ -571,7 +611,7 @@ try {
           await page.locator(".prompt-card").getByText(REVIEW.question).waitFor({ state: "detached" });
           assert.deepEqual(await answersOf(page), [{ pane_id: panes.web, prompt_id: "demo-review", option_index: 1 }]);
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log(`PASS ${label}: the Confirm row keeps to two lines of the label with its buttons on one line, and the options stay in reach`);
       }
 
@@ -596,8 +636,27 @@ try {
           });
           assert.deepEqual(after, { card: 0, body: 0, custom: "", cards: 1, inRegion: "polite" }, "the next prompt opens at its top, empty, as an addition to the live region");
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS a prompt that replaces a scrolled one opens at its top");
+      }
+
+      for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 700, touch: true }]) {
+        // A review of several answers reads as text, a question over its answer, not as the
+        // terminal's lines in the mono box
+        const { page, errors, shot, close } = await open({ ...size, prompt: ANSWERS_REVIEW });
+        try {
+          assert.equal(await page.locator(".prompt-card-body").count(), 0, "no mono box");
+          const read = await page.locator(".prompt-card-answer").evaluateAll((rows) => rows.map((row) => ({
+            question: row.querySelector("dt")!.textContent, answer: row.querySelector("dd")!.textContent,
+            font: getComputedStyle(row).fontFamily,
+          })));
+          assert.deepEqual(read.map(({ question }) => question), ANSWERS_REVIEW.answers.map(({ question }) => question), "each question whole");
+          assert.deepEqual(read.map(({ answer }) => answer), ["Fictional repo names Recommended", "Second tab in a repo Recommended"], "each answer, its recommendation as the tag");
+          assert.ok(read.every(({ font }) => font === read[0]!.font) && !/mono/i.test(read[0]!.font), `the card's own font (${read[0]!.font})`);
+          await shot(`review-${size.width}`);
+          assert.deepEqual(errors, []);
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
+        console.log(`PASS a review of answers reads as a question over each answer at ${size.width}px`);
       }
 
       {
@@ -607,11 +666,11 @@ try {
         try {
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 3500; });
           await page.locator(".prompt-card").getByRole("button", { name: /^1\. In memory/ }).click();
-          await page.locator(".prompt-card[aria-busy=true]").waitFor();
+          await page.locator(".prompt-card-options[aria-busy=true]").waitFor();
           await setPrompt(page, NEXT);
           await page.locator(".prompt-card").getByText(NEXT.question).waitFor();
           assert.equal(await page.evaluate(() => (window as unknown as { formReturned: number }).formReturned), 0, "the first answer is still on its way");
-          assert.equal(await page.locator(".prompt-card").getAttribute("aria-busy"), "false", "the next prompt is not waiting on the first one's answer");
+          assert.equal(await page.locator(".prompt-card-options").getAttribute("aria-busy"), "false", "the next prompt is not waiting on the first one's answer");
           await watchCards(page);
           const second = page.locator(".prompt-card").getByRole("button", { name: /^2\. Redis/ });
           await second.focus();
@@ -627,7 +686,7 @@ try {
           await setPrompt(page, FORM);
           await page.locator(".prompt-card").getByText(FORM.title).waitFor();
           await page.locator(".prompt-card").getByRole("button", { name: /^1\. In memory/ }).click();
-          await page.locator(".prompt-card[aria-busy=true]").waitFor();
+          await page.locator(".prompt-card-options[aria-busy=true]").waitFor();
           await setPrompt(page, NEXT);
           await page.locator(".prompt-card").getByText(NEXT.question).waitFor();
           await page.locator(".composer-text").fill("3");
@@ -641,7 +700,7 @@ try {
           await page.locator(".prompt-card").getByText(NEXT.question).waitFor({ state: "detached" });
           assert.deepEqual((await answersOf(page)).at(-1), { pane_id: panes.web, prompt_id: "demo-next", option_index: 2 });
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS an answer that comes back after the next prompt is showing leaves that prompt, its focus and its typed pick alone");
       }
 
@@ -673,9 +732,9 @@ try {
           await page.waitForFunction(() => (window as unknown as { cardsRemoved: number }).cardsRemoved === 2, undefined, { timeout: 15_000 });
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 3500; });
           await page.locator(".prompt-card").getByRole("button", { name: /^1\. In memory/ }).click();
-          await page.locator(".prompt-card[aria-busy=true]").waitFor();
+          await page.locator(".prompt-card-options[aria-busy=true]").waitFor();
           await setPrompt(page, AGAIN);
-          await page.locator(".prompt-card[aria-busy=false]").waitFor();
+          await page.locator(".prompt-card-options[aria-busy=false]").waitFor();
           assert.equal(await page.evaluate(() => (window as unknown as { formReturned: number }).formReturned), 0, "the first asking's answer is still on its way");
           await box.fill("3");
           await box.press("Enter");
@@ -691,10 +750,12 @@ try {
           assert.deepEqual(await answersOf(page), [{ pane_id: panes.web, prompt_id: "demo-plan", option_index: 0 }], "only the first asking was answered");
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 0; });
           await page.locator(".prompt-card-confirm").getByRole("button", { name: "Confirm" }).click();
-          await page.locator(".prompt-card").waitFor({ state: "detached" });
+          // this asking's card, by its question: the demo's own approval is read as soon as this one
+          // is answered, and a poll that lands before the answer returns puts its card here at once
+          await page.locator(".prompt-card").getByText(PLAN.question).waitFor({ state: "detached" });
           assert.deepEqual((await answersOf(page)).at(-1), { pane_id: panes.web, prompt_id: "demo-plan-asked-again", option_index: 2 }, "Confirm answers the second asking under its own id");
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS the same question asked again is a card of its own: no typed pick or input carried over, and the first one's late answer leaves it alone");
       }
 
@@ -703,13 +764,13 @@ try {
         // other is opened changes nothing there
         const { page, errors, close } = await open({ width: 1440, height: 900, prompt: FORM });
         try {
-          await setPanePrompt(page, panes.docs, OTHER);
+          await setPanePrompt(page, panes.hermes, OTHER);
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 3500; });
           await page.locator(".prompt-card").getByRole("button", { name: /^1\. In memory/ }).click();
-          await page.locator(".prompt-card[aria-busy=true]").waitFor();
-          await select(page, panes.docs);
+          await page.locator(".prompt-card-options[aria-busy=true]").waitFor();
+          await select(page, panes.hermes);
           await page.locator(".prompt-card").getByText(OTHER.question).waitFor();
-          assert.equal(await page.locator(".prompt-card").getAttribute("aria-busy"), "false");
+          assert.equal(await page.locator(".prompt-card-options").getAttribute("aria-busy"), "false");
           await page.locator(".composer-text").fill("2");
           await page.locator(".composer-text").press("Enter");
           await page.locator(".prompt-card-confirm").waitFor();
@@ -721,14 +782,14 @@ try {
           assert.equal(await page.locator(".prompt-card-option.is-typed .prompt-card-option-label").textContent(), "Redis Recommended", "its typed pick still waits for Confirm");
           assert.equal(await page.evaluate(() => document.activeElement?.className.split(" ")[0]), "composer-text", "the focus is where the user was typing");
           assert.deepEqual(await answersOf(page), [{ pane_id: panes.web, prompt_id: "demo-form", option_index: 0 }], "only the first pane's prompt was answered");
-          assert.equal(await page.evaluate((pane) => (window as unknown as { panePrompts: Record<string, { id: string } | undefined> }).panePrompts[pane]?.id, panes.docs), "demo-other", "the other pane's prompt is still open");
+          assert.equal(await page.evaluate((pane) => (window as unknown as { panePrompts: Record<string, { id: string } | undefined> }).panePrompts[pane]?.id, panes.hermes), "demo-other", "the other pane's prompt is still open");
           // and its own answer goes to it alone
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 0; });
           await page.locator(".prompt-card-confirm").getByRole("button", { name: "Confirm" }).click();
           await page.locator(".prompt-card").getByText(OTHER.question).waitFor({ state: "detached" });
-          assert.deepEqual((await answersOf(page)).at(-1), { pane_id: panes.docs, prompt_id: "demo-other", option_index: 1 });
+          assert.deepEqual((await answersOf(page)).at(-1), { pane_id: panes.hermes, prompt_id: "demo-other", option_index: 1 });
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS an answer for one pane that comes back after another pane is opened leaves that pane's prompt and typed pick alone");
       }
 
@@ -758,7 +819,7 @@ try {
           await page.waitForFunction(() => document.activeElement?.classList.contains("composer-text") === true);
           assert.equal((await answersOf(page)).length, 3);
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS on a touch-screen laptop a tapped answer leaves the message box alone; a mouse press or a key hands the focus on");
       }
 
@@ -798,7 +859,7 @@ try {
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 400; });
           await option.focus();
           await page.keyboard.press("Enter");
-          await page.locator(".prompt-card[aria-busy=true]").waitFor();
+          await page.locator(".prompt-card-options[aria-busy=true]").waitFor();
           await gone();
           assert.equal(await active(), "composer-text", "and after an answer that took a moment");
           await page.evaluate(() => { (window as unknown as { formDelay: number }).formDelay = 0; });
@@ -839,7 +900,7 @@ try {
           assert.notEqual(await active(), "composer-text", "a tap whose click is called a mouse's stays out of the message box");
           assert.equal((await answersOf(page)).length, 8);
           assert.deepEqual(errors, []);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
         console.log("PASS with a coarse pointer a key (Enter, Space, the card's field) or a mouse press hands the focus to the message box and never leaves it on the page; a tap, an unnamed click or a tap misnamed a mouse does not");
       }
 
@@ -849,7 +910,7 @@ try {
         try {
           const fit = await page.evaluate(() => { const box = document.querySelector<HTMLTextAreaElement>(".composer-text")!; const probe = document.createElement("span"); probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font:${getComputedStyle(box).font}`; probe.textContent = box.placeholder; document.body.append(probe); const width = probe.getBoundingClientRect().width; probe.remove(); return { text: box.placeholder, width, room: box.clientWidth - parseFloat(getComputedStyle(box).paddingLeft) - parseFloat(getComputedStyle(box).paddingRight) }; });
           assert.ok(fit.width <= fit.room, `${language}: "${fit.text}" is ${fit.width}px in ${fit.room}px`);
-        } finally { await close(); }
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
       }
       console.log("PASS the placeholder with a custom answer fits a 390px message box in ko, ja and zh");
     } finally { await browser.close(); }

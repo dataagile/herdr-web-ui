@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -47,24 +47,29 @@ describe("createDirectory", () => {
   afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
   const temp = () => { const root = mkdtempSync(join(tmpdir(), "herdr-mkdir-")); roots.push(root); return root; };
 
-  it("makes one folder inside the parent and answers its path", () => {
+  it("makes one folder inside the one shown and answers its path, the name trimmed", () => {
     const root = temp();
-    expect(createDirectory(root, "nova")).toEqual({ path: join(root, "nova") });
-    expect(listDirectories(root)!.directories).toContain("nova");
+    expect(createDirectory(root, "  new-one ")).toEqual({ path: join(root, "new-one") });
+    expect(statSync(join(root, "new-one")).isDirectory()).toBe(true);
   });
 
-  it("trims the name, and refuses separators, dot names and an empty one", () => {
+  it("refuses a name that is not one path segment, and makes nothing", () => {
     const root = temp();
-    expect(createDirectory(root, "  spaced  ")).toEqual({ path: join(root, "spaced") });
-    for (const name of ["", "   ", ".", "..", "a/b", "a\\b", "x\0y"]) {
+    mkdirSync(join(root, "a"));
+    for (const name of ["", "  ", ".", "..", "a/b", "../escape", "a\\b", "a\0b", "x".repeat(256)]) {
       expect(createDirectory(root, name)).toEqual({ error: "invalid_name" });
     }
+    expect(readdirSync(root)).toEqual(["a"]);
+    expect(readdirSync(join(root, "a"))).toEqual([]);
   });
 
-  it("refuses a missing parent and a name already there", () => {
+  it("never overwrites, and needs a folder to make it in", () => {
     const root = temp();
-    mkdirSync(join(root, "here"));
-    expect(createDirectory(join(root, "nope"), "x")).toEqual({ error: "not_found" });
-    expect(createDirectory(root, "here")).toEqual({ error: "exists" });
+    mkdirSync(join(root, "taken"));
+    writeFileSync(join(root, "file"), "");
+    expect(createDirectory(root, "taken")).toEqual({ error: "folder_exists" });
+    expect(createDirectory(root, "file")).toEqual({ error: "folder_exists" });
+    expect(createDirectory(join(root, "file"), "x")).toEqual({ error: "invalid_cwd" });
+    expect(createDirectory(join(root, "missing"), "x")).toEqual({ error: "invalid_cwd" });
   });
 });

@@ -51,6 +51,7 @@ describe("a paired watch device", () => {
     // paired before the server starts, so its own store holds the device
     const devices = new DeviceStore(root);
     const paired = devices.pair(devices.startPairing().code, "Watch", "watch")!;
+    expect(devices.match(paired.token)).not.toBeNull();
     cookie = `herdr_web_device=${encodeURIComponent(paired.token)}`;
     server = createServer({ port: 0, stateDir: root });
     base = `http://127.0.0.1:${server.port}`;
@@ -69,6 +70,9 @@ describe("a paired watch device", () => {
     expect((await asWatcher("/api/fs/file?path=/etc/hostname")).status).toBe(403);
     expect((await asWatcher("/api/workspace/directories?cwd=/tmp")).status).toBe(403);
     expect((await asWatcher("/api/machines/local/workspace/directories?cwd=/tmp")).status).toBe(403);
+    // nor make a folder there
+    expect((await asWatcher("/api/workspace/directories", "POST")).status).toBe(403);
+    expect((await asWatcher("/api/machines/local/workspace/directories", "POST")).status).toBe(403);
     // sending an alert is not a preference: it makes the server POST somewhere
     expect((await asWatcher("/api/push/test", "POST")).status).toBe(403);
     // watching is the role's whole point
@@ -86,6 +90,21 @@ describe("a paired watch device", () => {
     expect(posted.status).toBe(400);
     expect((await posted.json() as { error: { code: string } }).error.code).toBe("method_not_allowed");
   });
+
+  it("keeps its own session's paths open with no Origin, and refuses every other mutation that carries one", async () => {
+    // A cookie-bearing client that cannot state an origin — a non-browser one, or a WS
+    // handshake — keeps the endpoints its own session needs, while every other mutation is
+    // now read as cross-site rather than same-origin.
+    const read = () => fetch(`${base}/api/pane/read?pane_id=w9999:p9999&source=visible`, { method: "POST", headers: { cookie } });
+    expect((await read()).status).toBe(403);
+    expect((await (await read()).json() as { error: { code: string } }).error.code).toBe("invalid_origin");
+    // the custom mutation header is that client's proof, and it still passes the origin gate:
+    // what answers next is this device's own role, not the origin check
+    const cli = await fetch(`${base}/api/pane/read?pane_id=w9999:p9999&source=visible`, { method: "POST", headers: { cookie, "x-herdr-machine": "1" } });
+    expect(cli.status).toBe(403);
+    expect((await cli.json() as { error: { code: string } }).error.code).toBe("read_only");
+  });
+
 });
 describe("a token set: guessing it", () => {
   const TOKEN = "the-right-token-for-this-test";
@@ -100,6 +119,7 @@ describe("a token set: guessing it", () => {
     // paired before the server starts, so its own store holds the device
     const store = new DeviceStore(stateDir);
     watchToken = store.pair(store.startPairing().code, "Watch", "watch")!.token;
+    expect(store.match(watchToken)).not.toBeNull();
     server = createServer({ port: 0, stateDir, token: TOKEN });
     base = `http://127.0.0.1:${server.port}`;
   });

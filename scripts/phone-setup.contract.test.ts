@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { herdrRpc, paneRead, sessionSnapshot, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+import { testShellEnv } from "./test-shell.ts";
 
 /** Its own XDG config isolates the global plugin registry as well as the owned herdr panes. */
 it("herdr loads the Phone setup entrypoint and keeps its QR and code visible in a pane", async () => {
@@ -15,16 +16,16 @@ it("herdr loads the Phone setup entrypoint and keeps its QR and code visible in 
   const manifest = Bun.TOML.parse(readFileSync(join(source, "herdr-plugin.toml"), "utf8")) as any;
   const phone = manifest.panes.find((pane: any) => pane.id === "phone");
   expect(phone.placement).toBe("zoomed");
-  expect(phone.command).toEqual(["bun", "scripts/plugin.ts", "phone-setup"]);
+  expect(phone.command).toEqual(["sh", "scripts/with-bun.sh", "scripts/plugin.ts", "phone-setup"]);
   expect(manifest.actions.find((action: any) => action.id === "phone").command).toEqual([
     "herdr", "plugin", "pane", "open", "--plugin", manifest.id, "--entrypoint", "phone", "--placement", "zoomed", "--focus",
   ]);
   // The real pane entry, without installation/startup hooks that launch an app daemon.
-  writeFileSync(join(plugin, "herdr-plugin.toml"), `id = "${manifest.id}"\nname = "Phone setup QA"\nversion = "0.0.0"\nmin_herdr_version = "0.9.0"\nplatforms = ["linux", "macos"]\n[[panes]]\nid = "phone"\ntitle = "Phone setup"\nplacement = "${phone.placement}"\ncommand = ${JSON.stringify([process.execPath, join(source, phone.command[1]), phone.command[2]])}\n`);
+  writeFileSync(join(plugin, "herdr-plugin.toml"), `id = "${manifest.id}"\nname = "Phone setup QA"\nversion = "0.0.0"\nmin_herdr_version = "0.9.0"\nplatforms = ["linux", "macos"]\n[[panes]]\nid = "phone"\ntitle = "Phone setup"\nplacement = "${phone.placement}"\ncommand = ${JSON.stringify([process.execPath, join(source, phone.command[2]), phone.command[3]])}\n`);
   const binary = process.env["HERDR_WEB_HERDR_BIN"] || Bun.which("herdr")!;
   const session = "phone-setup-qa";
   const socket = join(config, "herdr", "sessions", session, "herdr.sock");
-  const env = { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("HERDR_"))), XDG_CONFIG_HOME: config };
+  const env = { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("HERDR_"))), ...testShellEnv(config), XDG_CONFIG_HOME: config };
   const cli = async (...args: string[]) => {
     const child = Bun.spawn([binary, ...args], { env, stdout: "pipe", stderr: "pipe" });
     const [out, err, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);

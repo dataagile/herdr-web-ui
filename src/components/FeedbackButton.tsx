@@ -14,7 +14,7 @@ import { recentConsole, recentRequests } from "../lib/feedbackBuffer.ts";
 import { captureScreen } from "../lib/feedbackScreenshot.ts";
 import { currentBuild } from "../lib/buildInfo.ts";
 import { useT } from "../lib/i18n.ts";
-import type { PortalFeedback } from "../lib/portal.ts";
+import type { PortalFeedback } from "../lib/dataAgilePortal.ts";
 import { useMediaQuery } from "../lib/useMediaQuery.ts";
 import { ElementPicker } from "./ElementPicker.tsx";
 import { FeedbackDialog, type FeedbackDraft } from "./FeedbackDialog.tsx";

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { authClient, forgetAuthAttempts, handleAuthRequest, isSecureRequest, presentedToken, recordPresentedTokenFailure } from "./auth.ts";
+import { AUTH_CLIENTS_MAX, authClient, forgetAuthAttempts, handleAuthRequest, isSecureRequest, presentedToken, recordPresentedTokenFailure, sharedFailuresSize } from "./auth.ts";
 import { sameOrigin } from "./machine-security.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "herdr-auth-"));
@@ -121,6 +121,30 @@ describe("the budget visitors behind one proxy share", () => {
       expect(presentedToken(cookie(TOKEN), TOKEN, "100.64.0.31 via 127.0.0.1")).toBe("match");
     } finally { setSystemTime(); }
   });
+
+  it("regression (fails on main): bounds shared failure keys after many distinct peers", () => {
+    for (let peer = 0; peer < AUTH_CLIENTS_MAX * 20; peer += 1) {
+      const loopbackPeer = `127.${Math.floor(peer / 65536)}.${Math.floor((peer % 65536) / 256)}.${peer % 256}`;
+      const client = authClient(loopbackPeer, new Headers({ "x-forwarded-for": `100.64.${Math.floor(peer / 256)}.${peer % 256}` }));
+      recordPresentedTokenFailure(client);
+    }
+    expect(sharedFailuresSize()).toBeLessThanOrEqual(AUTH_CLIENTS_MAX);
+  });
+
+  it("keeps the hold of the proxy that failed last when full, evicting the one quiet longest", () => {
+    const start = Date.now();
+    try {
+      setSystemTime(start);
+      for (let attempt = 0; attempt < 49; attempt += 1) recordPresentedTokenFailure(`first-${attempt} via 127.0.0.1`);
+      for (let peer = 1; peer < AUTH_CLIENTS_MAX; peer += 1) recordPresentedTokenFailure(`fill via 127.1.${Math.floor(peer / 256)}.${peer % 256}`);
+      // the oldest key fails again: its hold starts, and it is now the newest
+      recordPresentedTokenFailure("last via 127.0.0.1");
+      expect(presentedToken(cookie(TOKEN), TOKEN, "unknown via 127.0.0.1")).toBe("held");
+      recordPresentedTokenFailure("overflow via 127.2.0.1");
+      expect(sharedFailuresSize()).toBe(AUTH_CLIENTS_MAX);
+      expect(presentedToken(cookie(TOKEN), TOKEN, "unknown via 127.0.0.1")).toBe("held");
+    } finally { setSystemTime(); }
+  });
 });
 
 describe("isSecureRequest", () => {
@@ -130,6 +154,7 @@ describe("isSecureRequest", () => {
     expect(isSecureRequest(new Request("http://host/api/auth"))).toBe(false);
     expect(isSecureRequest(new Request("http://host/api/auth", { headers: { "x-forwarded-proto": "http" } }))).toBe(false);
   });
+
 });
 
 describe("sameOrigin", () => {
@@ -142,4 +167,36 @@ describe("sameOrigin", () => {
   it("lets a request with no Origin through, so a CLI client can use the custom mutation header", () => {
     expect(sameOrigin(new Request("http://host/api/pane/close", { headers: { "x-herdr-machine": "1" } }))).toBe(true);
   });
+
+  it("reads a session cookie with no Origin as cross-site, except the paths such a client must use", () => {
+    const session = { cookie: "herdr_web_token=abc; herdr_web_device=def" };
+    // the origin check is not a complete control until these are refused
+    expect(sameOrigin(new Request("http://host/api/pane/close", { method: "POST", headers: session }))).toBe(false);
+    expect(sameOrigin(new Request("http://host/api/workspace/create", { method: "POST", headers: session }))).toBe(false);
+    expect(sameOrigin(new Request("http://host/api/machines/local/workspace/create", { method: "POST", headers: session }))).toBe(false);
+    // either cookie alone marks it session-bearing
+    expect(sameOrigin(new Request("http://host/api/pane/close", { method: "POST", headers: { cookie: "herdr_web_device=def" } }))).toBe(false);
+    expect(sameOrigin(new Request("http://host/api/pane/close", { method: "POST", headers: { cookie: "herdr_web_token=abc" } }))).toBe(false);
+    // the custom mutation header is the non-browser client's proof
+    expect(sameOrigin(new Request("http://host/api/pane/close", { method: "POST", headers: { ...session, "x-herdr-machine": "1" } }))).toBe(true);
+    expect(sameOrigin(new Request("http://host/api/updates/check", { method: "POST", headers: { ...session, "x-herdr-update": "1" } }))).toBe(true);
+    // these carry no header in the cases that need them: the WS handshake (a GET) a
+    // browser cannot add one to, and the two endpoints that manage the sender's own session
+    expect(sameOrigin(new Request("http://host/ws", { headers: session }))).toBe(true);
+    expect(sameOrigin(new Request("http://host/api/auth", { method: "DELETE", headers: session }))).toBe(true);
+    expect(sameOrigin(new Request("http://host/api/push/subscribe", { method: "POST", headers: session }))).toBe(true);
+    // the exemption is the path, not the method: another mutation on a neighbouring path is refused
+    expect(sameOrigin(new Request("http://host/api/push/test", { method: "POST", headers: session }))).toBe(false);
+  });
+
+  it("lets a same-origin read through with no Origin, which a browser leaves off its own GET", () => {
+    // EventSource("/api/machines/events") can add no header, and a same-origin GET states no Origin
+    const page = { cookie: "herdr_web_token=abc; herdr_web_device=def", "sec-fetch-site": "same-origin" };
+    expect(sameOrigin(new Request("http://host/api/machines/events", { headers: page }))).toBe(true);
+    expect(sameOrigin(new Request("http://host/api/machines/local/session", { headers: page }))).toBe(true);
+    expect(sameOrigin(new Request("http://host/api/machines/local/session", { method: "HEAD", headers: page }))).toBe(true);
+    // a mutation from the same page states its Origin; one that does not is still refused
+    expect(sameOrigin(new Request("http://host/api/machines/local/workspace/create", { method: "POST", headers: page }))).toBe(false);
+  });
+
 });

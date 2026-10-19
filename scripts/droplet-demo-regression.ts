@@ -6,6 +6,7 @@ import { chromium } from "playwright-core";
 import panes from "../site/demo/fixtures/panes.json";
 import { setLens } from "./lens.ts";
 import { buildDemoApp } from "./demo-build.ts";
+import { chromePath } from "./chrome-path.ts";
 
 // Build the unmodified app and inject only the demo's fixture transport. All files and
 // HTTP traffic stay in this disposable, loopback-only app; no herdr session is opened.
@@ -34,7 +35,7 @@ try {
     return new Response(body);
   } });
   try {
-    const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/opt/google/chrome/chrome", headless: true, args: ["--no-sandbox"] });
+    const browser = await chromium.launch({ executablePath: chromePath(), headless: true, args: ["--no-sandbox"] });
     try {
       const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "en-US" });
       try {
@@ -63,8 +64,8 @@ try {
         await page.locator(`.pane-item:has(.pane-select[title^="${panes.api} —"]) [data-status="working"]`).first().waitFor({ state: "attached", timeout: 5_000 });
         // Mobile drawer rows can be offscreen; dispatch the same row click while the
         // demo's delayed answer is in flight, without reloading its fixture state.
-        await page.locator(`.pane-select[title^="${panes.docs} —"]`).evaluate((row: HTMLElement) => row.click());
-        await page.locator(`.pane-select[title^="${panes.docs} —"][aria-current="true"]`).waitFor({ state: "attached" });
+        await page.locator(`.pane-select[title^="${panes.hermes} —"]`).evaluate((row: HTMLElement) => row.click());
+        await page.locator(`.pane-select[title^="${panes.hermes} —"][aria-current="true"]`).waitFor({ state: "attached" });
         const card = page.locator(".droplet-card");
         await card.waitFor({ state: "visible", timeout: 6_000 });
         assert.match(await card.getAttribute("aria-label") ?? "", /Finished/);
@@ -118,8 +119,8 @@ try {
         await message.fill("Demo keyboard tap check");
         await page.getByRole("button", { name: "Send message", exact: true }).click();
         await page.locator(`.pane-item:has(.pane-select[title^="${panes.api} —"]) [data-status="working"]`).first().waitFor({ state: "attached" });
-        await page.locator(`.pane-select[title^="${panes.docs} —"]`).evaluate((row: HTMLElement) => row.click());
-        await page.locator(`.pane-select[title^="${panes.docs} —"][aria-current="true"]`).waitFor({ state: "attached" });
+        await page.locator(`.pane-select[title^="${panes.hermes} —"]`).evaluate((row: HTMLElement) => row.click());
+        await page.locator(`.pane-select[title^="${panes.hermes} —"][aria-current="true"]`).waitFor({ state: "attached" });
         await page.getByRole("textbox", { name: "Message", exact: true }).focus();
         await page.evaluate(() => (window as Window & { dropletViewport: (value: number) => void }).dropletViewport(480));
         await page.locator("html[data-keyboard]").waitFor();

@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, it } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync, writeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { codexTranscriptPath } from "./codex.ts";
+import { codexOpenRollout, codexTranscriptPath } from "./codex.ts";
+import { processStartedAt, processStartUpperBound } from "./process-start.ts";
 
 // Native stores and the real RPC client; only herdr's foreground metadata is synthetic.
 // In particular, a real process supplies /proc/cmdline when that metadata omits argv.
@@ -13,6 +14,7 @@ let root: string;
 let home: string;
 let path: string;
 let screen: string;
+let peerScreens: Map<string, string | Error>;
 let foreground: { pid: number; name?: string; argv?: string[] }[];
 let listener: ReturnType<typeof Bun.listen>;
 let socketBefore: string | undefined;
@@ -32,6 +34,7 @@ beforeEach(() => {
   db.query("INSERT INTO threads VALUES (?, ?, ?, 0, NULL, 1, 1, 'cli')").run(thread, path, root);
   db.close();
   screen = "";
+  peerScreens = new Map();
   foreground = [];
   socketBefore = process.env["HERDR_SOCKET"];
   const socket = join(root, "herdr.sock");
@@ -43,10 +46,15 @@ beforeEach(() => {
       data(socket, chunk) {
         socket.data.buffer += chunk.toString();
         if (!socket.data.buffer.includes("\n")) return;
-        const request = JSON.parse(socket.data.buffer) as { id: string; method: string };
+        const request = JSON.parse(socket.data.buffer) as { id: string; method: string; params?: { pane_id?: string } };
+        const peerScreen = peerScreens.get(request.params?.pane_id ?? "");
+        if (request.method === "pane.read" && peerScreen instanceof Error) {
+          socket.end(`${JSON.stringify({ id: request.id, error: { code: "pane_not_found", message: peerScreen.message } })}\n`);
+          return;
+        }
         const result = request.method === "agent.get" ? { agent: {} }
           : request.method === "pane.process_info" ? { process_info: { foreground_processes: foreground } }
-          : request.method === "pane.read" ? { read: { text: screen } }
+          : request.method === "pane.read" ? { read: { text: peerScreen ?? screen } }
           : null;
         if (result === null) throw new Error(`unexpected RPC ${request.method}`);
         socket.end(`${JSON.stringify({ id: request.id, result })}\n`);
@@ -130,6 +138,23 @@ it("finds the threads of a Windows cwd that Codex stored with the \\\\?\\ prefix
   }])).toBe(path);
 });
 
+it("gives a background reader the chat's binding only while no newer thread may have replaced it, and binds nothing itself", async () => {
+  foreground = [{ pid: 2147483647, argv: ["/usr/bin/codex"] }];
+  expect(await codexOpenRollout(root, root, home)).toBeNull();
+  screen = answer;
+  expect(await codexOpenRollout(root, root, home)).toBeNull();
+  expect(await resolve()).toBe(path);
+  screen = "";
+  expect(await codexOpenRollout(root, root, home)).toBe(path);
+  const db = new Database(join(home, "state_5.sqlite"));
+  const now = Math.floor(Date.now() / 1000);
+  db.query("INSERT INTO threads VALUES (?, ?, ?, 0, NULL, ?, ?, 'cli')").run(
+    "01a0c7a1-56d9-7e20-9f08-f7a2d973bc02", join(home, "sessions", "missing.jsonl"), root, now, now,
+  );
+  db.close();
+  expect(await codexOpenRollout(root, root, home)).toBeNull();
+});
+
 it("does not guess a session when argv and proc data are unavailable", async () => {
   foreground = [{ pid: 2147483647, name: "codex" }];
   expect(await resolve()).toBeNull();
@@ -148,6 +173,318 @@ it("does not use an alias resume after a newer interactive thread starts", async
     "01a0c7a1-56d9-7e20-9f08-f7a2d973bc02", join(home, "sessions", "missing.jsonl"), root,
   );
   db.close();
+  expect(await resolve()).toBeNull();
+});
+
+const shortPrompt = "Check fixture";
+const shortAnswer = "The fixture is ready for inspection.";
+const shortScreen = `OpenAI Codex (v1.0)\n\n› ${shortPrompt}\n\n• ${shortAnswer}\n\n› `;
+const shortIt = it.skipIf(process.platform !== "linux");
+
+function shortRollout(file: string, prompt = shortPrompt, reply = shortAnswer): void {
+  writeFileSync(file, [
+    { type: "session_meta", payload: { id: thread, cwd: root } },
+    { type: "event_msg", payload: { type: "user_message", message: prompt } },
+    { type: "event_msg", payload: { type: "agent_message", message: reply } },
+  ].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+}
+
+/** Owned process and temporary native store; no Codex or paid model is invoked. */
+async function shortSession(milliseconds = true, cwd = root): Promise<number> {
+  const child = await runningCodex();
+  foreground = [{ pid: child.pid, argv: [join(root, "codex")] }];
+  const started = processStartedAt(child.pid);
+  if (started === null) throw new Error("fixture process start is unavailable");
+  // Keep both timestamp schemas beyond the conservative one-second start threshold.
+  const created = Math.max(
+    Math.ceil(Date.now() / 1000) * 1000,
+    Math.ceil((started + 1000) / 1000) * 1000 + 1000,
+  );
+  const db = new Database(join(home, "state_5.sqlite"));
+  db.exec("ALTER TABLE threads ADD COLUMN first_user_message TEXT");
+  if (milliseconds) db.exec("ALTER TABLE threads ADD COLUMN created_at_ms INTEGER");
+  db.query("UPDATE threads SET cwd = ?, created_at = ?, first_user_message = ?")
+    .run(cwd, Math.floor(created / 1000), shortPrompt);
+  if (milliseconds) db.query("UPDATE threads SET created_at_ms = ?").run(created);
+  db.close();
+  shortRollout(path);
+  screen = shortScreen;
+  return created;
+}
+
+function addShortThread(id: string, file: string, created: number, prompt = "Other fixture", source = "cli", role: string | null = null, archived = 0): void {
+  const db = new Database(join(home, "state_5.sqlite"));
+  db.query("INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(id, file, root, archived, role, Math.floor(created / 1000), 2, source, prompt, created);
+  db.close();
+}
+
+const fixturePane = (id: string, cwd = root) => ({
+  pane_id: id, workspace_id: root, tab_id: root, terminal_id: id,
+  agent: "codex" as const, agent_status: "working" as const, cwd, focused: false, revision: 0,
+});
+
+shortIt("resolves one submitted short exchange without keeping a screenless binding", async () => {
+  await shortSession();
+  expect(await resolve()).toBe(path);
+  screen = "• The fixture is ready for inspection.";
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("resolves a submitted hello and short reply without requiring a longer answer", async () => {
+  await shortSession();
+  const db = new Database(join(home, "state_5.sqlite"));
+  db.query("UPDATE threads SET first_user_message = 'hello'").run();
+  db.close();
+  shortRollout(path, "hello");
+  screen = shortScreen.replace(shortPrompt, "hello");
+  expect(await resolve()).toBe(path);
+});
+
+shortIt("resolves its exact first exchange beside a different same-directory conversation", async () => {
+  const created = await shortSession();
+  const other = join(home, "sessions", "other.jsonl");
+  shortRollout(other, "Other fixture", "A different short reply.");
+  addShortThread("other", other, created - 60_000, "Other fixture");
+  peerScreens.set("peer", "OpenAI Codex (v1.0)\n› Other fixture\n• A different short reply.\n› ");
+  expect(await codexTranscriptPath(root, root, home, [fixturePane(root), fixturePane("peer")])).toBe(path);
+});
+
+shortIt("rejects unknown or matching peer screens when a header has scrolled away", async () => {
+  await shortSession();
+  for (const peer of [shortScreen.replace("OpenAI Codex (v1.0)\n", ""), "", "Working…", new Error("fixture pane disappeared")]) {
+    peerScreens.set("peer", peer);
+    expect(await codexTranscriptPath(root, root, home, [fixturePane(root), fixturePane("peer")])).toBeNull();
+  }
+});
+
+shortIt("accepts a headerless peer only with a substantial match to a different conversation", async () => {
+  const created = await shortSession();
+  const other = join(home, "sessions", "other.jsonl");
+  shortRollout(other, "Other fixture", answer);
+  addShortThread("other", other, created - 60_000, "Other fixture");
+  peerScreens.set("peer", `› Other fixture\n• ${answer}\n› `);
+  expect(await codexTranscriptPath(root, root, home, [fixturePane(root), fixturePane("peer")])).toBe(path);
+  // A recognizable answer must not override an overlapping short exchange.
+  for (const mixed of [
+    `${shortScreen}\n• ${answer}`,
+    `${shortScreen.replace("OpenAI Codex (v1.0)\n", "")}\n• ${answer}`,
+    `• ${answer}\n${shortScreen.replace("OpenAI Codex (v1.0)\n", "")}`,
+  ]) {
+    peerScreens.set("peer", mixed);
+    expect(await codexTranscriptPath(root, root, home, [fixturePane(root), fixturePane("peer")])).toBeNull();
+  }
+});
+
+shortIt("resolves a seconds-only schema when creation is provably after process start", async () => {
+  await shortSession(false);
+  expect(await resolve()).toBe(path);
+});
+
+shortIt("rejects a pre-start thread but accepts one 542 ms after its precise start bound", async () => {
+  await shortSession();
+  const startedAt = processStartedAt(foreground[0]!.pid)!;
+  const beforeThreshold = new Database(join(home, "state_5.sqlite"));
+  beforeThreshold.query("UPDATE threads SET created_at = ?, created_at_ms = ?")
+    .run(Math.floor((startedAt - 1) / 1000), startedAt - 1);
+  beforeThreshold.close();
+  expect(await resolve()).toBeNull();
+
+  const upper = processStartUpperBound(foreground[0]!.pid);
+  expect(upper).not.toBeNull();
+  const created = upper! + 542;
+  const atThreshold = new Database(join(home, "state_5.sqlite"));
+  atThreshold.query("UPDATE threads SET created_at = ?, created_at_ms = ?")
+    .run(Math.floor(created / 1000), created);
+  atThreshold.close();
+  expect(await resolve()).toBe(path);
+});
+
+shortIt("handles a Windows stored cwd prefix using a Linux fixture process", async () => {
+  const cwd = "D:\\fixture\\app";
+  await shortSession(true, `\\\\?\\${cwd}`);
+  expect(await codexTranscriptPath(root, cwd, home, [fixturePane(root, cwd)])).toBe(path);
+});
+
+shortIt("requires a submitted first prompt and exact answer, not a composer or quote (control)", async () => {
+  await shortSession();
+  for (const shown of [
+    `OpenAI Codex (v1.0)\n› ${shortPrompt}`,
+    shortScreen.replace(`› ${shortPrompt}`, `    › ${shortPrompt}`),
+    shortScreen.replace(shortPrompt, "Check-fixture"),
+    shortScreen.replace(shortPrompt, "Check fixture again"),
+    shortScreen.replace(`› ${shortPrompt}`, `› Earlier request\n• Earlier answer\n› ${shortPrompt}`),
+    shortScreen.replace(shortAnswer, "Ready"),
+  ]) {
+    screen = shown;
+    expect(await resolve()).toBeNull();
+  }
+  shortRollout(path, shortPrompt, "Ready");
+  screen = shortScreen.replace(shortAnswer, "Ready");
+  expect(await resolve()).toBe(path); // regression: a tiny but exact answer is sufficient
+  shortRollout(path, shortPrompt, "");
+  screen = shortScreen.replace(shortAnswer, "");
+  expect(await resolve()).toBeNull(); // control: no answer is not a submitted exchange
+});
+
+shortIt("retains older resumed later turns as competitors to a new first prompt", async () => {
+  const created = await shortSession();
+  const old = join(home, "sessions", "old.jsonl");
+  shortRollout(old, "Original request", "Original answer");
+  appendFileSync(old, [
+    { type: "event_msg", payload: { type: "user_message", message: shortPrompt } },
+    { type: "event_msg", payload: { type: "agent_message", message: shortAnswer } },
+  ].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  addShortThread("old", old, created - 60_000, "Original request");
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("allows a readable older thread whose exchange cannot explain the screen", async () => {
+  const created = await shortSession();
+  const old = join(home, "sessions", "old.jsonl");
+  shortRollout(old, "Original request", "An unrelated original answer.");
+  addShortThread("old", old, created - 60_000, "Original request");
+  expect(await resolve()).toBe(path);
+});
+
+shortIt("checks every exchange in a tool-heavy older thread instead of rejecting its file size", async () => {
+  const created = await shortSession();
+  const old = join(home, "sessions", "tool-heavy.jsonl");
+  shortRollout(old, "Original request", "An unrelated original answer.");
+  const output = JSON.stringify({ type: "response_item", payload: { type: "function_call_output", call_id: "tool", output: "x".repeat(64 * 1024) } }) + "\n";
+  appendFileSync(old, output.repeat(20));
+  addShortThread("old", old, created - 60_000, "Original request");
+  expect(await resolve()).toBe(path);
+  appendFileSync(old, [
+    { type: "event_msg", payload: { type: "user_message", message: shortPrompt } },
+    { type: "event_msg", payload: { type: "agent_message", message: shortAnswer } },
+  ].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("reads an older rollout once, then only what is appended to it", async () => {
+  const created = await shortSession();
+  const old = join(home, "sessions", "tool-heavy.jsonl");
+  shortRollout(old, "Original request", "An unrelated original answer.");
+  const output = JSON.stringify({ type: "response_item", payload: { type: "function_call_output", call_id: "tool", output: "x".repeat(64 * 1024) } }) + "\n";
+  appendFileSync(old, output.repeat(20));
+  addShortThread("old", old, created - 60_000, "Original request");
+  utimesSync(old, 1_700_000_000, 1_700_000_000);
+  expect(await resolve()).toBe(path);
+  // Same inode, size and mtime: a second read would hit this broken line and give up.
+  const fd = openSync(old, "r+");
+  writeSync(fd, "\"", statSync(old).size - 100);
+  closeSync(fd);
+  utimesSync(old, 1_700_000_000, 1_700_000_000);
+  expect(await resolve()).toBe(path);
+  // Grown: only the appended lines are read, so the broken line above stays unread.
+  appendFileSync(old, output);
+  expect(await resolve()).toBe(path);
+  appendFileSync(old, [
+    { type: "event_msg", payload: { type: "user_message", message: shortPrompt } },
+    { type: "event_msg", payload: { type: "agent_message", message: shortAnswer } },
+  ].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("rejects cumulative retained messages over the short matching limit", async () => {
+  const created = await shortSession();
+  const other = join(home, "sessions", "other.jsonl");
+  shortRollout(other, "Other fixture", "A different short reply.");
+  addShortThread("other", other, created - 60_000, "Other fixture");
+  const message = JSON.stringify({ type: "event_msg", payload: { type: "agent_message", message: "x".repeat(64 * 1024) } }) + "\n";
+  appendFileSync(other, message.repeat(15));
+  expect(await resolve()).toBe(path);
+  appendFileSync(other, message.repeat(2));
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("does not erase unreadable older or new threads to manufacture uniqueness", async () => {
+  const created = await shortSession();
+  const missing = join(home, "sessions", "missing.jsonl");
+  addShortThread("missing", missing, created - 60_000);
+  expect(await resolve()).toBeNull();
+  const db = new Database(join(home, "state_5.sqlite"));
+  db.query("UPDATE threads SET created_at_ms = ? WHERE id = 'missing'").run(created);
+  db.close();
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("rejects two new readable threads even when only one exchange matches", async () => {
+  const created = await shortSession();
+  const other = join(home, "sessions", "other.jsonl");
+  shortRollout(other, "Other fixture", "Another unrelated answer.");
+  addShortThread("other", other, created);
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("rejects candidate overflow instead of hiding ambiguity past the limit", async () => {
+  const created = await shortSession();
+  for (let index = 0; index < 34; index++) {
+    addShortThread(`other-${index}`, join(home, "sessions", `missing-${index}.jsonl`), created);
+  }
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("excludes exec, subagent and archived rows from interactive uniqueness", async () => {
+  const created = await shortSession();
+  for (const [source, role, archived] of [["exec", null, 0], ["cli", "worker", 0], ["cli", null, 1]] as const) {
+    addShortThread(`excluded-${source}-${role}-${archived}`, join(home, "sessions", "missing.jsonl"), created, shortPrompt, source, role, archived);
+  }
+  expect(await resolve()).toBe(path);
+});
+
+shortIt("rejects unsafe, incomplete, malformed and history-derived rollouts", async () => {
+  await shortSession();
+  const outside = join(root, "outside.jsonl");
+  shortRollout(outside);
+  rmSync(path);
+  symlinkSync(outside, path);
+  expect(await resolve()).toBeNull();
+  rmSync(path);
+  shortRollout(path);
+  appendFileSync(path, '{"type":');
+  expect(await resolve()).toBeNull();
+  shortRollout(path);
+  appendFileSync(path, "not json\n");
+  expect(await resolve()).toBeNull();
+  shortRollout(path);
+  appendFileSync(path, " ".repeat(1024 * 1024));
+  expect(await resolve()).toBeNull();
+  writeFileSync(path, JSON.stringify({ type: "session_meta", payload: { id: thread, history_base: { path: outside } } }) + "\n");
+  expect(await resolve()).toBeNull();
+});
+
+shortIt("does not borrow another same-directory pane's thread, even without a binding", async () => {
+  await shortSession();
+  const panes = [fixturePane(root), fixturePane("peer")];
+  expect(await codexTranscriptPath(root, root, home, panes)).toBeNull();
+  expect(await codexTranscriptPath("peer", root, home, panes)).toBeNull();
+});
+
+shortIt("rejects a thread already bound to another pane outside this directory", async () => {
+  await shortSession();
+  const panes = [fixturePane(root), fixturePane("peer", join(root, "elsewhere"))];
+  // A long answer establishes the existing strong binding; then use short evidence.
+  shortRollout(path, shortPrompt, answer);
+  screen = answer;
+  expect(await codexTranscriptPath("peer", root, home, panes)).toBe(path);
+  shortRollout(path);
+  screen = shortScreen;
+  expect(await codexTranscriptPath(root, root, home, panes)).toBeNull();
+});
+
+shortIt("rejects unavailable process starts and timestamps before the actual process", async () => {
+  const created = await shortSession();
+  const started = processStartedAt(foreground[0]!.pid)!;
+  const db = new Database(join(home, "state_5.sqlite"));
+  db.query("UPDATE threads SET created_at_ms = ?").run(started - 1);
+  db.close();
+  expect(await resolve()).toBeNull();
+  const restored = new Database(join(home, "state_5.sqlite"));
+  restored.query("UPDATE threads SET created_at_ms = ?").run(created);
+  restored.close();
+  foreground = [{ pid: 2147483647, argv: [join(root, "codex")] }];
   expect(await resolve()).toBeNull();
 });
 
@@ -188,3 +525,19 @@ for (const executable of [
     expect(await resolve()).toBe(path);
   });
 }
+
+shortIt("finds a profile's short conversation after native completion footers", async () => {
+  await shortSession();
+  const db = new Database(join(home, "state_5.sqlite"));
+  db.query("UPDATE threads SET source = 'vscode', first_user_message = 'hi'").run();
+  db.close();
+  shortRollout(path, "hi", "Hi! What would you like to work on?");
+  appendFileSync(path, [
+    { type: "event_msg", payload: { type: "user_message", message: "hi" } },
+    { type: "event_msg", payload: { type: "agent_message", message: "Hi again! How can I help?" } },
+  ].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  screen = "OpenAI Codex (v0.163.0)\n• Model changed to gpt-6-luna medium\n\n"
+    + "› hi\n\n• Hi! What would you like to work on?\n\n  Worked for 1s • 11:11 AM\n\n"
+    + "› hi\n\n• Hi again! How can I help?\n\n  Worked for 2s • 11:11 AM\n\n› Ask Codex to do anything";
+  expect(await resolve()).toBe(path);
+});

@@ -43,7 +43,7 @@ describe("parseStructureFrame", () => {
   });
 
   it("rejects unknown or malformed frames", () => {
-    expect(parseStructureFrame({ data: { type: "workspace_closed" } })).toBeNull();
+    expect(parseStructureFrame({ data: { type: "unrecognized_event" } })).toBeNull();
     expect(parseStructureFrame({ data: { type: "pane_exited", pane_id: 42 } })).toBeNull();
     expect(parseStructureFrame({})).toBeNull();
   });
@@ -56,6 +56,264 @@ describe("parseFocusFrame", () => {
     expect(parseFocusFrame({ event: "tab_focused", data: { tab_id: "w1A4:t1", type: "tab_focused", workspace_id: "w1A4" } })).toBeNull();
     expect(parseFocusFrame({ data: { type: "pane_focused", pane_id: 3 } })).toBeNull();
     expect(parseFocusFrame({})).toBeNull();
+  });
+});
+
+describe("lifecycle invalidations", () => {
+  it("reports a tracked pane missing when the first lifecycle subscription starts", async () => {
+    // Given: the pane exists when tracked, but the lifecycle stream has not started.
+    const herdr = fakeHerdr([]);
+    const { handlers } = recorder();
+    const ended: string[] = [];
+    handlers.onPaneEnded = (paneId) => ended.push(paneId);
+    const collector = startStatusCollector(handlers, herdr.deps);
+    try {
+      await collector.ready;
+      const tracked = Promise.withResolvers<void>();
+      handlers.onReconciled = () => tracked.resolve();
+      herdr.setPanes([paneOf("w1:p2", "idle")]);
+      collector.trackPane("w1:p2");
+      await tracked.promise;
+      const reconciled = Promise.withResolvers<void>();
+      handlers.onReconciled = () => reconciled.resolve();
+      // When: the pane exits in the gap; only the post-subscribe snapshot can say so.
+      herdr.setPanes([]);
+      herdr.lifecycle().start();
+      await reconciled.promise;
+      // Then
+      expect(ended).toEqual(["w1:p2"]);
+    } finally { collector.stop(); }
+  });
+
+  it("does not end a pane registered after a missing snapshot was requested", async () => {
+    // Given: the initial snapshot was requested before the login pane existed.
+    const herdr = fakeHerdr([]);
+    const { handlers } = recorder();
+    const snapshot = Promise.withResolvers<{ panes: HerdrPane[] }>();
+    const reconciled = Promise.withResolvers<void>();
+    const ended: string[] = [];
+    handlers.onPaneEnded = (paneId) => ended.push(paneId);
+    handlers.onReconciled = (panes) => { if (panes.length > 0) reconciled.resolve(); };
+    let first = true;
+    const collector = startStatusCollector(handlers, {
+      ...herdr.deps,
+      snapshot: () => {
+        if (first) { first = false; return snapshot.promise; }
+        return Promise.resolve({ panes: [paneOf("w1:p2", "idle")] });
+      },
+    });
+    try {
+      // When: tracking queues a fresh snapshot behind the old missing one.
+      collector.trackPane("w1:p2");
+      snapshot.resolve({ panes: [] });
+      await reconciled.promise;
+      // Then
+      expect(ended).toEqual([]);
+    } finally { collector.stop(); }
+  });
+
+  it("does not replay a tracked exit already delivered by the lifecycle stream", async () => {
+    // Given
+    const herdr = fakeHerdr([]);
+    const { handlers } = recorder();
+    const ended: string[] = [];
+    handlers.onPaneEnded = (paneId) => ended.push(paneId);
+    const collector = startStatusCollector(handlers, herdr.deps);
+    try {
+      await collector.ready;
+      const reconciled = Promise.withResolvers<void>();
+      handlers.onReconciled = () => reconciled.resolve();
+      // When: the real exit overtakes the snapshot triggered by tracking.
+      collector.trackPane("w1:p2");
+      herdr.lifecycle().emit({ data: { type: "pane_exited", pane_id: "w1:p2" } });
+      await reconciled.promise;
+      // Then
+      expect(ended).toEqual(["w1:p2"]);
+    } finally { collector.stop(); }
+  });
+
+  const types = [
+    "workspace_created", "workspace_updated", "workspace_metadata_updated",
+    "workspace_renamed", "workspace_moved", "workspace_reordered", "workspace_closed",
+    "worktree_created", "worktree_opened", "worktree_removed",
+    "tab_created", "tab_closed", "tab_renamed", "tab_moved",
+    "pane_created", "pane_updated", "pane_moved", "layout_updated",
+  ];
+
+  it.each(types)("refreshes for %s", (type) => {
+    expect(parseStructureFrame({ event: type, data: { type } })).toEqual({ kind: "structure-changed" });
+  });
+
+  it("coalesces a lifecycle burst into one push and authoritative reconciliation", async () => {
+    const herdr = fakeHerdr([]);
+    const { log, handlers } = recorder();
+    const collector = startStatusCollector(handlers, herdr.deps);
+    try {
+      await collector.ready;
+      const calls = herdr.snapshotCalls();
+      const reconciled = Promise.withResolvers<void>();
+      handlers.onReconciled = () => reconciled.resolve();
+      const pushed = Promise.withResolvers<void>();
+      handlers.onStructureChange = () => { log.structure += 1; pushed.resolve(); };
+      for (const type of types) {
+        expect(herdr.lifecycle().types).toContain(type.replace("_", "."));
+        herdr.lifecycle().emit({ event: type, data: { type } });
+      }
+      expect(log.structure).toBe(0);
+      await pushed.promise;
+      await reconciled.promise;
+      expect(log.structure).toBe(1);
+      expect(herdr.snapshotCalls()).toBe(calls + 1);
+    } finally { collector.stop(); }
+  });
+
+  it("reopens the full status set when pane.moved changes IDs without close/create", async () => {
+    const herdr = fakeHerdr([]);
+    const { handlers } = recorder();
+    const subscribed = Promise.withResolvers<void>();
+    handlers.onReconciled = () => {
+      if (herdr.status()?.paneIds.includes("w1:p1")) subscribed.resolve();
+    };
+    const subscribe = herdr.deps.subscribe;
+    if (!subscribe) throw new Error("fake subscribe missing");
+    const collector = startStatusCollector(handlers, {
+      ...herdr.deps,
+      subscribe: (subs, callbacks) => {
+        const connection = subscribe(subs, callbacks);
+        if (subs.some((sub) => sub.type === "pane.agent_status_changed")) {
+          queueMicrotask(() => callbacks.onStarted?.());
+        }
+        return connection;
+      },
+    });
+    try {
+      await collector.ready;
+      herdr.setPanes([paneOf("w1:p1", "idle"), paneOf("w1:p2", "idle")]);
+      herdr.lifecycle().emit({ data: { type: "pane_created" } });
+      await subscribed.promise;
+      const old = herdr.status();
+      if (!old) throw new Error("status stream missing");
+      const moved = Promise.withResolvers<void>();
+      handlers.onReconciled = (panes) => {
+        if (panes.some((pane) => pane.pane_id === "w2:p1")) moved.resolve();
+      };
+      herdr.setPanes([paneOf("w1:p2", "idle"), paneOf("w2:p1", "idle")]);
+      herdr.lifecycle().emit({ data: { type: "pane_moved", previous_pane_id: "w1:p1", pane: { pane_id: "w2:p1", agent_status: "idle" } } });
+      await moved.promise;
+      expect(old.closedByCollector).toBe(true);
+      expect(herdr.status()?.paneIds).toEqual(["w1:p2", "w2:p1"]);
+    } finally { collector.stop(); }
+  });
+
+  for (const status of ["working", "blocked"] as const) it(`replays a completion when a ${status} move overtakes the old-ID status event`, async () => {
+    const herdr = fakeHerdr([paneOf("w1:p1", "idle")]);
+    const { log, handlers } = recorder();
+    const subscribe = herdr.deps.subscribe;
+    if (!subscribe) throw new Error("fake subscribe missing");
+    const collector = startStatusCollector(handlers, {
+      ...herdr.deps,
+      subscribe: (subs, callbacks) => {
+        const connection = subscribe(subs, callbacks);
+        queueMicrotask(() => callbacks.onStarted?.());
+        return connection;
+      },
+    });
+    try {
+      await collector.ready;
+      const old = herdr.status();
+      if (!old) throw new Error("status stream missing");
+      const reconciled = Promise.withResolvers<void>();
+      handlers.onReconciled = (panes) => {
+        if (panes.some((pane) => pane.pane_id === "w2:p1")) reconciled.resolve();
+      };
+      // Separate connections: the move arrives while the cached baseline is idle,
+      // then the old connection delivers its queued status before the pane finishes.
+      herdr.lifecycle().emit({ data: { type: "pane_moved", previous_pane_id: "w1:p1", pane: { pane_id: "w2:p1", agent_status: status, agent: "claude" } } });
+      old.emit(statusFrame("w1:p1", status));
+      herdr.setPanes([paneOf("w2:p1", "idle")]);
+      await reconciled.promise;
+      expect(log.statuses).toEqual([`w1:p1:${status}`, `w2:p1:idle (was ${status})`]);
+      expect(old.closedByCollector).toBe(true);
+      expect(herdr.status()?.paneIds).toEqual(["w2:p1"]);
+    } finally { collector.stop(); }
+  });
+
+  it("keeps a finished pane finished when a delayed same-ID move still says working", async () => {
+    const herdr = fakeHerdr([paneOf("w1:p1", "idle")]);
+    const { log, handlers } = recorder();
+    const subscribe = herdr.deps.subscribe;
+    if (!subscribe) throw new Error("fake subscribe missing");
+    const collector = startStatusCollector(handlers, {
+      ...herdr.deps,
+      subscribe: (subs, callbacks) => {
+        const connection = subscribe(subs, callbacks);
+        queueMicrotask(() => callbacks.onStarted?.());
+        return connection;
+      },
+    });
+    try {
+      await collector.ready;
+      const stream = herdr.status();
+      if (!stream) throw new Error("status stream missing");
+      stream.emit(statusFrame("w1:p1", "working"));
+      stream.emit(statusFrame("w1:p1", "idle"));
+      const reconciled = Promise.withResolvers<void>();
+      handlers.onReconciled = (panes) => {
+        if (panes.some((pane) => pane.pane_id === "w1:p2")) reconciled.resolve();
+      };
+      // a tab move inside one workspace keeps the pane ID; its frame can arrive after the finish
+      herdr.lifecycle().emit({ data: { type: "pane_moved", previous_pane_id: "w1:p1", pane: { pane_id: "w1:p1", agent_status: "working", agent: "claude" } } });
+      herdr.setPanes([paneOf("w1:p1", "idle"), paneOf("w1:p2", "idle")]);
+      await reconciled.promise;
+      expect(log.statuses.filter((entry) => entry.startsWith("w1:p1:idle"))).toHaveLength(1);
+    } finally { collector.stop(); }
+  });
+
+  it("replays a completion after a working pane moves and finishes before reconciliation", async () => {
+    // Verbatim herdr 0.9.3 frame captured on herdr-web-ui-qa-H4.
+    const moved: EventFrame = {
+      data: {
+        closed_tab_id: "w5:t1", closed_workspace_id: "w5",
+        created_tab: { agent_status: "working", focused: false, label: "1", number: 1, pane_count: 1, tab_id: "w6:t1", workspace_id: "w6" },
+        created_workspace: { active_tab_id: "w6:t1", agent_status: "working", focused: false, label: "H4 working moved", number: 4, pane_count: 1, tab_count: 1, workspace_id: "w6" },
+        pane: {
+          agent: "codex", agent_status: "working",
+          cwd: "/home/devswha/workspace/herdr-web-ui-wt/fix-session-events-refresh",
+          focused: false, foreground_cwd: "/home/devswha/workspace/herdr-web-ui-wt/fix-session-events-refresh",
+          pane_id: "w6:p1", revision: 0,
+          scroll: { max_offset_from_bottom: 0, offset_from_bottom: 0, viewport_rows: 40 },
+          tab_id: "w6:t1", terminal_id: "term_65d72f77c76c24", workspace_id: "w6",
+        },
+        previous_pane_id: "w5:p1", previous_tab_id: "w5:t1", previous_workspace_id: "w5", type: "pane_moved",
+      },
+      event: "pane_moved",
+    };
+    const herdr = fakeHerdr([paneOf("w5:p1", "working")]);
+    const { log, handlers } = recorder();
+    const subscribe = herdr.deps.subscribe;
+    if (!subscribe) throw new Error("fake subscribe missing");
+    const collector = startStatusCollector(handlers, {
+      ...herdr.deps,
+      subscribe: (subs, callbacks) => {
+        const connection = subscribe(subs, callbacks);
+        queueMicrotask(() => callbacks.onStarted?.());
+        return connection;
+      },
+    });
+    try {
+      await collector.ready;
+      const old = herdr.status();
+      const reconciled = Promise.withResolvers<void>();
+      handlers.onReconciled = (panes) => {
+        if (panes.some((pane) => pane.pane_id === "w6:p1")) reconciled.resolve();
+      };
+      herdr.lifecycle().emit(moved);
+      herdr.setPanes([paneOf("w6:p1", "idle")]);
+      await reconciled.promise;
+      expect(log.statuses).toEqual(["w6:p1:idle (was working)"]);
+      expect(old?.closedByCollector).toBe(true);
+      expect(herdr.status()?.paneIds).toEqual(["w6:p1"]);
+    } finally { collector.stop(); }
   });
 });
 

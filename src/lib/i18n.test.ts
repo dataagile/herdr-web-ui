@@ -66,8 +66,9 @@ function labelMapKeys(): string[] {
     ...grab("components/MachineSidebar.tsx", "STATE_WORD", value),
     ...grab("components/Composer.tsx", "SOURCE_LABEL", value),
     ...grab("components/DevicesPanel.tsx", "VIA", value),
+    ...grab("components/SettingsDialog.tsx", "THEME_NAMES", /^\s+"?[\w-]+"?: "([^"]*)",?$/gm),
     ...grab("components/KeyBar.tsx", "ARROWS", /label: "([^"]+)"/g),
-    ...grab("components/KeyBar.tsx", "EXTRA_KEY_CAPS", /label: "([^"]+)"/g),
+    ...grab("components/KeyBar.tsx", "KEY_SPOKEN_NAMES", /label: "([^"]+)"/g),
     ...grab("lib/shortcuts.ts", "SHORTCUTS", /label: "([^"]+)"/g),
     ...grab("lib/bridgeProgress.ts", "STAGES", /label: "([^"]+)"/g),
     ...grab("lib/updateProgress.ts", "STEPS", /label: "([^"]+)"/g),
@@ -103,8 +104,10 @@ describe.each(Object.entries(DICTIONARIES))("%s dictionary", (_name, dictionary)
   });
 
   it("is not just the English repeated", () => {
-    // names and key caps read the same in every language; Chinese UIs leave "Shell" and "Agent" in English
-    const sameOnPurpose = new Set(["PC {name}", "Control C", "Control D", "Control Z", "Shift Tab", "Shell", "Agent", "Catppuccin", "Terminal", "Chat", "Host", "Branch", "Zoom", "Plugins", "Skills", "Workflows", "Auto", "zoom {n}/{total}", "{n} skill", "{n} skills", "{n} tokens"]);
+    // names and key caps read the same in every language; Chinese UIs leave "Shell" and "Agent" in English;
+    // theme brand names stay as their projects write them (the color words Amber and Charcoal are translated)
+    const themeNames = ["Codex", "Catppuccin", "Catppuccin Latte", "Tokyo Night", "Tokyo Night Day", "Gruvbox", "Gruvbox Light", "One Dark", "One Light", "Solarized", "Solarized Light", "Kanagawa", "Kanagawa Lotus", "Rosé Pine", "Rosé Pine Dawn", "Dracula", "Nord", "Vesper"];
+    const sameOnPurpose = new Set(["PC {name}", "Control C", "Control D", "Control Z", "Shift Tab", "Shell", "Agent", ...themeNames, "Terminal", "Chat", "Host", "Branch", "Zoom", "Plugins", "Skills", "Workflows", "Auto", "zoom {n}/{total}", "{n} skill", "{n} skills", "{n} tokens"]);
     const same = Object.entries(dictionary).filter(([en, text]) => en === text && /[a-z]{3}/i.test(en) && !sameOnPurpose.has(en));
     expect(same.map(([en]) => en)).toEqual([]);
   });
@@ -149,5 +152,7 @@ describe("translate", () => {
     expect(resolveLanguage("system", ["fr-FR", "en-US", "ja-JP"])).toBe("en");
     expect(resolveLanguage("system", ["fr-FR", "ja-JP", "en-US"])).toBe("ja");
     expect(resolveLanguage("system", ["fr-FR", "de-DE"])).toBe("en");
+    expect(resolveLanguage("system", ["tr-TR", "en-US"])).toBe("en");
+    expect(resolveLanguage("system", ["tr-TR"])).toBe("en");
   });
 });

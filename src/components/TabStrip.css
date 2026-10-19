@@ -19,13 +19,40 @@
   display: none;
 }
 
+/* a split view half's row: its tabs scroll, as wide as they are, and the end (App's grip and
+   close) takes the rest of the row */
+.tab-strip-row {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  /* the strip's own surface (below), so the end around the close is no band of another colour */
+  --strip-bg: var(--bg-panel);
+  background: var(--strip-bg);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.tab-strip-row > .tab-strip {
+  flex: 0 1 auto;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.tab-strip-end {
+  display: flex;
+  align-items: stretch;
+  flex: 1 0 auto;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
 .tab-strip-item {
+  position: relative;
   display: flex;
   align-items: stretch;
   flex: 0 0 auto;
 }
 
-/* the underline runs under the whole tab, its x included */
+/* the underline spans the name and the optional touch menu */
 .tab-strip-item.is-active {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
@@ -74,10 +101,29 @@
 .tab-strip-dot[data-status="working"] { background: var(--status-working); }
 .tab-strip-dot[data-status="blocked"] { background: var(--status-blocked); }
 .tab-strip-dot[data-status="done"] { background: var(--status-done); }
+/* waiting on its background work: something still runs, the agent does not */
+.tab-strip-dot[data-status="waiting"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-working); }
 
-/* a tab's menu, its x, and the + : small square buttons on the strip's centre line */
-.tab-strip-panes,
-.tab-strip-close,
+/* Settings -> Status indicators, Dots or Symbols: the sidebar's herdr glyph and color, held still
+   (Sidebar.css .sidebar-status-glyph). Same specificity as the dot's rules, so order wins. */
+.tab-strip-glyph {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tab-strip-glyph[data-status] { background: transparent; box-shadow: none; }
+.tab-strip-glyph[data-status="working"],
+.tab-strip-glyph[data-status="waiting"] { color: var(--indicator-working); }
+.tab-strip-glyph[data-status="blocked"] { color: var(--indicator-blocked); }
+.tab-strip-glyph[data-status="done"] { color: var(--indicator-done); }
+
+/* The touch menu and + share the strip's small square controls. */
+.tab-strip-menu,
 .tab-strip-add {
   display: inline-flex;
   align-items: center;
@@ -94,55 +140,9 @@
   cursor: pointer;
 }
 
-/* the menu shows on a tab with several panes (it lists them); a touch screen shows it on the
-   open tab too, where it stands in for the x, the double-click and the right-click */
-.tab-strip-panes {
-  display: none;
-  margin-left: calc(-1 * var(--space-2));
-}
-
-.tab-strip-item.has-panes .tab-strip-panes {
-  display: inline-flex;
-  width: auto;
-  gap: 2px;
-  padding: 0 var(--space-1);
-}
-
-/* how many panes the tab holds, or which one is in front of how many (a phone, a zoom) */
-.tab-strip-panes-count {
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-/* the x keeps its place in every tab, so a tab does not change width under the pointer; it
-   shows on the open tab, and on the one the pointer or the focus is in */
-.tab-strip-close {
-  width: 20px;
-  height: 20px;
-  margin: 0 var(--space-1) 0 calc(-1 * var(--space-2));
-  visibility: hidden;
-}
-
-.tab-strip-item.has-panes .tab-strip-close {
-  margin-left: 0;
-}
-
-.tab-strip-item.is-active .tab-strip-close,
-.tab-strip-item:hover .tab-strip-close,
-.tab-strip-item:focus-within .tab-strip-close {
-  visibility: visible;
-}
-
-/* while the name is typed the field stands alone: a press on the x would put it away first */
-.tab-strip-item.is-editing .tab-strip-close,
-.tab-strip-item.is-editing .tab-strip-panes {
-  display: none;
-}
-
-.tab-strip-close svg {
-  width: 14px;
-  height: 14px;
-}
+/* Touch and narrow layouts keep the ellipsis in view; a mouse on a wide screen draws it on the
+   selected tab while the strip is hovered or the tab has keyboard focus (below). */
+.tab-strip-menu { display: none; }
 
 .tab-strip-error {
   align-self: center;
@@ -169,61 +169,69 @@
   background: linear-gradient(var(--bg-hover), var(--bg-hover)) var(--strip-bg);
 }
 
-.tab-strip-panes:hover,
-.tab-strip-panes:focus-visible,
-.tab-strip-close:hover,
-.tab-strip-close:focus-visible,
+.tab-strip-menu:hover,
+.tab-strip-menu:focus-visible,
 .tab-strip-add:hover,
 .tab-strip-add:focus-visible {
   background: var(--bg-hover);
   color: var(--text-strong);
 }
 
-.tab-strip-panes svg,
+.tab-strip-menu svg,
 .tab-strip-add svg {
   width: 16px;
   height: 16px;
 }
 
-.tab-strip-close:hover,
-.tab-strip-close:focus-visible {
-  color: var(--status-blocked);
-}
-
-@media (pointer: coarse) {
-  .tab-strip-panes,
+@media (pointer: coarse), (max-width: 768px) {
+  .tab-strip-menu,
   .tab-strip-add {
     width: var(--touch-target);
     height: var(--touch-target);
   }
 
+  /* a one- or two-character name (탭 1) is still a finger's width; the ⋯ beside it is its own */
   .tab-strip-tab {
+    min-width: var(--touch-target);
     min-height: var(--touch-target);
   }
+  .tab-strip-menu { display: inline-flex; }
+  .tab-strip-item.is-active .tab-strip-tab { padding-right: var(--space-1); }
+}
 
-  .tab-strip-item.is-active .tab-strip-panes {
+/* A mouse keeps its right-click and the keyboard its menu key; the ellipsis is the route in
+   plain sight. It holds its place at rest, hidden, so the strip never reflows under the pointer:
+   the pointer over the strip, the tab's keyboard focus, its own, or its open menu fade it in.
+   Hidden with visibility too: a Shift+Tab from the + lands on the tab, not on something unseen,
+   and nothing invisible takes a press. Between the tab's focus and the button's there is an
+   instant in which neither has it while the item still has it within, and a hidden button cannot
+   take the focus then: the fade's delay used to carry it over, reduced motion has no fade, so the
+   item's :focus-within without a focused child keeps the button in view through the handoff. */
+@media (hover: hover) and (pointer: fine) and (min-width: 769px) {
+  .tab-strip-menu {
     display: inline-flex;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--dur-fast) var(--ease-out),
+      visibility 0s linear var(--dur-fast);
   }
 
-  /* the count widens the picker: never below a finger's width */
-  .tab-strip-item.has-panes .tab-strip-panes {
-    min-width: var(--touch-target);
+  .tab-strip:hover .tab-strip-menu,
+  .tab-strip-item:has(> .tab-strip-tab:focus-visible) .tab-strip-menu,
+  .tab-strip-item:focus-within:not(:has(:focus)) .tab-strip-menu,
+  .tab-strip-menu:focus-visible,
+  .tab-strip-menu[aria-expanded="true"] {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
   }
 
-  /* a finger closes a tab from its menu: an x this small beside the name would be hit by mistake */
-  .tab-strip-close {
-    display: none;
-  }
+  .tab-strip-item.is-active .tab-strip-tab { padding-right: var(--space-1); }
+}
 
-  /* at touch size the picker pulled over its tab would take taps meant for the name */
-  .tab-strip-panes {
-    margin-left: 0;
-  }
-
-  .tab-strip-item.has-panes .tab-strip-tab,
-  .tab-strip-item.is-active .tab-strip-tab {
-    padding-right: var(--space-1);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .tab-strip-menu { transition: none; }
 }
 
 /* From 769px the header over the pane is the pane's surface (styles.css), and the strip under
@@ -231,11 +239,15 @@
    or the chat's, where the header has no rule and the strip's hairline is the one line over the
    transcript. Below that the header is the panel's bar and the strip stays with it. */
 @media (min-width: 769px) {
-  .tab-strip {
+  .tab-strip,
+  .tab-strip-row {
     --strip-bg: var(--term-bg);
   }
 
-  .pane-column.is-chat .tab-strip {
+  .pane-column.is-chat .tab-strip,
+  .pane-column.is-chat .tab-strip-row,
+  .pane-slot.is-chat .tab-strip,
+  .pane-slot.is-chat .tab-strip-row {
     --strip-bg: var(--bg);
   }
 }
@@ -257,3 +269,18 @@
     display: none;
   }
 }
+
+/* Only the insertion line moves before herdr acknowledges a drop. */
+.tab-strip-item.is-dragging { opacity: 0.55; }
+.tab-strip-item.is-drop-before::before,
+.tab-strip-item.is-drop-after::after {
+  content: "";
+  position: absolute;
+  top: var(--space-1);
+  bottom: var(--space-1);
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.tab-strip-item.is-drop-before::before { left: 0; }
+.tab-strip-item.is-drop-after::after { right: 0; }

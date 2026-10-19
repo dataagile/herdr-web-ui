@@ -1,48 +1,92 @@
+import type { PreferencesChange, SharedPreferences } from "../../shared/preferences.ts";
 import { machinePath, type BridgeHealth, type HerdrIdentity, type Machine, type SetupAction, type SetupJob, type SetupRequest } from "../../shared/machines.ts";
 import type {
   ChangedFileDiff,
   ChangedFilesResponse,
   AgentKind,
+  AgentRenameRequest,
   ConversationResponse,
   CreateWorktreeRequest,
   CreateTabRequest,
   CreateWorkspaceRequest,
+  DirectoryCreated,
   DirectoryListing,
   FileInfo,
   FileWriteRequest,
+  FocusPaneRequest,
   HealthAuth,
+  IntegrationsResponse,
+  LanExposure,
   InteractivePrompt,
+  MoveTabRequest,
+  TabMoved,
   OmoActivity,
   OpenWorktreeRequest,
   PairedDevice,
   PairingCode,
+  PaneDirection,
+  PaneInfo,
+  PanePlan,
   PaneReadResult,
+  PaneResized,
+  RepoDiffFileList,
+  RepoDiffFilePatch,
+  RepoDiffScope,
+  PaneSplit,
+  PaneSwapped,
+  PaneZoomed,
+  PaneFindRequest,
+  PaneFindResponse,
+  PlanStep,
   PromptAnswer,
   PushKey,
+  PortalStatus,
   RemoteAccess,
   RemoveWorktreeRequest,
-  PaneResizeResult,
-  PaneZoomResult,
-  ResizeDirection,
+  ResizePaneRequest,
   SessionSnapshot,
+  SetSplitRatioRequest,
   SlashCommand,
-  SplitDirection,
-  SplitResult,
-  ZoomMode,
+  SplitPaneDirection,
+  SplitPaneRequest,
+  SwapPaneRequest,
   TabCreated,
   UsageReport,
   WorkspaceCreated,
   WorkspaceHistory,
+  PluginActionRequest,
+  PluginActionResult,
+  PluginActions,
+  PluginActionsResponse,
   WorktreeListing,
   WorktreeOpened,
   WorktreeRemoved,
+  ZoomPaneRequest,
 } from "../../shared/protocol.ts";
+import { SUPPORTED_AGENT_KINDS } from "../../shared/supported-agents.ts";
 import type { PaneScrollInfo } from "../../shared/herdr-api.generated.ts";
 import { readInstalledNotes, readUpdateNotes, type HerdrUpdateStatus, type InstalledNotes, type UpdateCommand, type UpdateNotes, type UpdateStatus } from "../../shared/update.ts";
 import type { AlertPrefs } from "../../shared/notify-policy.ts";
+import type { TelemetryChange, TelemetryStatus } from "../../shared/telemetry.ts";
 import type { VoiceConfigUpdate, VoiceModelsRequest, VoiceModelsResponse, VoiceStatus } from "../../shared/voice.ts";
 import { MAX_ATTACHMENT_BYTES } from "../../shared/attachments.ts";
 import { t } from "./i18n.ts";
+import { chatReadDeadlineMs, withChatReadDeadline } from "./chatReadDeadline.ts";
+import type { UsageLoginAccounts, UsageLoginProvider, UsageLoginRequest, UsageLoginStarted } from "../../shared/usage-login.ts";
+
+export function fetchUsageLoginProviders(signal: AbortSignal): Promise<{ providers: readonly UsageLoginProvider[] }> {
+  return getJson("/api/usage/login", { signal });
+}
+
+export function fetchUsageLoginAccounts(provider: string, signal: AbortSignal): Promise<UsageLoginAccounts> {
+  return getJson(`/api/usage/login?provider=${encodeURIComponent(provider)}`, { signal });
+}
+
+export function startUsageLogin(request: UsageLoginRequest): Promise<UsageLoginStarted> {
+  return getJson<UsageLoginStarted>("/api/usage/login", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request), signal: AbortSignal.timeout(30_000),
+  });
+}
 
 /** Settings → Phone: what Tailscale on the server's PC already serves, or the command to run. */
 export function fetchRemoteAccess(): Promise<RemoteAccess> {
@@ -52,6 +96,11 @@ export function fetchRemoteAccess(): Promise<RemoteAccess> {
 /** The sidebar's plan meters; `refresh` asks the providers again instead of the server's recent answer. */
 export function fetchUsage(refresh = false): Promise<UsageReport> {
   return getJson<UsageReport>(refresh ? "/api/usage?refresh=1" : "/api/usage");
+}
+
+/** Local server's CLIProxyAPI controls; secrets are only ever sent, never read back. */
+export function cliProxyRequest<T>(path = "", init: RequestInit = {}): Promise<T> {
+  return getJson<T>(`/api/cliproxy${path}`, { ...init, cache: "no-store", signal: init.signal ?? AbortSignal.timeout(60_000) });
 }
 
 export function fetchUpdateStatus(): Promise<UpdateStatus> {
@@ -85,6 +134,43 @@ export async function requestHerdrUpdate(): Promise<void> {
   if (!response.ok) throw await errorFrom(url, response);
 }
 
+/** Settings → Phone & devices: Portal's public address for the server's PC. */
+export function fetchPortal(): Promise<PortalStatus> {
+  return getJson<PortalStatus>("/api/portal");
+}
+
+export async function requestPortal(action: "start" | "stop", relay?: string): Promise<void> {
+  const url = `/api/portal/${action}`;
+  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json", "x-herdr-update": "1" }, body: JSON.stringify(relay === undefined ? {} : { relay }) });
+  if (!response.ok) throw await errorFrom(url, response);
+}
+
+/** Anonymous install and update counts; null from a server that sends none (404). */
+/** What every browser of this server shares (shared/preferences.ts); null where the server predates it. */
+export async function fetchPreferences(): Promise<SharedPreferences | null> {
+  try { return await getJson<SharedPreferences>("/api/preferences"); }
+  catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
+}
+
+export async function savePreferences(body: PreferencesChange): Promise<SharedPreferences> {
+  const url = "/api/preferences";
+  const response = await fetch(url, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!response.ok) throw await errorFrom(url, response);
+  return (await response.json()) as SharedPreferences;
+}
+
+export async function fetchTelemetry(): Promise<TelemetryStatus | null> {
+  try { return await getJson<TelemetryStatus>("/api/telemetry"); }
+  catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
+}
+
+export async function changeTelemetry(change: TelemetryChange): Promise<TelemetryStatus> {
+  const url = "/api/telemetry";
+  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json", "x-herdr-update": "1" }, body: JSON.stringify(change) });
+  if (!response.ok) throw await errorFrom(url, response);
+  return (await response.json()) as TelemetryStatus;
+}
+
 /**
  * A non-2xx answer from the herdr-web-ui API. `code` is the server's error-envelope
  * code when it sent one, so callers can branch on `status` (401 = the token gate)
@@ -105,6 +191,13 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A 404 for the route itself, not for what it was asked about: a PC whose bridge is from before
+ * the route, whose answer the local server passes through (server/machine-api.ts). What herdr
+ * refuses comes with a code of its own (pane_not_found).
+ */
+export const routeMissing = (error: unknown): boolean => error instanceof ApiError && error.status === 404 && error.code === "not_found";
+
 async function errorFrom(url: string, response: Response): Promise<ApiError> {
   let detail = response.statusText;
   let code: string | null = null;
@@ -118,8 +211,8 @@ async function errorFrom(url: string, response: Response): Promise<ApiError> {
   return new ApiError(url, response.status, detail, code);
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
   if (!response.ok) throw await errorFrom(url, response);
   return (await response.json()) as T;
 }
@@ -133,7 +226,7 @@ export async function fetchSession(machineId = "local"): Promise<SessionSnapshot
 const wrappedOnly = new Set<string>();
 
 /**
- * GET /api/pane/read as the chat view polls it: herdr's own scrollback (up to
+ * GET /api/pane/read as the chat view reads it: herdr's own scrollback (up to
  * `lines`), ANSI-stripped text. herdr owns scrollback — the attach stream cannot
  * serve history, so the transcript reads it back instead. `recent_unwrapped`
  * rejoins the rows the terminal soft-wrapped, so a line reflows to the chat's
@@ -142,7 +235,7 @@ const wrappedOnly = new Set<string>();
 export async function fetchPaneTranscript(paneId: string, lines: number, machineId = "local"): Promise<PaneReadResult> {
   const read = async (source: "recent" | "recent_unwrapped"): Promise<PaneReadResult> => {
     const query = new URLSearchParams({ pane_id: paneId, source, format: "text", lines: String(lines) });
-    return (await getJson<{ read: PaneReadResult }>(machinePath(machineId, `pane/read?${query.toString()}`))).read;
+    return (await withChatReadDeadline((signal) => getJson<{ read: PaneReadResult }>(machinePath(machineId, `pane/read?${query.toString()}`), { signal }), chatReadDeadlineMs(machineId))).read;
   };
   if (wrappedOnly.has(machineId)) return read("recent");
   try {
@@ -158,7 +251,9 @@ export async function fetchPaneTranscript(paneId: string, lines: number, machine
 export type ConversationPageQuery = { before?: string; since?: string; from?: string };
 
 /**
- * The last answer per polled conversation URL and its ETag. The chat polls every 2s
+ * The last answer per newest-page conversation URL and its ETag. The chat reads it again on
+ * every transcript push (at most every 2s), every send and status edge, and a 10s backstop
+ * (2s without pushes),
  * and a newest page can be megabytes: an unchanged one comes back as a bodyless 304,
  * and the chat gets the very same object back, which tells it nothing changed. An
  * older page (`before`) is asked for once, so it keeps no ETag and takes no slot.
@@ -202,24 +297,39 @@ function trimConversationAnswers(keep: string): void {
   }
 }
 
-/** GET /api/pane/conversation: structured turns, or scrollback fallback; `page` as ConversationResponse.cursor describes. */
-export async function fetchPaneConversation(paneId: string, machineId = "local", page: ConversationPageQuery = {}): Promise<ConversationResponse> {
+function conversationUrl(paneId: string, machineId: string, page: ConversationPageQuery): string {
   const query = new URLSearchParams({ pane_id: paneId });
   if (page.before !== undefined) query.set("before", page.before);
   if (page.since !== undefined) query.set("since", page.since);
   if (page.from !== undefined) query.set("from", page.from);
-  const url = machinePath(machineId, `pane/conversation?${query.toString()}`);
+  return machinePath(machineId, `pane/conversation?${query.toString()}`);
+}
+
+/**
+ * The newest page last answered for this pane (no page query), without asking the server: a chat
+ * that mounts draws it at once while its read revalidates it. It leaves the cache order alone.
+ */
+export function peekPaneConversation(paneId: string, machineId = "local"): ConversationResponse | undefined {
+  return conversationAnswers.get(conversationUrl(paneId, machineId, {}))?.body;
+}
+
+/** GET /api/pane/conversation: structured turns, or scrollback fallback; `page` as ConversationResponse.cursor describes. */
+export async function fetchPaneConversation(paneId: string, machineId = "local", page: ConversationPageQuery = {}): Promise<ConversationResponse> {
+  const url = conversationUrl(paneId, machineId, page);
   const polled = page.before === undefined;
   const known = polled ? conversationAnswers.get(url) : undefined;
-  const response = await fetch(url, { cache: "no-store", ...(known ? { headers: { "if-none-match": known.etag } } : {}) });
+  const { response, body } = await withChatReadDeadline(async (signal) => {
+    const response = await fetch(url, { cache: "no-store", signal, ...(known ? { headers: { "if-none-match": known.etag } } : {}) });
+    if (response.status === 304 && known) return { response, body: known.body };
+    if (!response.ok) throw await errorFrom(url, response);
+    return { response, body: (await response.json()) as ConversationResponse };
+  }, chatReadDeadlineMs(machineId));
+  // Cache changes occur after the bounded read: a late, aborted answer cannot replace it.
   if (response.status === 304 && known) {
-    // the pane being polled stays among the kept answers
     conversationAnswers.delete(url);
     conversationAnswers.set(url, known);
-    return known.body;
+    return body;
   }
-  if (!response.ok) throw await errorFrom(url, response);
-  const body = (await response.json()) as ConversationResponse;
   const etag = response.headers.get("etag");
   if (!polled) return body;
   conversationAnswers.delete(url);
@@ -236,6 +346,8 @@ export interface HealthInfo {
   web_ui?: { boot_id: string | null; revision: string | null };
   /** Absent only on a server that predates the token gate. */
   auth?: HealthAuth;
+  /** present only while this server is reachable beyond this PC with no token and nothing paired */
+  lan_exposure?: LanExposure;
 }
 
 export async function fetchHealth(): Promise<HealthInfo> {
@@ -343,6 +455,22 @@ async function sendJson(url: string, method: "POST" | "PATCH" | "DELETE", body: 
   return response;
 }
 
+/** GET /api/plugins/actions: the PC's herdr plugins and the actions it can run. */
+export async function fetchPluginActions(machineId = "local"): Promise<PluginActions[]> {
+  return (await getJson<PluginActionsResponse>(machinePath(machineId, "plugins/actions"))).plugins;
+}
+
+/** POST /api/plugin/action: runs one plugin action, against the pane named when there is one. */
+export async function runPluginAction(request: PluginActionRequest, machineId = "local"): Promise<PluginActionResult> {
+  const response = await sendJson(machinePath(machineId, "plugin/action"), "POST", request);
+  return (await response.json()) as PluginActionResult;
+}
+
+/** GET /api/plugin/action: where a run the POST answered `running` for stands now. */
+export async function fetchPluginActionStatus(pluginId: string, logId: string, machineId = "local"): Promise<PluginActionResult> {
+  return getJson<PluginActionResult>(machinePath(machineId, `plugin/action?plugin_id=${encodeURIComponent(pluginId)}&log_id=${encodeURIComponent(logId)}`));
+}
+
 /** GET /api/pane/scroll: where the pane's viewport sits in its history (null: herdr reports none). */
 export async function fetchPaneScroll(paneId: string, machineId = "local"): Promise<PaneScrollInfo | null> {
   return (await getJson<{ scroll: PaneScrollInfo | null }>(machinePath(machineId, `pane/scroll?pane_id=${encodeURIComponent(paneId)}`))).scroll;
@@ -352,6 +480,10 @@ export async function fetchPaneScroll(paneId: string, machineId = "local"): Prom
 export async function scrollPane(paneId: string, offsetFromBottom: number, machineId = "local"): Promise<PaneScrollInfo | null> {
   const response = await sendJson(machinePath(machineId, "pane/scroll"), "POST", { pane_id: paneId, offset_from_bottom: offsetFromBottom });
   return ((await response.json()) as { scroll: PaneScrollInfo | null }).scroll;
+}
+
+export async function findPane(request: PaneFindRequest, machineId = "local"): Promise<PaneFindResponse> {
+  return (await sendJson(machinePath(machineId, "pane/find"), "POST", request)).json();
 }
 
 /** A cell in a pane's whole history: rows count from the top of the scrollback. */
@@ -376,23 +508,9 @@ export async function closePane(paneId: string, machineId = "local"): Promise<vo
   await sendJson(machinePath(machineId, "pane/close"), "POST", { pane_id: paneId });
 }
 
-/**
- * POST /api/pane/split: a new pane beside the given one (same folder), optionally starting an
- * agent in it. Resolves with the new pane's id; `agent_started:false` carries an error.
- */
-export async function splitPane(paneId: string, direction: SplitDirection, cwd: string | null, machineId = "local", agent?: { kind: string; args?: string[] }): Promise<SplitResult> {
-  const response = await sendJson(machinePath(machineId, "pane/split"), "POST", {
-    pane_id: paneId,
-    direction,
-    ...(cwd ? { cwd } : {}),
-    ...(agent ? { agent } : {}),
-  });
-  return (await response.json()) as SplitResult;
-}
-
-/** POST /api/pane/focus: herdr's focus moves to the pane (the keyboard goes to it in herdr's own client too). */
+/** POST /api/pane/focus: herdr brings this pane and its tab/workspace to the front. */
 export async function focusPane(paneId: string, machineId = "local"): Promise<void> {
-  await sendJson(machinePath(machineId, "pane/focus"), "POST", { pane_id: paneId });
+  await sendJson(machinePath(machineId, "pane/focus"), "POST", { pane_id: paneId } satisfies FocusPaneRequest);
 }
 
 /** POST /api/pane/seen: a `done` pane read in the browser turns idle, herdr's focus stays. A bridge without the route (a remote PC) answers 404: callers ignore it. */
@@ -401,26 +519,70 @@ export async function markPaneSeen(paneId: string, machineId = "local"): Promise
   return (await response.json()) as { ok: boolean; changed: boolean };
 }
 
-/** POST /api/pane/resize: the pane's border on that side moves that way by a fraction of its split. */
-export async function resizePane(paneId: string, direction: ResizeDirection, amount: number, machineId = "local"): Promise<PaneResizeResult> {
-  const response = await sendJson(machinePath(machineId, "pane/resize"), "POST", { pane_id: paneId, direction, amount });
-  return (await response.json()) as PaneResizeResult;
-}
-
-/** POST /api/pane/zoom: the pane fills its tab, or the tab's layout comes back. */
-export async function zoomPane(paneId: string, mode: ZoomMode, machineId = "local"): Promise<PaneZoomResult> {
-  const response = await sendJson(machinePath(machineId, "pane/zoom"), "POST", { pane_id: paneId, mode });
-  return (await response.json()) as PaneZoomResult;
-}
-
 /** POST /api/pane/rename: sets the pane's label in herdr (an empty label clears it). */
 export async function renamePane(paneId: string, label: string, machineId = "local"): Promise<void> {
   await sendJson(machinePath(machineId, "pane/rename"), "POST", { pane_id: paneId, label });
 }
 
-/** GET /api/agents: the agent kinds herdr can start, for the new-session dialog. */
+/** POST /api/agent/rename: the live name of the agent in the pane, what `herdr agent prompt <name>` addresses; null clears it. */
+export async function renameAgent(paneId: string, name: string | null, machineId = "local"): Promise<void> {
+  await sendJson(machinePath(machineId, "agent/rename"), "POST", { pane_id: paneId, name } satisfies AgentRenameRequest);
+}
+
+/**
+ * POST /api/pane/split: a new pane beside this one in herdr (its prefix+v / prefix+-), answered as
+ * herdr lists it. herdr's focus stays put unless `focus` asks for the new pane; the sidebar and the
+ * tab strip learn of it from the server's session-changed broadcast.
+ */
+export async function splitPane(paneId: string, direction: SplitPaneDirection, focus = false, machineId = "local"): Promise<PaneInfo> {
+  const response = await sendJson(machinePath(machineId, "pane/split"), "POST", { pane_id: paneId, direction, ...(focus ? { focus: true } : {}) } satisfies SplitPaneRequest);
+  return ((await response.json()) as PaneSplit).pane;
+}
+
+/** POST /api/pane/zoom: herdr's prefix+z on that pane; `zoomed` is the tab's state after it. */
+export async function zoomPane(paneId: string, mode: ZoomPaneRequest["mode"] = "toggle", machineId = "local"): Promise<PaneZoomed> {
+  const response = await sendJson(machinePath(machineId, "pane/zoom"), "POST", { pane_id: paneId, mode } satisfies ZoomPaneRequest);
+  return (await response.json()) as PaneZoomed;
+}
+
+/** POST /api/pane/swap: the pane and its neighbour on that side change places; `changed` false when it has none there. */
+export async function swapPane(paneId: string, direction: PaneDirection, machineId = "local"): Promise<PaneSwapped> {
+  const response = await sendJson(machinePath(machineId, "pane/swap"), "POST", { pane_id: paneId, direction } satisfies SwapPaneRequest);
+  return (await response.json()) as PaneSwapped;
+}
+
+/** POST /api/pane/swap: swap this pane with an explicit pane, keeping herdr's same-tab rule. */
+export async function swapPaneWith(paneId: string, targetPaneId: string, machineId = "local"): Promise<PaneSwapped> {
+  const response = await sendJson(machinePath(machineId, "pane/swap"), "POST", { pane_id: paneId, target_pane_id: targetPaneId } satisfies SwapPaneRequest);
+  return (await response.json()) as PaneSwapped;
+}
+
+/** POST /api/layout/ratio: set the split identified by its binary path to the dragged ratio. */
+export async function setSplitRatio(tabId: string, path: boolean[], ratio: number, machineId = "local"): Promise<void> {
+  await sendJson(machinePath(machineId, "layout/ratio"), "POST", { tab_id: tabId, path, ratio } satisfies SetSplitRatioRequest);
+}
+
+/** POST /api/pane/resize: the border the pane shares with a neighbour moves that way, by herdr's default share (0.05) of the split the border belongs to. */
+export async function resizePane(paneId: string, direction: PaneDirection, machineId = "local"): Promise<PaneResized> {
+  const response = await sendJson(machinePath(machineId, "pane/resize"), "POST", { pane_id: paneId, direction } satisfies ResizePaneRequest);
+  return (await response.json()) as PaneResized;
+}
+
+/** POST /api/pane/clear: clears the pane's terminal screen in herdr. */
+export async function clearPane(paneId: string, machineId = "local"): Promise<void> {
+  await sendJson(machinePath(machineId, "pane/clear"), "POST", { pane_id: paneId });
+}
+
+/** GET /api/agents: of the agent kinds herdr can start, the ones this app supports and that PC has installed, for the new-session dialog. */
 export async function fetchAgentKinds(machineId = "local"): Promise<AgentKind[]> {
-  return (await getJson<{ agents: AgentKind[] }>(machinePath(machineId, "agents"))).agents;
+  // filtered here, not on the server: a remote PC's older bridge still answers every manifest,
+  // and says nothing of what is installed, so its supported kinds are all offered
+  return (await getJson<{ agents: AgentKind[] }>(machinePath(machineId, "agents"))).agents.filter((agent) => SUPPORTED_AGENT_KINDS.has(agent.kind) && agent.installed !== false);
+}
+
+/** GET /api/integrations: herdr's agent integrations on that PC and whether each is installed. */
+export async function fetchIntegrations(machineId = "local"): Promise<IntegrationsResponse["integrations"]> {
+  return (await getJson<IntegrationsResponse>(machinePath(machineId, "integrations"))).integrations;
 }
 
 /** GET /api/workspace/directories: the folders in `path` (empty: home), for the folder browser. */
@@ -429,11 +591,10 @@ export async function fetchDirectories(path: string, hidden: boolean, machineId 
   return getJson<DirectoryListing>(machinePath(machineId, `workspace/directories?${query.toString()}`));
 }
 
-/** POST /api/workspace/directories: makes one folder inside `path`; resolves to its absolute path. */
-export async function createDirectory(path: string, name: string, machineId = "local", paneId: string | null = null): Promise<string> {
-  const query = paneId ? `?${new URLSearchParams({ pane_id: paneId }).toString()}` : "";
-  const response = await sendJson(`${machinePath(machineId, "workspace/directories")}${query}`, "POST", { path, name });
-  return ((await response.json()) as { path: string }).path;
+/** POST /api/workspace/directories: makes the folder `name` inside `path`, for the folder browser's New folder. */
+export async function createDirectory(path: string, name: string, machineId = "local"): Promise<DirectoryCreated> {
+  const response = await sendJson(machinePath(machineId, "workspace/directories"), "POST", { path, name });
+  return (await response.json()) as DirectoryCreated;
 }
 
 function fileQuery(path: string, paneId: string | null): string {
@@ -470,6 +631,42 @@ export async function writeFile(path: string, paneId: string | null, content: st
   const request: FileWriteRequest = { path, content };
   const response = await sendJson(`${machinePath(machineId, "fs/write")}${query}`, "POST", request);
   return (await response.json()) as FileInfo;
+}
+
+/**
+ * Which repository and which two of its states: the pane's folder (or `directory`, read when the
+ * pane is gone), and the working tree against the index, the index against HEAD, or two commits.
+ */
+export interface RepoDiffQuery {
+  paneId: string | null;
+  directory: string | null;
+  scope: RepoDiffScope;
+  /** `commit` only: the list's hashes, so a file is read from the same comparison */
+  base: string | null;
+  head: string | null;
+}
+
+function repoDiffQuery(query: RepoDiffQuery): URLSearchParams {
+  return new URLSearchParams({
+    ...(query.paneId ? { pane_id: query.paneId } : {}),
+    ...(query.directory ? { directory: query.directory } : {}),
+    scope: query.scope,
+    ...(query.scope === "commit" && query.base ? { base: query.base } : {}),
+    ...(query.scope === "commit" && query.head ? { head: query.head } : {}),
+  });
+}
+
+/** GET /api/workspace/diff/files: the files a comparison changed, with their status and counts. */
+export async function fetchRepoDiffFiles(query: RepoDiffQuery, machineId = "local"): Promise<RepoDiffFileList> {
+  return getJson<RepoDiffFileList>(machinePath(machineId, `workspace/diff/files?${repoDiffQuery(query).toString()}`));
+}
+
+/** GET /api/workspace/diff/file: one changed file's patch, as git prints it, or why there is none. */
+export async function fetchRepoDiffFile(query: RepoDiffQuery, path: string, oldPath: string | null, machineId = "local"): Promise<RepoDiffFilePatch> {
+  const params = repoDiffQuery(query);
+  params.set("path", path);
+  if (oldPath !== null) params.set("old_path", oldPath);
+  return getJson<RepoDiffFilePatch>(machinePath(machineId, `workspace/diff/file?${params.toString()}`));
 }
 
 export type { CreateTabRequest, CreateWorkspaceRequest } from "../../shared/protocol.ts";
@@ -519,6 +716,13 @@ export async function renameTab(tabId: string, label: string, machineId = "local
   await sendJson(machinePath(machineId, "tab/rename"), "POST", { tab_id: tabId, label });
 }
 
+/** Move within its workspace without changing the selected pane or tab. */
+export async function moveTab(tabId: string, insertIndex: number, machineId = "local"): Promise<TabMoved> {
+  const request: MoveTabRequest = { tab_id: tabId, insert_index: insertIndex };
+  const response = await sendJson(machinePath(machineId, "tab/move"), "POST", request);
+  return (await response.json()) as TabMoved;
+}
+
 /** POST /api/tab/close: the tab and every pane in it; a workspace's last tab takes the workspace with it. */
 export async function closeTab(tabId: string, machineId = "local"): Promise<void> {
   await sendJson(machinePath(machineId, "tab/close"), "POST", { tab_id: tabId });
@@ -556,6 +760,12 @@ export async function fetchPaneOmoActivity(paneId: string, machineId = "local"):
   return { tasks: activity.tasks ?? [], runs: activity.runs ?? [], serverTime: activity.server_time ?? null };
 }
 
+/** GET /api/pane/plan: the plan the pane's Claude Code or Codex session keeps, and that PC's clock. */
+export async function fetchPanePlan(paneId: string, machineId = "local"): Promise<{ steps: PlanStep[] | null; serverTime: string | null }> {
+  const answer = await getJson<Partial<PanePlan>>(machinePath(machineId, `pane/plan?pane_id=${encodeURIComponent(paneId)}`));
+  return { steps: answer.plan?.steps ?? null, serverTime: answer.server_time ?? null };
+}
+
 /** GET /api/pane/files: paths under the pane's cwd matching `query`, for @-mentions. */
 export async function fetchPaneFiles(paneId: string, query: string, limit = 20, machineId = "local"): Promise<string[]> {
   const params = new URLSearchParams({ pane_id: paneId, q: query, limit: String(limit) });
@@ -586,10 +796,14 @@ export async function fetchPanePrompt(paneId: string, machineId = "local"): Prom
   return (await fetchPanePromptState(paneId, machineId)).prompt;
 }
 
-/** The waiting prompt, and with none, the next prompt the agent suggests (older servers send no suggestion). */
-export async function fetchPanePromptState(paneId: string, machineId = "local"): Promise<{ prompt: InteractivePrompt | null; suggestion: string | null }> {
-  const body = await getJson<{ prompt: InteractivePrompt | null; suggestion?: string | null }>(machinePath(machineId, `pane/prompt?pane_id=${encodeURIComponent(paneId)}`));
-  return { prompt: body.prompt, suggestion: typeof body.suggestion === "string" && body.suggestion !== "" ? body.suggestion : null };
+/** The waiting prompt, and with none, the next prompt the agent suggests; restored is a send the agent put back in its input box when it was cancelled (older servers send neither). */
+export async function fetchPanePromptState(paneId: string, machineId = "local"): Promise<{ prompt: InteractivePrompt | null; suggestion: string | null; restored: string | null }> {
+  const body = await getJson<{ prompt: InteractivePrompt | null; suggestion?: string | null; restored?: string | null }>(machinePath(machineId, `pane/prompt?pane_id=${encodeURIComponent(paneId)}`));
+  return {
+    prompt: body.prompt,
+    suggestion: typeof body.suggestion === "string" && body.suggestion !== "" ? body.suggestion : null,
+    restored: typeof body.restored === "string" && body.restored !== "" ? body.restored : null,
+  };
 }
 
 /** POST /api/pane/prompt/answer: ApiError 409 `prompt_changed` when the menu moved on. */

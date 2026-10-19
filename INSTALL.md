@@ -45,7 +45,7 @@ git --version
 | **C. One-line installer** | The user agrees to install what is missing (herdr, Bun, Node) and to let Tailscale serve the app | In-app, like A |
 
 Use A unless the user says otherwise. C is A plus the prerequisites and step 5 in one command,
-`curl -fsSL https://devswha.github.io/herdr-web-ui/install.sh | sh`: it installs herdr, Bun and
+`curl -fsSL https://herdrweb.dev/install.sh | sh`: it installs herdr, Bun and
 Node 22 for the user only (no sudo) when they are missing, installs the plugin, starts it when herdr
 runs, and, when Tailscale runs on the PC, serves the app to the tailnet (`tailscale serve`) and
 prints the address as a QR code. It changes the user's Tailscale configuration, so it needs the
@@ -54,7 +54,7 @@ for a GitHub star, unless the account gh is signed in to has starred the reposit
 asks whether to give one only at a terminal, and goes on by itself after 20 seconds: do not answer
 the question, and do not star the repository for the user.
 
-On Windows x64, use `irm https://devswha.github.io/herdr-web-ui/install.ps1 | iex` in PowerShell.
+On Windows x64, use `irm https://herdrweb.dev/install.ps1 | iex` in PowerShell.
 It requires Git for Windows and installs missing herdr and Bun for the user, without Node or WSL.
 It starts the plugin when herdr runs. Phone access stays optional: use the **Phone setup** action.
 `HERDR_WEB_UI_REF` selects a branch or tag for testing; otherwise it installs the latest release.
@@ -101,8 +101,15 @@ echo "$CONFIG_DIR/env"
 The file holds `KEY=value` lines. A plugin checkout from 0.3.25 on also reads `.env` there (the name
 herdr's plugin docs use), and `.env` wins where both set a key. An older checkout reads only `env`,
 and in-app updates do not replace the checkout: reinstall the plugin (see [Update](#update)) before
-relying on `.env`. `bun "$(ls -d ~/.config/herdr/plugins/github/devswha.herdr-web-ui-* | head -1)/scripts/plugin.ts" status`
-prints the files it read. After editing, restart the plugin:
+relying on `.env`. The plugin path comes from `herdr plugin list`, since herdr 0.9.4 moved plugin
+checkouts. Run:
+
+```bash
+root=$(herdr plugin list --json | bun -e 'const d = JSON.parse(await Bun.stdin.text()); console.log(d.result.plugins.find((p) => p.plugin_id === "devswha.herdr-web-ui")?.plugin_root ?? "")')
+bun "$root/scripts/plugin.ts" status
+```
+
+This prints the files it read. After editing, restart the plugin:
 
 ```bash
 herdr plugin action invoke devswha.herdr-web-ui.stop
@@ -136,7 +143,8 @@ Success is JSON with `"ok":true` and a `herdr` object, for example
   state directory. Port `7317` in use: set `PORT` (see [Configuration](#configuration)) and restart.
 - An error mentioning the herdr socket: herdr is not running, or it uses a named session. For a
   named session, set `HERDR_SOCKET=~/.config/herdr/sessions/<name>/herdr.sock`. The plugin follows
-  herdr's session automatically.
+  herdr's session automatically (herdr passes it `HERDR_SOCKET_PATH`); a `HERDR_SOCKET` in the plugin
+  config overrides that.
 
 Tell the user to open <http://127.0.0.1:7317>.
 
@@ -162,8 +170,16 @@ code, or the exact command still to run. Who gets in:
   ([Access and safety](docs/guide.md#access-and-safety)).
 - Any other device (someone else's, or a LAN or public address) is paired: **Settings → Phone & devices**
   on the PC shows a six-digit code and a QR code; the device enters it once. On a headless PC with
-  no browser, `bun "$(ls -d ~/.config/herdr/plugins/github/devswha.herdr-web-ui-* | head -1)/scripts/plugin.ts" pair`
-  prints the code in the terminal. Do this with the user present; never read a code aloud into a log.
+  no browser, find the plugin path with `herdr plugin list` (herdr 0.9.4 moved plugin checkouts),
+  then run:
+
+  ```bash
+  root=$(herdr plugin list --json | bun -e 'const d = JSON.parse(await Bun.stdin.text()); console.log(d.result.plugins.find((p) => p.plugin_id === "devswha.herdr-web-ui")?.plugin_root ?? "")')
+  bun "$root/scripts/plugin.ts" pair
+  ```
+
+  This prints the code in the terminal. Do this with the user present; never read a code aloud into
+  a log.
 - A token (`HERDR_WEB_TOKEN`) is for scripts and proxies. Only when the user asks for one, create it
   without printing it. For the plugin:
 
@@ -191,7 +207,7 @@ Other PCs over SSH are added from the web UI (Settings → Remote PCs → **Add 
 | `HOST` | `127.0.0.1` | Bind address |
 | `PORT` | `7317` | HTTP and WebSocket port |
 | `HERDR_WEB_TOKEN` | unset | Token for scripts and proxies. Once set, every client that is not a paired device or the user's own Tailscale login needs it, this PC included |
-| `HERDR_SOCKET` | `~/.config/herdr/herdr.sock` | herdr socket (source installs; the plugin follows herdr) |
+| `HERDR_SOCKET` | `~/.config/herdr/herdr.sock` | herdr socket. The plugin follows herdr's session (herdr passes `HERDR_SOCKET_PATH`); a `HERDR_SOCKET` set in the plugin config wins |
 | `HERDR_WEB_AUTO_UPDATE` | `0` | `1` installs new versions automatically |
 | `HERDR_WEB_STATE_DIR` | `~/.config/herdr-web-ui` | Push keys, device subscriptions, PC registrations, update builds. Keep it across reinstalls. |
 

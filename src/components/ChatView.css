@@ -10,17 +10,10 @@
 /* The chat's text has its own size (Settings → Chat font size): the view scales the type
    tokens by --chat-scale (lib/settings.ts) and the transcript uses the scaled ones under
    the same names, so every message and code block grows together. The prompt card is outside
-   this view, over the message box, and grows with them: its dock does the same (Composer.css) */
-.chat-view {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow-y: auto;
-  /* at its top, a drag down for older messages is still the transcript's: handed on to the
-     page, Android Chrome takes it for pull-to-refresh and reloads the app */
-  overscroll-behavior: contain;
-  padding: var(--space-4) var(--space-4) var(--space-5);
-  background: var(--bg);
+   this view, over the message box, and grows with them: its dock does the same (Composer.css).
+   A file viewer's Markdown preview is the same rendering, so it takes the chat's size and font too */
+.chat-view,
+.file-viewer-content {
   --chat-fs-2xs: calc(var(--fs-2xs) * var(--chat-scale, 1));
   --chat-fs-xs: calc(var(--fs-xs) * var(--chat-scale, 1));
   --chat-fs-sm: calc(var(--fs-sm) * var(--chat-scale, 1));
@@ -30,6 +23,38 @@
   --chat-fs-body: calc(var(--fs-chat) * var(--chat-scale, 1));
   --chat-fs-lg: calc(var(--fs-lg) * var(--chat-scale, 1));
   --chat-fs-xl: calc(var(--fs-xl) * var(--chat-scale, 1));
+}
+
+.chat-transcript,
+.file-viewer-markdown {
+  --fs-2xs: var(--chat-fs-2xs);
+  --fs-xs: var(--chat-fs-xs);
+  --fs-sm: var(--chat-fs-sm);
+  --fs-md: var(--chat-fs-md);
+  --fs-lg: var(--chat-fs-lg);
+  --fs-xl: var(--chat-fs-xl);
+  /* Settings -> Chat font (lib/settings.ts): the prose only; code, work rows and paths keep --font-mono */
+  font-family: var(--font-chat, var(--font-ui));
+  font-size: var(--fs-md);
+}
+
+.chat-view {
+  position: absolute;
+  inset: 0;
+  /* up under a phone's glass header (styles.css), into the room the stack keeps for it */
+  top: calc(-1 * var(--header-over, 0px));
+  z-index: 1;
+  overflow-y: auto;
+  /* at its top, a drag down for older messages is still the transcript's: handed on to the
+     page, Android Chrome takes it for pull-to-refresh and reloads the app */
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-4) var(--space-5);
+  /* a phone's glass header lies over the transcript's top, and the input card over its end
+     (styles.css, Composer.css): the first and last lines start clear of both */
+  padding-top: calc(var(--space-4) + var(--header-over, 0px));
+  padding-bottom: calc(var(--space-5) + var(--composer-over, 0px));
+  scroll-padding-top: var(--header-over, 0px);
+  background: var(--bg);
 }
 
 /* From 769px the header over the chat has no bar and no rule (styles.css): the transcript
@@ -46,15 +71,13 @@
     background: linear-gradient(var(--bg), transparent);
     pointer-events: none;
   }
+  .terminal-host:first-child .chat-view-virtual::before {
+    top: 0;
+    margin: 0 0 calc(-1 * var(--space-5));
+  }
 }
 
 .chat-transcript {
-  --fs-2xs: var(--chat-fs-2xs);
-  --fs-xs: var(--chat-fs-xs);
-  --fs-sm: var(--chat-fs-sm);
-  --fs-md: var(--chat-fs-md);
-  --fs-lg: var(--chat-fs-lg);
-  --fs-xl: var(--chat-fs-xl);
   width: min(100%, var(--chat-w));
   min-height: 100%;
   margin-inline: auto;
@@ -62,9 +85,6 @@
   flex-direction: column;
   /* an answer sits close under its prompt; the larger space falls between exchanges */
   gap: var(--space-3);
-  /* Settings -> Chat font (lib/settings.ts): the prose only; code, work rows and paths keep --font-mono */
-  font-family: var(--font-chat, var(--font-ui));
-  font-size: var(--fs-md);
 }
 
 .chat-turn {
@@ -116,6 +136,44 @@
   overflow-wrap: anywhere;
 }
 
+/* a long message (lib/userMessageFold.ts) is capped at --chat-fold-lines lines of its prose... */
+.chat-bubble.is-capped .chat-bubble-body {
+  max-height: calc(var(--chat-fold-lines) * var(--chat-fs-body) * var(--lh-prose));
+  overflow: hidden;
+}
+
+/* ...and where the cap cuts it (ChatView.tsx measures that), its last line fades into the card
+   through an alpha mask (the gradient's colour is only its opaque end), so the cut reads as a
+   fold behind Show full message and not as the end of what was said */
+.chat-bubble.is-folded .chat-bubble-body {
+  mask-image: linear-gradient(currentColor calc(100% - var(--chat-fs-body) * var(--lh-prose)), transparent);
+}
+
+/* the fold's control on the card's right edge, a quiet text button in the meta register; its
+   padding overhangs the text edge as a work row's head does */
+.chat-bubble-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-1);
+}
+
+.chat-bubble-fold {
+  min-height: var(--chip-h);
+  margin-right: calc(-1 * var(--space-1));
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.chat-bubble-fold:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
 /* meta rows fade in on hover / focus: the transcript reads as text, not as controls.
    While unseen they take no click or tap; the keyboard still reaches them, which shows them */
 .chat-turn-meta {
@@ -134,6 +192,17 @@
 .chat-turn:focus-within .chat-turn-meta {
   opacity: 1;
   pointer-events: auto;
+}
+
+.chat-copy-error,
+.markdown-code-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--fs-xs);
+}
+
+.markdown-code-error {
+  padding: var(--space-2) var(--space-3) 0;
 }
 
 .chat-copy {
@@ -165,6 +234,12 @@
   margin-left: var(--space-1);
 }
 
+/* a turn's time takes focus so a keyboard reaches its full-date tooltip */
+.chat-time:focus-visible {
+  outline: var(--ring);
+  outline-offset: var(--ring-offset);
+}
+
 /* "MD" / "TXT": a copy glyph and a two-letter format, like Codex's copy control */
 .chat-meta-btn {
   display: inline-flex;
@@ -185,6 +260,28 @@
 .chat-meta-btn:hover {
   background: var(--bg-hover);
   color: var(--text-strong);
+}
+
+/* a mouse's floor: the copy glyph and the format buttons keep their --chip-h look and take a
+   --pointer-target hit area through an invisible expander around the button (a finger's
+   --touch-target size is set below, where the buttons touch and an expander would overlap them) */
+@media (pointer: fine) {
+  .chat-copy,
+  .chat-meta-btn {
+    position: relative;
+  }
+
+  .chat-copy::before,
+  .chat-meta-btn::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--chip-h) - var(--pointer-target)) / 2);
+  }
+
+  /* the copy glyph's hairline edge lies inside its box: the expander starts past it */
+  .chat-copy::before {
+    inset: calc((var(--chip-h) - var(--pointer-target)) / 2 - var(--hairline));
+  }
 }
 
 /* "Plain text": the second copy as words, shown with a mouse only (below) */
@@ -250,6 +347,90 @@
   margin-bottom: var(--space-3);
 }
 
+.markdown-image {
+  max-width: 100%;
+  height: auto;
+}
+
+/* an image holds its box until it decodes (Markdown.tsx ReservedImage, lib/imageBox.ts): the wrapper
+   is the box while the bytes arrive and after a failure, and gives it up once the picture is in, so
+   the image renders bare and nothing around it is laid out anew */
+.image-slot { display: contents; }
+
+.image-slot.is-loading,
+.image-slot.is-failed {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+/* the picture loads behind its slot and shows only once it is whole */
+.image-slot.is-loading > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+
+.image-slot-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.image-slot-note > svg { width: 1.25em; height: 1.25em; flex: none; }
+
+/* a standalone Markdown image (a screenshot, a logo on a line of its own) holds a 16:9 slot as wide
+   as the lane, up to the bound lib/imageBox.ts puts on it, framed as a code block is */
+.markdown .image-slot.is-loading,
+.markdown .image-slot.is-failed {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* a README's centered logo and badges (lib/markdownHtml.ts) */
+.markdown .markdown-center {
+  text-align: center;
+}
+
+.markdown-mermaid-frame {
+  position: relative;
+  margin-bottom: var(--space-3);
+}
+
+.markdown-mermaid {
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.markdown-mermaid svg {
+  max-width: 100%;
+  max-height: 24rem;
+  height: auto;
+}
+
+.markdown-mermaid-zoom {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+}
+
 .markdown p,
 .markdown-h1,
 .markdown-h2,
@@ -260,6 +441,10 @@
 .markdown blockquote,
 .markdown-list {
   margin: 0 0 var(--space-3);
+}
+
+[data-conversation-source="hermes-transcript"] .markdown p {
+  white-space: pre-line;
 }
 
 /* Every agent heading is an h3 (Markdown.tsx: an agent's markdown must not shadow the app's own
@@ -286,6 +471,37 @@
 
 .markdown-list .markdown-list {
   margin: var(--space-1) 0 0;
+}
+
+/* a task item: its box takes the bullet's place, on the text's first line */
+.markdown-task {
+  list-style: none;
+}
+
+.markdown-task-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 1em;
+  height: 1em;
+  margin: 0 var(--space-2) 0 calc(-1em - var(--space-2));
+  vertical-align: -0.125em;
+  border: var(--hairline) solid var(--text-dim);
+  /* half the small radius: a 1em box with the full one reads as a round radio button */
+  border-radius: calc(var(--radius-sm) / 2);
+}
+
+.markdown-task-box[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.markdown-task-box svg {
+  width: 0.8em;
+  height: 0.8em;
+  stroke-width: 3.5;
 }
 
 .markdown-list li + li {
@@ -403,14 +619,10 @@
 }
 
 /* no height cap: an inner scroll hid the rest of the block on phones */
-.markdown-code pre {
-  margin: 0;
+.markdown-code .hl-code {
   padding: var(--space-3) var(--space-4);
-  overflow-x: auto;
-  font-family: var(--font-mono);
   font-size: var(--fs-sm);
   line-height: var(--lh-code);
-  white-space: pre;
 }
 
 .markdown-code-more {
@@ -468,13 +680,17 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  /* the folded rule is an inset shadow in the padding that holds its place: both arrive and leave
+     at the pace of the rows' move (AnimatedHeight.css), never a frame before it, or a reader
+     pinned at the end would be pulled up by the block's momentary shrink */
+  box-shadow: inset 0 calc(-1 * var(--hairline)) 0 0 transparent;
+  transition: padding-bottom var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 /* a folded block is one row with the exchange's one rule under it, where it closes the work */
 .work-block.is-folded {
-  padding-bottom: var(--space-1);
-  border-bottom: var(--hairline) solid var(--border);
+  padding-bottom: calc(var(--space-1) + var(--hairline));
+  box-shadow: inset 0 calc(-1 * var(--hairline)) 0 0 var(--border);
 }
 
 .work-block-head,
@@ -572,10 +788,12 @@
   white-space: nowrap;
 }
 
-/* rows hang under the header on its own left edge */
+/* rows hang under the header on its own left edge. The space under the header is the rows' own
+   (not the block's gap): it opens and folds with them, and a folded block holds none of it */
 .work-block-rows {
   display: flex;
   flex-direction: column;
+  padding-top: var(--space-1);
 }
 
 .work-row {
@@ -682,7 +900,8 @@
 
 .chat-tool-io pre,
 .chat-tool-io p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.chat-tool-io > :not(:first-child) { margin-top: var(--space-2); }
+/* blocks stacked in a call's detail; a file link inside an output's text is not one */
+.chat-tool-io > :not(:first-child):not(.markdown-file) { margin-top: var(--space-2); }
 
 /* a tool's own pictures (pi reads a file into the result): left-aligned, unlike a user's
    attachments, and only fetched when the row is opened, so the bytes are not on the page */
@@ -743,6 +962,71 @@
 
 .chat-inline-error { color: var(--status-blocked); }
 
+/* a read that failed (ChatView.tsx FailureLine): the one line, Try again beside it where it is the
+   way on, and a dim Details toggle under them for the advice and the PC's own words */
+.chat-failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--fs-xs);
+}
+
+.chat-failure-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-failure-details {
+  flex-basis: 100%;
+  color: var(--text-dim);
+}
+
+.chat-failure-details > summary {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.chat-failure-details > p {
+  margin: var(--space-1) 0 0;
+}
+
+.chat-failure-details > code {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+/* a finger's floor (the button is a .btn and grows to it in styles.css): the toggle keeps its line
+   and takes the hit area, both ways, through an invisible expander around it */
+@media (pointer: coarse) {
+  .chat-failure-details > summary::before {
+    content: "";
+    position: absolute;
+    inset: calc((1lh - var(--touch-target)) / 2) min(0px, calc((100% - var(--touch-target)) / 2));
+  }
+}
+
+/* a native turn thinking under its open work block: one quiet line, not a second head */
+.chat-activity-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--status-working);
+  font-size: var(--fs-sm);
+}
+
+.chat-activity-line svg { width: 1em; height: 1em; flex: none; }
+
+/* a pending block's head opens nothing until its rows are drawn */
+.work-block.is-pending .work-block-head,
+.work-block.is-pending .work-block-head:hover {
+  background: transparent;
+  cursor: default;
+}
+
 .chat-endcap {
   width: 100%;
   display: flex;
@@ -773,7 +1057,7 @@
 .chat-new-messages {
   position: sticky;
   z-index: var(--z-popover);
-  bottom: var(--space-2);
+  bottom: calc(var(--space-2) + var(--composer-over, 0px));
   left: 50%;
   min-height: var(--control-h);
   transform: translateX(-50%);
@@ -785,6 +1069,8 @@
 /* chat mode is ONE surface: the stack, the transcript and the composer region all sit on
    --bg; the only card is the composer's input box, on the same column as the transcript */
 .terminal-stack.is-chat {
+  /* a phone's glass header lies over the stack's top: what the stack holds starts below it */
+  padding-top: var(--header-over, 0px);
   background: var(--bg);
 }
 
@@ -796,6 +1082,7 @@
   .work-block-head,
   .work-row-head,
   .chat-copy,
+  .chat-bubble-fold,
   .markdown-code-copy,
   .markdown-code-more {
     min-height: var(--touch-target);
@@ -807,8 +1094,8 @@
   /* no hover on touch: the meta rows are always there, quietly */
   .chat-turn-meta { opacity: 1; pointer-events: auto; }
 
-  /* a user turn's row is one line, not a 40px row: the copy button keeps its 40px target,
-     which reaches above and below the line */
+  /* a user turn's row is one line, not a --touch-target row: the copy button keeps its
+     --touch-target size, which reaches above and below the line */
   .chat-user-row > .chat-turn-meta { height: var(--chip-h); }
 
   .chat-user-row .chat-copy,
@@ -816,8 +1103,8 @@
     margin-block: calc((var(--chip-h) - var(--touch-target)) / 2);
   }
 
-  /* both answer copies are 40px targets; the row is pulled left by the first one's inset so
-     its glyph stays on the prose edge */
+  /* both answer copies are --touch-target targets; the first one drops its own left inset so its
+     glyph stays on the prose edge (an overhang past the transcript's edge could not be tapped) */
   .chat-agent-meta { gap: 0; }
 
   .chat-agent-meta .chat-meta-btn {
@@ -826,7 +1113,7 @@
     padding-inline: var(--space-2);
   }
 
-  .chat-agent-meta .chat-meta-btn:first-child { margin-left: calc(-1 * var(--space-2)); }
+  .chat-agent-meta .chat-meta-btn:first-child { padding-left: 0; }
 
   /* the skill a message invoked sits clear of the copy target that reaches below the row */
   .chat-turn-user .chat-user-row + .chat-skills { margin-top: calc((var(--touch-target) - var(--chip-h)) / 2); }
@@ -844,7 +1131,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chat-turn-meta,
-  .markdown-code-header { transition: none; }
+  .markdown-code-header,
+  .work-block { transition: none; }
   .work-block.is-live .work-block-title::before { animation: none; }
 }
 
@@ -904,8 +1192,34 @@
 /* a file path in an answer: opens the file viewer, reads as the text or code it is. Its
    dotted underline is the affordance; the accent comes under the pointer or the focus. It
    breaks as the text around it does: anywhere in a paragraph, between words in a table cell */
+/* a skill's name in an answer, in the form it is typed: the raw text stays in the node, so a copy yields it */
+.markdown-skill {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.markdown-skill svg {
+  width: 1em;
+  height: 1em;
+  margin-right: 0.3em;
+  vertical-align: -0.12em;
+  color: var(--accent);
+  user-select: none;
+}
+
 .markdown-file {
   display: inline;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
   padding: 0;
   border: 0;
   background: none;
@@ -1024,13 +1338,17 @@
   cursor: zoom-in;
 }
 
-/* a fixed box: a lazy thumbnail must not grow the bubble (and shift the scroll) when it loads */
-.chat-user-image img {
+/* a fixed box: a lazy thumbnail must not grow the bubble (and shift the scroll) when it loads, and
+   its slot is the same box while it loads or after it failed (Markdown.tsx ReservedImage) */
+.chat-user-image img,
+.chat-user-image .image-slot.is-loading,
+.chat-user-image .image-slot.is-failed {
   display: block;
   width: min(9rem, 38vw);
   height: 7rem;
-  object-fit: cover;
 }
+
+.chat-user-image img { object-fit: cover; }
 
 /* where a compaction folded the conversation: a quiet divider, its summary on request */
 .chat-compact {
@@ -1247,6 +1565,38 @@
   overflow-wrap: anywhere;
 }
 .chat-task-result-note { margin: var(--space-2) 0 0; color: var(--text-dim); font-size: var(--fs-xs); }
+
+/* a question the agent asked: its questions numbered, the options it offered under each */
+.chat-ask-questions {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.chat-ask-question + .chat-ask-question { margin-top: var(--space-4); }
+.chat-ask-question p { margin: 0; white-space: pre-wrap; }
+.chat-ask-header, .chat-ask-meta, .chat-ask-description { color: var(--text-dim); font-size: var(--fs-xs); }
+.chat-ask-text, .chat-ask-label { font-weight: var(--fw-semibold); }
+.chat-ask-options { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
+.chat-ask-options > li + li { margin-top: var(--space-2); }
+.chat-ask-preview {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+}
+
+/* a Claude teammate's delivery: a task card of its own per message, its original text on request */
+.chat-teammate-messages { min-width: 0; }
+.chat-teammate-message { border-top: var(--hairline) solid var(--border); }
+.chat-teammate-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-teammate-raw { margin-top: var(--space-3); color: var(--text-dim); font-size: var(--fs-xs); }
+.chat-teammate-raw > summary { cursor: pointer; }
+.chat-teammate-raw > pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* a task call's tasks: what each is for and the agent it runs as, the prompt under it */
 .chat-task-calls {

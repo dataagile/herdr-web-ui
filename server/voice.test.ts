@@ -568,6 +568,7 @@ describe("voice models limits", () => {
     });
     const client = new AbortController();
     const pending = service().models({ api_key: KEY }, client.signal).catch((error: Error) => error);
+    // fixed wait: proving the upstream request is not aborted before the client aborts
     await Bun.sleep(5);
     expect(upstream?.aborted).toBe(false);
     client.abort();

@@ -26,7 +26,7 @@ export function AppCrash({ error }: { error: unknown }) {
     <main className="app-crash">
       <div className="app-crash-card error-state" role="alert">
         <h1 className="app-crash-title">{t("Something went wrong")}</h1>
-        <p className="error-message">{t("The app hit an error and stopped drawing. Your terminals keep running in herdr.")}</p>
+        <p className="error-message">{t("The app hit an error and stopped drawing. Your terminals keep running in the session server.")}</p>
         <div className="app-crash-actions">
           <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>{t("Reload app")}</button>
           <button type="button" className="btn" onClick={() => void copyText(details, detailsRef.current).then(setCopied)}>{copied === true ? t("Copied") : t("Copy details")}</button>

@@ -91,7 +91,7 @@ try {
           const errors: string[] = [];
           page.on("pageerror", (error) => errors.push(error.message));
           await page.goto(`http://127.0.0.1:${server.port}/?pane=${encodeURIComponent(panes.api)}`);
-          if (phone) await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
+          if (phone) await page.getByRole("button", { name: "Open project list", exact: true }).click();
           const branchOf = (id: string) => row(page, id).locator(":scope > .workspace-header .workspace-branch");
           await branchOf("w1C").waitFor();
           await branchOf("w1J").waitFor();

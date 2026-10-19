@@ -215,11 +215,11 @@ try {
       await withPage(browser, `?ws=${wsOf(panes.api)}-cli-tools&pane=${encodeURIComponent(panes.api)}`, async (page) => {
         await waitSelected(page, INFRA);
         await waitQuery(page, "ws", `${wsOf(INFRA)}-cli-tools`);
-        assert.equal(await note(page), "That agent has closed: its workspace is open");
+        assert.equal(await note(page), "That agent has closed: its project is open");
       });
       await withPage(browser, `?ws=w9z-gone&pane=${encodeURIComponent("w9z:p1")}`, async (page) => {
         await page.locator(".header-note").waitFor();
-        assert.equal(await note(page), "That link's workspace is closed");
+        assert.equal(await note(page), "That link's project is closed");
       });
       console.log("PASS ws carries the workspace's slug; a slug that names another workspace wins over the id, and a link to nothing open says so");
 

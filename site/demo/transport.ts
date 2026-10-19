@@ -735,6 +735,7 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
     const changed = pane?.agent_status === "done";
     if (changed) setStatus(pane.pane_id, "idle");
     return json({ ok: true, changed });
+  }
   if (path === "/api/pane/rename") {
     const body = await bodyOf(init, input);
     const pane = paneOf(String(body["pane_id"] ?? ""));

@@ -81,7 +81,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
   const stateWord = useAnnouncedText(noticed ? null : t(STATE_WORD[machine.state]));
   // the Host's herdr is away (the server's words name the socket it tried): the step to take is on
   // that PC, not in this browser, so it follows the words
-  const nextStep = !noticed && machine.kind === "local" && machine.error !== null && saysHerdrAway(machine.error) ? t("Start herdr on this PC, or check HERDR_SOCKET.") : null;
+  const nextStep = !noticed && machine.kind === "local" && machine.error !== null && saysHerdrAway(machine.error) ? t("Start the session server on this PC, or check HERDR_SOCKET.") : null;
   // one request at a time: a double-clicked Disconnect/Connect can otherwise race and leave this
   // UI's idea of the state opposite the server's until the next refetch
   const [busy, setBusy] = useState(false);

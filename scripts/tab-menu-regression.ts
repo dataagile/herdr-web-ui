@@ -41,7 +41,8 @@ async function layout(tabId: string): Promise<PaneLayoutSnapshot> {
 async function openApp(page: Page, origin: string, paneId: string): Promise<void> {
   await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
   await page.locator(".conn-live").waitFor();
-  await page.getByRole("tab", { name: TAB, exact: true }).waitFor();
+  // fork: a phone names the open tab by its pane, so the tab is found by being the open one
+  await page.locator('.tab-strip-item.is-active [role="tab"]').waitFor();
   await screen(page, paneId).waitFor();
 }
 // the browser's selection only: picking a pane in the web leaves herdr's focus where it is
@@ -569,11 +570,15 @@ async function checkPhone(browser: Browser, origin: string, first: string, secon
     assert.equal(await page.locator(".pane-divider").count(), 0, "a phone draws no split boundary");
     assert.equal(await page.locator(".tab-strip-close, .tab-strip-panes").count(), 0, "the phone renders no close button or chevron");
     assert.equal(await page.locator(".tab-strip-menu:visible").count(), 1, "the active tab retains an explicit touch menu");
-    const touchMenu = page.getByRole("button", { name: `Actions for ${TAB}`, exact: true });
+    // fork: on a phone the open tab is named by the pane in front, and so is its menu
+    // (the name follows the pane the sheet opens, so the button and the sheet are found by place)
+    const phoneTab = (await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim();
+    assert.equal(await page.locator(".tab-strip-item.is-active .tab-strip-menu").getAttribute("aria-label"), `Actions for ${phoneTab}`);
+    const touchMenu = page.locator(".tab-strip-item.is-active .tab-strip-menu");
     const touchBox = await rect(touchMenu, "the tab's touch menu button");
     assert.ok(touchBox.width >= 40 && touchBox.height >= 40, "the menu button remains a touch-sized target");
     await touchMenu.tap();
-    const tabSheet = page.getByRole("dialog", { name: TAB, exact: true });
+    const tabSheet = page.locator('.row-sheet[role="dialog"]');
     await tabSheet.waitFor();
     // herdr's own pane order stands (the desktop check above swapped the two)
     const phoneItems = await tabSheet.locator(".row-sheet-item").allTextContents();

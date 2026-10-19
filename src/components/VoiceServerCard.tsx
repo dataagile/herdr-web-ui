@@ -155,8 +155,8 @@ export function VoiceServerCard({ voice, onSaved }: { voice: VoiceStatus | null;
                 <input className="input" type="text" value={polishModel} placeholder={t("Empty: Tidy off")} autoComplete="off" spellCheck={false} onChange={(event) => setPolishModel(event.target.value)} />
               )}
             </label>
-            <label className="voice-field"><span className="field-label">{t("Dictation language")}</span>
-              <select className="input" aria-label={t("Dictation language")} value={language} onChange={(event) => setLanguage(event.target.value)}>
+            <label className="voice-field"><span className="field-label">{t("Transcription language")}</span>
+              <select className="input" aria-label={t("Transcription language")} value={language} onChange={(event) => setLanguage(event.target.value)}>
                 <option value="">{t("Auto-detect")}</option>
                 {language && !LANGUAGES.some(([code]) => code === language) && <option value={language}>{language}</option>}
                 {LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}

@@ -51,7 +51,8 @@ const errors: string[] = [];
 async function openSettings(page: Page): Promise<void> {
   await page.goto(origin);
   await page.locator(".app").waitFor();
-  await page.waitForLoadState("networkidle");
+  // the app keeps polls and its event stream open, so the network is never idle: the shell being in is the sign
+  await page.locator(".sidebar-footer-settings").waitFor();
   await page.keyboard.press("Control+Shift+Comma");
   await page.getByRole("dialog", { name: "Settings" }).waitFor();
   await openSettingsPage(page, "Voice input");
@@ -99,7 +100,7 @@ try {
 
   // nothing is saved until Save; with Tidy on None it is stored off
   assert.equal(await (await fetch(`${origin}/api/voice`)).json().then((s: { configured: boolean }) => s.configured), false);
-  await page.getByLabel("Dictation language", { exact: true }).selectOption("pt");
+  await page.getByLabel("Transcription language", { exact: true }).selectOption("pt");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.locator(".voice-status").getByText(savedLine("off")).waitFor();
   assert.equal(await page.getByLabel("API key", { exact: true }).inputValue(), "", "the key is never kept in the field");
@@ -124,7 +125,7 @@ try {
   await openSettings(page);
   await page.locator(".voice-status").getByText(savedLine("gemma4-12b")).waitFor();
   assert.equal(await page.getByLabel("Server URL", { exact: true }).inputValue(), providerUrl);
-  assert.equal(await page.getByLabel("Dictation language", { exact: true }).inputValue(), "pt");
+  assert.equal(await page.getByLabel("Transcription language", { exact: true }).inputValue(), "pt");
   const file = JSON.parse(readFileSync(join(root, "state", "voice.json"), "utf8"));
   assert.deepEqual({ base_url: file.base_url, language: file.language, transcribe_model: file.transcribe_model, polish_model: file.polish_model, polish_enabled: file.polish_enabled },
     { base_url: providerUrl, language: "pt", transcribe_model: "whisper-ptbr-simples", polish_model: "gemma4-12b", polish_enabled: undefined });
@@ -196,7 +197,8 @@ try {
   small.on("pageerror", (error) => errors.push(error.message));
   await small.goto(origin);
   await small.locator(".app").waitFor();
-  await small.waitForLoadState("networkidle");
+  // as above: the network is never idle; the phone header's drawer toggle says the shell is in
+  await small.locator(".drawer-toggle").waitFor();
   await small.keyboard.press("Control+Shift+Comma");
   await small.getByRole("dialog", { name: "Settings" }).waitFor();
   await openSettingsPage(small, "Voice input");

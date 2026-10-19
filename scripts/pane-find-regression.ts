@@ -198,9 +198,10 @@ export async function checkPaneFind(browser: Browser, origin: string): Promise<v
     const phoneViewport = resized();
     await page.setViewportSize({ width: 320, height: 844 });
     await phoneViewport;
-    await page.getByRole("button", { name: "More", exact: true }).click();
+    // the fork has no More menu: Find in terminal is a row of the phone's drawer
+    await page.getByRole("button", { name: "Open project list", exact: true }).click();
     const phoneGeometry = resized();
-    await page.getByRole("button", { name: "Find in terminal", exact: true }).click();
+    await page.locator("#workspace-drawer .drawer-find").click();
     await phoneGeometry;
     await field.fill("find_browser_marker");
     assert.equal((await search(() => field.press("Enter"))).total, 2);

@@ -89,7 +89,7 @@ it("the demo transport loads log history by shell command and serves scroll/find
     const stale = await post("pane/find", { ...request("ERROR"), pane_id: pane, previous: found.match, content_revision: found.content_revision });
     expect(stale.status).toBe(409);
     socket!.send(JSON.stringify({ type: "input", pane_id: pane, text: "pwd\r" }));
-    expect(output.at(-1)).toContain("/tmp/herdr-demo/release");
+    expect(output.at(-1)).toContain("/tmp/devda-demo/release");
     expect((await readScroll()).offset_from_bottom).toBe(0);
   } finally {
     socket?.close();

@@ -134,7 +134,7 @@ try {
                 { label: "Codex", description: label("Sandbox and approvals"), command: null, copy: null },
                 { label: "pi", description: missing + install("pi"), command: install("pi"), copy: copyLabel("pi") },
                 { label: "claude", description: label("Installed"), command: null, copy: null },
-                { label: "codex", description: label("Installed, but older than this herdr: run this to update it") + install("codex"), command: install("codex"), copy: copyLabel("codex") },
+                { label: "codex", description: label("Installed, but older than this session server: run this to update it") + install("codex"), command: install("codex"), copy: copyLabel("codex") },
                 { label: "opencode", description: missing + install("opencode"), command: install("opencode"), copy: copyLabel("opencode") },
                 { label: "omp", description: missing + install("omp"), command: install("omp"), copy: copyLabel("omp") },
                 { label: "copilot", description: missing + install("copilot"), command: install("copilot"), copy: copyLabel("copilot") },

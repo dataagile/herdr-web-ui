@@ -26,14 +26,14 @@ export function settingsPageEntries(t: Translate): SettingsPageEntry[] {
     { id: "devices", label: t("Phone & devices"), aliases: t("phone install keep screen on app") },
     { id: "remote", label: t("Remote PCs"), aliases: t("machines computers ssh bridge plugins") },
     { id: "integrations", label: t("Agent integrations"), aliases: t("agents hooks claude codex") },
-    { id: "about", label: t("About"), aliases: t("version update release herdr") },
+    { id: "about", label: t("About"), aliases: t("version update release session server") },
   ];
 }
 
 /** Other words for the palette's actions, by action id: a name the user may remember instead of the label. */
 export function actionAliases(t: Translate): Readonly<Record<string, string>> {
   return {
-    new: t("create workspace session start"),
+    new: t("create project workspace session start"),
     "new-tab": t("create tab add"),
     "split-right": t("divide pane layout side"),
     "split-down": t("divide pane layout below"),

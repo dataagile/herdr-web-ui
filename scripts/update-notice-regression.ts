@@ -151,7 +151,7 @@ export async function checkUpdateNotice(browser: Browser, origin: string, shots?
     await page.locator(".conn-live").waitFor();
     // __APP_REVISION__ is replaced when the client is built, from the same checkout and command
     const tabRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: join(import.meta.dir, ".."), encoding: "utf8" }).trim();
-    const restart = "herdr web ui was updated on this PC. Restart it there to load the update.";
+    const restart = "DevDA was updated on this PC. Restart it there to load the update.";
     const howTo = (scope: typeof page | ReturnType<typeof page.locator>) => scope.getByRole("link", { name: "How to restart", exact: true });
     const updated = "App updated. Save unsent drafts before reloading.";
     const reloadButton = page.getByRole("button", { name: "Reload app", exact: true });

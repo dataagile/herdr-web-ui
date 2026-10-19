@@ -110,7 +110,7 @@ describe("notification clicks", () => {
     expect(focused).toBe(0);
     expect(lone.selected).toEqual([]);
     expect(raw.selected).toEqual([]);
-    expect(cold.opened).toEqual(["/?machine=pc2&pane=pane-b&view=chat"]);
+    expect(cold.opened).toEqual(["/?machine=pc2&pane=pane-b&view=chat&via=notification"]);
   });
 
   it("names the workspace an alert's pane was last seen in, to an open window and a cold start", async () => {
@@ -131,7 +131,7 @@ describe("notification clicks", () => {
     ]);
     const cold = notifications([]);
     await cold.click("w1:p9", "pc2", "w1");
-    expect(cold.opened).toEqual(["/?machine=pc2&ws=w1&pane=w1%3Ap9&view=chat"]);
+    expect(cold.opened).toEqual(["/?machine=pc2&ws=w1&pane=w1%3Ap9&view=chat&via=notification"]);
   });
 
   it("selects the pane before a delayed focus and repeats after the page resumes", async () => {

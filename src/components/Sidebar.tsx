@@ -493,7 +493,7 @@ export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName
     const typed = workspaceLabel;
     const label = typed.trim();
     // herdr would keep an empty name, and the row would show none: the editor stays open
-    if (label === "") { noteError(t("A workspace needs a name."), workspaceId); return; }
+    if (label === "") { noteError(t("A project needs a name."), workspaceId); return; }
     setEditingWorkspaceId(null);
     // a name herdr set longer than the field allows is not sent back to be refused
     if (label === snapshotRef.current?.workspaces.find((candidate) => candidate.workspace_id === workspaceId)?.label) return;

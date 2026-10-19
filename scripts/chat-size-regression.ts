@@ -9,6 +9,7 @@ import { createServer } from "../server/index.ts";
 import { PtySession } from "../server/pty/session.ts";
 import { herdrRpc, herdrSocketPath, type WorkspaceCreateResult, paneRead, paneSendKeys, paneSendText, tabCreate, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
 import { chromePath } from "./chrome-path.ts";
+import { setLens } from "./lens.ts";
 
 /** how long a resize that should not happen gets to show up */
 const NO_RESIZE_WAIT_MS = 400;
@@ -206,7 +207,7 @@ export async function checkChatKeepsTerminalSize(browser: Browser, origin: strin
       socket.addEventListener("message", receive);
     }, desktopSize.split(" ").map(Number));
     const chatAt = Date.now();
-    await phone.locator('button[title^="Chat transcript"]').tap();
+    await setLens(phone, "chat");
     const restoredAt = await desktop.evaluate(() => (window as unknown as { gridRestored_: Promise<number> }).gridRestored_);
     assert.ok(restoredAt - chatAt <= 1_000, "phone Chat restores the visible desktop grid within 1 s");
     // pane-geometry announces the resize before the sidecar applies it to herdr's pty.
@@ -216,7 +217,7 @@ export async function checkChatKeepsTerminalSize(browser: Browser, origin: strin
     assert.equal(restoredSize, desktopSize, "the unfocused desktop's grid is restored in the real pty");
     assert.ok(Date.now() - chatAt <= 1_000, "the real pty restores the desktop grid within 1 s");
     console.log(`PASS phone Chat restores the visible unfocused desktop's ${desktopSize}`);
-    await phone.locator('button[title^="Live terminal"]').tap();
+    await setLens(phone, "terminal");
     let reclaimedSize = "";
     const reclaimDeadline = Date.now() + 10_000;
     while (Date.now() < reclaimDeadline && reclaimedSize !== phoneSize) reclaimedSize = await size();

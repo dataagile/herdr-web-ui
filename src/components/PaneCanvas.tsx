@@ -333,7 +333,7 @@ export function PaneCanvas({ snapshot, pane, selectedPaneId, onSelect, onChanged
     {menu && target && <RowMenu anchor={menu.anchor} point={menu.point} restoreFocusTo={menu.previousFocus} title={t("Pane actions for {name}", { name: displayPaneTitle(target) })} items={items} onClose={closeMenu} />}
     {renaming && <PaneRename pane={renaming} onClose={() => setRenaming(null)} onSave={async (label) => { await api.renamePane(renaming.pane_id, label); onChanged(); }} />}
     {closing && <ConfirmDialog title={t("Close pane {name}?", { name: displayPaneTitle(closing) })}
-      body={t("The pane's running processes will stop. Closing its last pane also closes the workspace.")}
+      body={t("The pane's running processes will stop. Closing its last pane also closes the project.")}
       confirmLabel={t("Close pane")} onClose={() => setClosing(null)} onConfirm={async () => { await api.closePane(closing.pane_id); setClosing(null); onChanged(); }} />}
   </div></PaneSubmitContext.Provider>;
 }

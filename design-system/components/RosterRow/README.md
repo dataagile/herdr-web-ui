@@ -10,12 +10,12 @@ The sidebar roster: per PC a header, the Needs you block, a Projects head and on
 - Needs you (fork) `section.needs-input`, inside the `.machine-group` right under the header and outside the PC fold: `h2.needs-input-heading > button.sidebar-section-header.needs-input-toggle` (chevron, label, `span.pill` count; folds the list, stored per PC, open by default) and `ul.agent-list > li.needs-input-item > button.agent-row.needs-input-select` (agent mark, `.agent-title.pane-title`, `.agent-context` with the workspace, the full state `.badge` at the right). Blocked rows (INPUT) first, then done (DONE).
 - Projects head (fork) `.sidebar-section-row`: `button.sidebar-section-header` ("Projects · n", chevron in the leading cell) and `button.sidebar-row-action.sidebar-section-new` (New project on the PC) in the status column. History (local PC) follows the rows under the same kind of head.
 - List: `.machine-workspaces > nav.sidebar-list > ul.workspace-list > li.workspace.workspace-group`, each `.workspace-header`: the folder (`.workspace-folder`, or the `.workspace-toggle` fold of a repository with linked worktrees), `.pane-select.workspace-select` (`role="button"`: agent `.sidebar-mark`, `.workspace-copy` one or two lines, `.sidebar-pane-meta` with the compact status), then `.workspace-actions` (fork `+` New tab, then the `⋯` `.row-menu-toggle`).
-- Worktree children sit indented in `li.worktree-children`.
+- Worktree children sit indented in `li.worktree-children`. A pinned project is listed first under `p.sidebar-pinned-label` ("Pinned", `Pin`) in `ul.workspace-list-pinned`, ahead of the rest. The row's leading mark is the folder's favicon when it has one (`WorkspaceFavicon`), else the folder glyph; a collapsed branch line may carry `.workspace-fold-count` ("+n") and `.workspace-branch`. The Agents list is per PC (fork), inside that PC's group.
 - Agents `.agents-sidebar`: `.sidebar-section-header` head ("Agents · n", the same as Projects and History), `.agent-list-contents > ul.agent-list > li.agent-item > button.agent-row` (mark, `.agent-title`, `.agent-context`, `.agent-row-status`).
 
 ## States & variants
 - Selected `.is-selected`: `--side-selected` fill, title in `--text-strong`. Hover (pointer only): `--side-hover`. Keyboard focus: ring inside the row.
-- Compact status (`.sidebar-status`): a red `?` while blocked, a green dot when done and not looked at, a dim spinning arc while working, empty when ready. Needs you rows keep the full word badge (INPUT, DONE).
+- Compact status (`.sidebar-status`): by default (Settings → Status indicators, Classic) a red `?` while blocked, a green dot when done and not looked at, a dim spinning arc while working, empty when ready; Dots and Symbols draw herdr's own glyph in its `--indicator-*` colour (`.sidebar-status-glyph`; the working one breathes over `--dur-breathe`). Needs you rows keep the full word badge (INPUT, DONE).
 - Needs you: `--accent-tint` fill, `--rail-w` left bar in `--accent`, head and pill in `--accent`, `--radius-md`. Absent when the PC has no waiting pane and when it is offline; stays visible when the PC is folded.
 - The `⋯` and `+` of a row take no width at rest; shown on hover, focus, selection and while the menu is open; always on touch.
 - PC dot: `is-connected` done green, `is-connecting`/`is-reconnecting` working pulse, `is-error` blocked, otherwise idle.
@@ -35,5 +35,5 @@ The sidebar roster: per PC a header, the Needs you block, a Projects head and on
 - Don't colour a row by state: the status glyph or badge carries it.
 - Don't add a second attention block or a top-level one: Needs you is per PC.
 
-Source: src/components/Sidebar.tsx · Sidebar.css · NeedsInput.tsx · AgentSidebar.tsx (PC header: MachineSidebar.tsx · Machines.css)
+Source: src/components/Sidebar.tsx · Sidebar.css · WorkspaceFavicon.tsx · NeedsInput.tsx · AgentSidebar.tsx (PC header: MachineSidebar.tsx · Machines.css)
 Preview: static rendition (markup + the repo's CSS), not the live React component.

@@ -73,7 +73,7 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
       assert.equal(await visibleCount(page, ".context-title-text, .context-sub, .context .agent-mark"), 0, `phone ${width}: no title text, crumb or agent mark in the header`);
       assert.equal(await visibleCount(page, ".context-copy.in-title"), 1, `phone ${width}: the copy button is in the header`);
       assert.equal(await visibleCount(page, ".context-copy.in-crumb"), 0, `phone ${width}: the crumb's copy button is not shown`);
-      for (const selector of [".drawer-toggle", ".header-split", ".header-files", ".header-bell button", ".view-toggle"]) {
+      for (const selector of [".drawer-toggle", ".header-files", ".header-bell button", ".view-toggle"]) {
         assert.ok(await visibleCount(page, `.app-header ${selector}`) >= 1, `phone ${width}: ${selector} is in the header`);
       }
       assert.equal(await visibleCount(page, ".app-header .view-switch"), 0, `phone ${width}: the two-option switch gives way to the single toggle`);
@@ -101,13 +101,11 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
       await page.keyboard.press("Escape");
       assert.equal(await visibleCount(page, ".app-header > .header-new-tab"), 0, "phone: New tab is not in the header (the strip's + has it)");
       assert.equal(await visibleCount(page, ".tab-strip .tab-strip-add"), 1, "phone: the tab strip has its + (New tab)");
-      // this harness has one pane per tab, so no real zoom: the class App.tsx sets while zoomed is applied by hand
-      await page.evaluate(() => document.querySelector(".app-header")?.classList.add("has-unzoom"));
-      assert.equal(await visibleCount(page, ".app-header > .header-new-tab"), 0, "phone: a zoomed tab still has no New tab in the header");
-      await page.evaluate(() => document.querySelector(".app-header")?.classList.remove("has-unzoom"));
       await page.getByRole("button", { name: "Open project list", exact: true }).tap();
       assert.equal((await page.locator(".drawer-path").innerText()).replace(/\s+/g, ""), path, "phone: the drawer's first line is the pane's full path");
       assert.equal(await visibleCount(page, "#workspace-drawer .drawer-palette"), 1, "phone: the drawer shows the palette row");
+      // the two items upstream keeps in its More menu, which the fork has not
+      assert.equal(await visibleCount(page, "#workspace-drawer .drawer-find, #workspace-drawer .drawer-copy-link"), 2, "phone: the drawer has Find in terminal and Copy link");
       assert.equal(await page.locator(".drawer-files, .drawer-alerts").count(), 0, "phone: the drawer has no Files or Alerts row");
       assert.equal(await page.locator(".drawer-toggle .header-bell-dot").count(), 0, "phone: the drawer toggle carries no dot");
     } finally {
@@ -125,6 +123,7 @@ export async function checkHeaderControls(browser: Browser, origin: string, pane
     assert.equal((await page.locator(".drawer-path").innerText()).replace(/\s+/g, ""), path, "tablet: the drawer's first line is the pane's full path");
     assert.equal(await page.locator(".drawer-files, .drawer-alerts").count(), 0, "tablet: no Files or Alerts row");
     assert.equal(await visibleCount(page, "#workspace-drawer .drawer-palette"), 0, "tablet: the palette row is not in the drawer, the header has the button");
+    assert.equal(await visibleCount(page, "#workspace-drawer .drawer-find, #workspace-drawer .drawer-copy-link"), 2, "tablet: the drawer has Find in terminal and Copy link");
     assert.equal(await visibleCount(page, ".app-header .palette-button"), 1, "tablet: the palette button is in the header");
   } finally {
     await tablet.close();

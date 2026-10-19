@@ -84,7 +84,7 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     await host.getByRole("button", { name: /Local waiting/ }).waitFor();
     await page.locator('.machine-group[aria-label="PC QA host"] .machine-toggle').click();
     await hostAgents.waitFor();
-    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
+    assert.equal(await page.locator('.machine-list > [role="status"]').first().textContent(), "Panes waiting for input: 2");
     // the heading folds the rows and keeps the count; the choice survives a reload; unfolding shows the rows again
     const hostToggle = host.getByRole("button", { name: /^Needs you/ });
     assert.equal(await hostToggle.getAttribute("aria-expanded"), "true");
@@ -92,7 +92,7 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     assert.equal(await hostToggle.getAttribute("aria-expanded"), "false");
     assert.equal(await host.getByRole("button", { name: /Local waiting/ }).count(), 0);
     assert.equal(await host.locator(".pill").textContent(), "2");
-    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 2");
+    assert.equal(await page.locator('.machine-list > [role="status"]').first().textContent(), "Panes waiting for input: 2");
     assert.equal(await remote.getByRole("button", { name: /Remote waiting/ }).count(), 1);
     // a new waiting pane (via the same stand-in listing) updates the count but never reopens the folded block
     extra = true;
@@ -185,7 +185,7 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     offline = true;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await remote.waitFor({ state: "detached" });
-    assert.equal(await page.locator('.machine-list > [role="status"]').textContent(), "Panes waiting for input: 0");
+    assert.equal(await page.locator('.machine-list > [role="status"]').first().textContent(), "Panes waiting for input: 0");
     assert.deepEqual(errors, []);
     console.log("PASS Needs you: one block per PC, blocked then done, same pane IDs, selection, folded PCs keep the block, resume, seen, offline and mobile drawer");
   } finally { await context.close(); }

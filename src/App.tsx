@@ -359,7 +359,7 @@ export function App() {
   // the note that stands where the title does: a link that could not open what it named or was
   // copied, or a link waiting for its PC's roster before it can open what it named (HeaderNote)
   const note = headerNote
-    ? t(headerNote === "copied" ? "Link copied" : headerNote === "pane-closed" ? "That agent has closed: its workspace is open" : headerNote === "machine-missing" ? "That link's PC is not set up here" : "That link's workspace is closed")
+    ? t(headerNote === "copied" ? "Link copied" : headerNote === "pane-closed" ? "That agent has closed: its project is open" : headerNote === "machine-missing" ? "That link's PC is not set up here" : "That link's project is closed")
     : !linkLanded ? t("Opening link…") : null;
   // App picked the selected pane itself because the one selected closed: it must not raise a
   // phone's keyboard (over the drawer the close was tapped in) until the user picks a pane or lens

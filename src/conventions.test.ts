@@ -119,8 +119,10 @@ describe("DESIGN.md", () => {
  */
 const ICON_VERSIONS: Record<string, { sha256: string; cacheName: string }> = {
   ram1: { sha256: "ed82342db3ec3ed2151ddd2d0d77805233e9251758e29972b4f09aa95602041e", cacheName: "herdr-web-ui-v4-ram" },
+  // the Data Agile fork's "<DA/>" icons (AGENTS.md, Data Agile fork)
+  da2: { sha256: "c48c2538a1200831c8a0ab3c95aa368ffb9e2a502fa8af0d79f82aeda1686b26", cacheName: "herdr-web-ui-v6-da" },
 };
-const CURRENT_ICONS = "ram1";
+const CURRENT_ICONS = "da2";
 
 /** The icon images: dotfiles and other strays in public/icons (a Finder .DS_Store) are not icons. */
 function iconFiles(): string[] {

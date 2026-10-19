@@ -481,6 +481,7 @@ describe("startStatusCollector recovery", () => {
     const collector = startStatusCollector(handlers, herdr.deps);
     await tick();
     herdr.status()!.start();
+    // fixed wait: the fake herdr answers on the next turns of the loop, as the tests around this one wait
     await tick(20);
     tracker.observe("w1:p1", "done", "claude");
     expect(tracker.seen("w1:p1")).toBe(true);
@@ -488,8 +489,10 @@ describe("startStatusCollector recovery", () => {
     // another pane opens: the subscription is reopened with both; p1 ran a whole turn meanwhile, and herdr still says done
     herdr.setPanes([paneOf("w1:p1", "done"), paneOf("w2:p1", "idle")]);
     herdr.lifecycle().emit({ event: "pane_created", data: { type: "pane_created", pane_id: "w2:p1" } });
+    // fixed wait: the fake herdr answers on the next turns of the loop, as the tests around this one wait
     await tick(20);
     herdr.status()!.start();
+    // fixed wait: the fake herdr answers on the next turns of the loop, as the tests around this one wait
     await tick(20);
     expect(tracker.current("w1:p1")).toBe("done");
     expect(told).toEqual(["w1:p1:done"]);

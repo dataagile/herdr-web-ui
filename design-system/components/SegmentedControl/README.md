@@ -1,12 +1,12 @@
 A single-choice switch: one `aria-pressed="true"` option highlighted on an elevated, bordered track, used for the Chat/Terminal lens and for Settings choices like theme and density.
 
 ## When to use
-- Switching between two to four mutually exclusive modes that apply immediately: the header's pane view (Chat / Terminal), Theme (Dark / Light / System), Colors, Density, Language, Sidebar grouping, Panes open in, Chat width.
+- Switching between two to four mutually exclusive modes (the file viewer's Preview | Source and Page | Source too) that apply immediately: the header's pane view (Chat / Terminal), Theme (Dark / Light / System), Colors, Density, Language, Sidebar grouping, Panes open in, Chat width.
 - Not a generic tab list: it does not own panels, and it is not for navigation.
 
 ## Anatomy
 - `div.segmented` — inline-flex track, 2px padding and gap, `--bg-elevated` fill, `--border` edge, `--radius-md`.
-- `div.segmented > button` — option, `calc(--control-h - 6px)` tall, `--radius-sm`, `--fs-sm` medium label, optional 15px Lucide icon before the label.
+- `div.segmented > button` — option, `calc(var(--control-h) - var(--segmented-inset))` tall (the track's padding and hairline, 6px), with an invisible touch expander that grows from that to `--touch-target` on a coarse pointer, `--radius-sm`, `--fs-sm` medium label, optional 15px Lucide icon before the label.
 - Header variant: `.segmented.view-switch` with `MessageSquare` / `SquareTerminal` icons and labels wrapped in `span.header-desktop-only` (labels drop below 560px, icons stay).
 - Phone (`<=480px`): the header switch is hidden and `button.icon-button.view-toggle` stands in for it, one button whose icon is the current lens (`MessageSquare` or `SquareTerminal`) and whose title/`aria-label` names the other lens ("Switch to Terminal" / "Switch to Chat"). It is not a segmented control: it holds no `aria-pressed`.
 - Optional `span.pill.pill-soon` inside an option for a lens that is not available yet.
@@ -22,7 +22,7 @@ A single-choice switch: one `aria-pressed="true"` option highlighted on an eleva
 - Tooltips naming the shortcut where one exists (`Chat transcript (⌘⇧J)`).
 
 ## Tokens used
-`--bg-elevated`, `--bg-hover`, `--border`, `--hairline`, `--radius-md`, `--radius-sm`, `--control-h`, `--space-1`, `--space-3`, `--fs-sm`, `--fw-medium`, `--text-dim`, `--text-strong`, `--accent`, `--dur-fast`, `--ease-out`.
+`--bg-elevated`, `--bg-hover`, `--border`, `--hairline`, `--radius-md`, `--radius-sm`, `--control-h`, `--segmented-inset`, `--touch-target`, `--space-1`, `--space-3`, `--fs-sm`, `--fw-medium`, `--text-dim`, `--text-strong`, `--accent`, `--dur-fast`, `--ease-out`.
 
 ## Do & Don't
 - Do keep options short (one or two words) and the set small.

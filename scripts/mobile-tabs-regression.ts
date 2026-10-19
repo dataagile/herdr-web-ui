@@ -139,8 +139,10 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.locator('.tab-strip-item:first-child [role="tab"][aria-selected="true"]').waitFor();
     await activeTabInView(page, "the first tab, tapped");
     assert.equal(await page.locator(".tab-strip-menu:visible").count(), 1, "the menu button follows a tab selected by touch");
-    await page.getByRole("button", { name: "Actions for Tab 1", exact: true }).tap();
-    const tabSheet = page.getByRole("dialog", { name: "Tab 1", exact: true });
+    // fork: on a phone the open tab is named by the pane in front, so its menu is too
+    const firstTabName = ((await page.locator('.tab-strip-item:first-child [role="tab"]').textContent()) ?? "").trim();
+    await page.getByRole("button", { name: `Actions for ${firstTabName}`, exact: true }).tap();
+    const tabSheet = page.getByRole("dialog", { name: firstTabName, exact: true });
     await tabSheet.waitFor();
     const tabItems = await tabSheet.locator(".row-sheet-item").allTextContents();
     assert.equal(tabItems.indexOf("Rename pane"), 2, "a split tab's menu lists its two panes first on a phone");
@@ -168,7 +170,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     await page.locator(".conn-live").waitFor();
     await page.reload();
     await page.locator(".conn-live").waitFor();
-    await page.getByRole("button", { name: "Open workspace list", exact: true }).tap();
+    await page.getByRole("button", { name: "Open project list", exact: true }).tap();
     await page.locator(`.workspace-group[data-workspace=${JSON.stringify(workspaceId)}] > .workspace-header .workspace-select`).tap();
     await shown(second);
     assert.equal(await page.locator(`[data-layout-pane=${JSON.stringify(first)}]`).isVisible(), false, "a workspace row picked after a reload opens the pane it was left on");
@@ -180,7 +182,7 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
     assert.deepEqual(errors, []);
 
     // A workspace of one tab and one pane: a phone still draws the strip, because the header does
-    // not name the pane; a wider window keeps it away, as for any lone pane.
+    // not name the pane.
     const lone = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-lone-tab" });
     try {
       const loneUrl = `${origin}/?pane=${encodeURIComponent(lone.root_pane.pane_id)}`;
@@ -201,8 +203,9 @@ export async function checkMobileTabs(browser: Browser, origin: string): Promise
       assert.equal((await page.locator(".tab-strip-item.is-active .tab-strip-label").innerText()).trim(), loneName, "a renamed one-pane tab on a phone still shows the pane's title");
       await activeTabInView(page, "a lone tab on a phone");
       await screenshot("lone-tab");
+      // since upstream v0.4.12 the strip is shown for a lone tab at every width, a wider window included
       await page.setViewportSize({ width: 800, height: 844 });
-      await page.waitForFunction(() => document.querySelector(".tab-strip") === null);
+      await page.locator(".tab-strip").waitFor();
       await page.setViewportSize({ width: 480, height: 844 });
       await page.locator(".tab-strip").waitFor();
     } finally {

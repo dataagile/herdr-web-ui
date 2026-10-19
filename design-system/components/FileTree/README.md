@@ -1,4 +1,4 @@
-The Files dialog's tree (`FileTree`), its filter, and the file viewer's two drawn formats (markdown and html).
+The Files dialog's tree (`FileTree`), its filter, and the file viewer's drawn formats (markdown Preview, html Page, source with Edit).
 
 ## When to use
 - Browsing the pane's folder from the header's Files button: folders open in place, a file opens in the viewer above the dialog.
@@ -23,9 +23,11 @@ The Files dialog's tree (`FileTree`), its filter, and the file viewer's two draw
 ↑ ↓ move, Home / End jump, → opens a closed folder or steps into an open one, ← closes an open folder or steps out to its parent, Enter / Space open the file or toggle the folder (also while filtering, where it folds or unfolds the folder inside the result). One row is tabbable (`tabindex=0`), the rest `-1`; ↓ in the filter field enters the tree. While filtering, folders start open; a click or Enter on one folds it (and opens it again).
 
 ## Viewer formats
-- `.md` / `.markdown`: `.file-viewer-toolbar` with `.segmented` "View | Code" (`Eye`, `Code`); View is the chat's own `.markdown` on a reading card (`.file-viewer-render`, max `--content-w`). Code is the text with the Edit button at the right of the same bar; Edit exists only in Code, and View is disabled while editing.
-- `.html` / `.htm`: the same bar, and in View a `iframe.file-viewer-html[sandbox=""]` drawn from the text (`srcdoc`; white like the PDF frame) with `.file-viewer-sandbox` "Scripts are off in this view" (`ShieldOff`). No scripts, no forms, no popups, no access to the app. The frame's document starts with a `Content-Security-Policy` meta (`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:`), so nothing is fetched: only inline styles and `data:` images and fonts draw. Relative images and links of the file may not load.
-- The choice is remembered per format (View by default). A large file draws only the part already read, with the existing "Showing the first N of M." note. Links in rendered markdown open in a new tab with `rel="noopener noreferrer"` and only for http, https and mailto; raw html in markdown shows as text.
+- A file opens in `.file-viewer` (a dialog above the Files dialog, or the docked `.file-panel` beside the pane; the header's panel button switches between them). The dialog's header is `.file-viewer-header-stacked` (name, `.file-viewer-meta` with the size and folder, `.file-viewer-actions`, Close); the docked panel's is one row (`.file-viewer-header-docked`) with the meta and the view modes in `.file-viewer-toolbar` under it. A partial view says so in `.file-viewer-notice` (`--notice`, a warning icon and "256 KB of 1.3 MB").
+- `.md` / `.markdown`: Preview is the default (the chat's own `.markdown` on a reading card, `.file-viewer-markdown`, as wide as the chat lane). In a dialog the header's Show source toggle (`Braces`, `aria-pressed`) swaps to the source; docked, the toolbar's `.segmented.file-viewer-modes` reads "Preview | Source".
+- `.html` / `.htm`: `.segmented.file-viewer-modes` "Page | Source" over the body. Page is `iframe.file-viewer-page[sandbox="allow-scripts"]` drawn by the server with no origin and no network; Source is the highlighted text.
+- Source is the one view that can be edited (the Data Agile fork's addition): `.file-viewer-editbar` with the **Edit** button (`Pencil`; disabled while the file is read in full, and over the size limit, where a note says to download it). Editing swaps the bar to "Unsaved changes" (`.file-viewer-editstate`), **Discard** and **Save**, over `textarea.file-viewer-editor`. A Preview or a Page shows what the file draws and has no Edit.
+- Header actions after the view toggle: Open in a new tab, Open raw file (Preview and Page), Download, Copy, and a **More** menu (`.file-viewer-more-menu`) that holds the link actions on a phone. Long text is a virtualized source (`VirtualSource`). Links in a rendered markdown open in a new tab with `rel="noopener noreferrer"`, only for http, https and mailto; raw html in markdown shows as text. A changed file adds `.changed-tabs` ("Changes in this session | File"), see `components/ChangedFiles`.
 - Everything drawn from a file is `data-feedback-private`; the tree shows names only.
 
 ## States & variants
@@ -42,8 +44,8 @@ The Files dialog's tree (`FileTree`), its filter, and the file viewer's two draw
 ## Do & Don't
 - Do keep the selected row's rail and the keyboard ring distinct: one says what is open, the other where the cursor is.
 - Do say what the search covers; it is by name, in git's files, not by content.
-- Don't add scripts or `allow-*` to the html frame.
+- Don't add `allow-same-origin` (or anything beyond `allow-scripts`) to the html frame: its page has no origin and no network on purpose.
 - Don't virtualize: a folder lists at most 500 entries.
 
-Source: src/components/FileTree.tsx · FileTree.css · FilesDialog.tsx · FileViewer.tsx · HtmlFrame.tsx · FileViewer.css · src/lib/fileTree.ts · src/lib/fileFormats.ts
+Source: src/components/FileTree.tsx · FileTree.css · FilesDialog.tsx · FileViewer.tsx · FileViewer.css · FilePanelResizer.tsx · TextFileView.tsx · src/lib/fileTree.ts · src/lib/fileFormats.ts
 Preview: static rendition (markup + the repo's CSS), not the live React component.

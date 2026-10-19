@@ -127,6 +127,38 @@
         "端口被占用、herdr 未运行或设置无法保存时，应用会说明该怎么做。",
         "文件会跟随你切换到的窗格，读取失败时提示卡片也不会消失。"
       ]
+    },
+    "pt": {
+      "new": [
+        "Os menus dos agentes listam suas skills e comandos, agrupados por origem.",
+        "O tema Codex é o novo padrão, com Dracula, Nord, Vesper e os pares de tema do servidor.",
+        "Escolha um tema escuro e outro claro em Configurações, como no servidor de sessões.",
+        "Páginas web deste PC, como um servidor de dev, abrem num painel ao lado do painel.",
+        "Escolha o modo em que Claude Code e Codex iniciam em novos projetos e abas.",
+        "Adicione e gerencie contas de assinatura e importe limites do plano de um hub.",
+        "A lista de tarefas do OmO vira progresso do plano, e seu /model vira cartão.",
+        "O app instalado pode recolher a barra de título do Chrome e usar o cabeçalho."
+      ],
+      "improved": [
+        "O + da barra de abas abre uma aba de shell na hora; abas de agente vêm do menu da aba.",
+        "Barra lateral mais limpa: linhas simples, branches sob repositórios, fixados reordenáveis.",
+        "A divisão usa uma linha por metade, e o cabeçalho fica mais discreto no computador.",
+        "Perguntas antigas de agentes e mensagens de colegas viram cartões, não JSON ou tags.",
+        "O chat acompanha um agente que escreve a cada segundo e mostra Working... mais cedo.",
+        "Linhas de status, erros e avisos ficam mais curtos e dizem o que fazer depois.",
+        "Todo controle de toque tem ao menos 44px, e o toque cai onde você mira.",
+        "Leitores de tela anunciam as linhas de status de carregando, enviando e reconectando."
+      ],
+      "fixed": [
+        "No iPhone, o coreano chega em sílabas inteiras e segurar o apagar continua apagando.",
+        "Arquivos com nome em coreano ou outro alfabeto não latino abrem pelo chat e na busca.",
+        "Um segundo navegador que abre um painel ocupado agora recebe a tela inteira.",
+        "As cores do terminal continuam legíveis em todo tema claro.",
+        "Chats de Codex, OMP, GJC, Grok e Pi mostram suas conversas com mais confiabilidade.",
+        "Conectar por um proxy Traefik não fica mais preso em Reconectando.",
+        "Porta ocupada, servidor de sessões fora ou config sem salvar: o app diz o que fazer.",
+        "Arquivos segue o painel que você troca, e o cartão de pergunta resiste a leitura falha."
+      ]
     }
   },
   "0.4.11": {
@@ -165,6 +197,15 @@
         "连接反复断开时，不再每秒重连四次。",
         "在新文件夹中启动 Codex 时，文件夹信任问题会以卡片显示。"
       ]
+    },
+    "pt": {
+      "fixed": [
+        "Com o Claude Code 2.1.301, o /effort pelo Chat mostra o cartão de novo.",
+        "O cartão de plano do Claude acha o arquivo do plano, com Ver plano, no Claude Code atual.",
+        "Em tema claro, o texto branco do Claude Code continua legível no terminal.",
+        "Uma conexão que cai sem parar não tenta mais quatro vezes por segundo.",
+        "A pergunta de confiança na pasta do Codex vira cartão numa pasta nova."
+      ]
     }
   },
   "0.4.10": {
@@ -186,6 +227,11 @@
     "zh": {
       "improved": [
         "手机和平板上输入框上方的建议标签默认关闭，可在设置 → 聊天中打开。"
+      ]
+    },
+    "pt": {
+      "improved": [
+        "Celulares e tablets ocultam o chip de sugestão por padrão; Configurações → Chat o liga."
       ]
     }
   },
@@ -309,6 +355,36 @@
         "没有分支的工作树不再让侧边栏出错。",
         "只有一个窗格时，点击右上角能传给其中的程序。"
       ]
+    },
+    "pt": {
+      "new": [
+        "Novo projeto → Procurar cria uma pasta nova e começa nela.",
+        "Atalhos gravam combinações com os modificadores exatos; Nova aba e divisões têm atalho.",
+        "Fixe projetos, worktrees e agentes pelo menu da linha ou com o botão direito.",
+        "Um botão Ir ao fim leva um terminal rolado no histórico de volta ao fim ao vivo.",
+        "Escolha uma skill em qualquer ponto da mensagem, não só no início.",
+        "Conecte-se a PCs remotos a partir de um PC com Windows.",
+        "Mod+Shift+E põe o cursor na entrada do painel."
+      ],
+      "improved": [
+        "As metades da divisão são independentes, e ambas podem mostrar a mesma aba.",
+        "Celulares começam em digitação direta; a tecla de teclado da barra acende na entrada.",
+        "O plano inteiro do Claude vem do arquivo do plano, e a revisão da resposta lê certo.",
+        "Enviar mostra progresso até o agente pegar a mensagem, e Parar sempre vai primeiro.",
+        "Abas recentes ficam prontas, então voltar a elas mostra o chat na hora.",
+        "Sair foi para Configurações, com confirmação; menus e configurações foram enxugados.",
+        "Um projeto ou aba reabre no painel que você viu por último, também após recarregar."
+      ],
+      "fixed": [
+        "Terminais abertos reconectam sozinhos quando o servidor de sessões reinicia ou atualiza.",
+        "Com o servidor de sessões 0.9.4+, um segundo aparelho não digita mais caracteres soltos.",
+        "Digitar Hangul pelo teclado físico do iPad compõe as sílabas.",
+        "Abrir o teclado do Android não redimensiona mais o terminal compartilhado.",
+        "Se a pasta do app é trocada por baixo, ele pede reinício em vez de recarregar sem fim.",
+        "Hermes: Parar encerra um turno em andamento, e o Chat não envia sobre o texto digitado.",
+        "A barra lateral não quebra mais com um worktree sem branch.",
+        "Um clique no canto superior direito de um painel único chega ao programa ali."
+      ]
     }
   },
   "0.4.8": {
@@ -410,6 +486,31 @@
         "更新提示行在手机上也保持一行，更新后可用 × 关闭。",
         "问题卡片上被拒绝的回答提示会一直保留，直到卡片被替换。",
         "开启减少动态效果时，运行中智能体的弧线会闪烁，使 RUN 与 BG 可以区分。"
+      ]
+    },
+    "pt": {
+      "new": [
+        "Uma opção segura as mensagens enfileiradas enquanto o agente trabalha até Enviar agora.",
+        "Abrir em nova aba mostra um markdown como página própria; seus links abrem ali.",
+        "O visualizador desenha o HTML de um README: logo centralizado, selos, links, detalhes."
+      ],
+      "improved": [
+        "O plano fica no botão de tarefas em segundo plano da caixa de mensagem, em passos.",
+        "Pastas recentes ignoram worktrees e temporárias: até oito numa linha, o resto sob +N.",
+        "Por que a mensagem não foi aparece numa faixa da caixa, com Limpar e enviar.",
+        "Um celular que volta do repouso reconecta na hora, sem esperar o atraso da tentativa.",
+        "Scripts e estilos gerados são servidos pré-comprimidos, e o app carrega mais rápido.",
+        "Um agente fixado fica no cartão do seu projeto, e cartões com fixados vêm primeiro."
+      ],
+      "fixed": [
+        "No celular, Voltar fecha a folha ou o diálogo aberto em vez de trocar de painel.",
+        "Um painel sozinho no celular não desenha mais as próprias reticências sobre o chat.",
+        "Um toque longo no chat seleciona o texto e oferece copiar, como o celular faz.",
+        "Um celular com um painel de aba dividida não redimensiona os terminais dos outros.",
+        "Uma janela de PC deixada na frente retoma o painel no seu tamanho com clique ou tecla.",
+        "A linha de atualização fica numa linha só no celular; após atualizar, fecha com x.",
+        "Uma resposta recusada num cartão de pergunta fica visível até o cartão ser trocado.",
+        "Com reduzir movimento, o arco do agente em execução pulsa, e RUN se distingue de BG."
       ]
     }
   },
@@ -513,6 +614,31 @@
         "在任何设备上使用应用时，都不会收到推送提醒。",
         "移动窗格后，后退和前进仍会跟随该窗格。"
       ]
+    },
+    "pt": {
+      "new": [
+        "Links diretos: o endereço nomeia o PC, o projeto, o painel e a vista, e abre ali.",
+        "Um plano do Claude Code ou Codex vira progresso no cabeçalho, em fluxo ou lista.",
+        "O chat lê nativamente Grok, Antigravity (experimental), Hermes e OpenCode 1.x.",
+        "Blocos Mermaid no chat viram diagramas, e o visualizador de arquivos renderiza Markdown.",
+        "Novo projeto oferece suas três pastas mais recentes.",
+        "O turco entra nos idiomas, e Cores ganha a paleta Forest."
+      ],
+      "improved": [
+        "No celular, folhas, a gaveta e o chat se movem como num app nativo.",
+        "Um painel dividido com menos de 80 colunas reduz a fonte, e o btop ainda cabe.",
+        "O chat acompanha a transcrição do agente conforme ela é escrita, não por temporizador.",
+        "Terminal: escolha o cursor, use pinça para a fonte e segure uma seta para repetir.",
+        "As contagens anônimas citam também a aparência alterada; o aviso volta a aparecer.",
+        "Medidores de uso mostram o ritmo de cada limite e quando acaba (ative em Configurações)."
+      ],
+      "fixed": [
+        "O celular volta a mostrar uma aba dividida um painel por vez, em largura total.",
+        "Markdown aberto em nova aba continua renderizado.",
+        "Uma mensagem interrompida logo após enviar volta à caixa de mensagem em vez de travar.",
+        "Alertas push ficam quietos enquanto você usa o app em qualquer aparelho.",
+        "Voltar e Avançar acompanham um painel depois que ele é movido."
+      ]
     }
   },
   "0.4.6": {
@@ -599,6 +725,27 @@
         "因模型错误结束的 OmO 回合显示为 READY，而不是 DONE。",
         "在网桥更新期间休眠的远程电脑会显示“正在重新连接”，而不是要求更新。"
       ]
+    },
+    "pt": {
+      "new": [
+        "Divida, amplie, troque e redimensione painéis pela web; aba dividida mostra todos.",
+        "Busque no histórico do terminal de um painel, com destaques e barra de rolagem.",
+        "A paleta de comandos age como o Goto do servidor de sessões e roda ações de plugin.",
+        "Reordene abas e mova um painel para outra aba ou projeto, como na janela do servidor.",
+        "Agentes mostram os nomes definidos no servidor, e Configurações lista suas integrações."
+      ],
+      "improved": [
+        "Respostas comprimidas: abrir um chat longo fica mais rápido em conexão lenta.",
+        "Mudanças feitas na janela do próprio servidor de sessões aparecem na web na hora.",
+        "Um celular que sai do app devolve o tamanho do painel à janela do servidor na hora."
+      ],
+      "fixed": [
+        "A digitação nunca chega a um painel que outra conexão está usando.",
+        "Mensagens retidas mantêm Enviar agora após trocar de aba, projeto ou PC.",
+        "Chats do Codex no Windows são achados mesmo quando as maiúsculas da pasta diferem.",
+        "Um turno do OmO que terminou em erro do modelo aparece como READY, não DONE.",
+        "Um PC remoto que dormiu na atualização da ponte mostra Reconectando, não o pedido."
+      ]
     }
   },
   "0.4.5": {
@@ -644,6 +791,17 @@
         "延迟找到 Claude 历史记录时仍保留回合的后台等待，超过一天的任务徽标会过期。",
         "增量更新聊天时，同一页中不再出现重复的 Claude 完成卡片。",
         "无论是否开启代码高亮，选择聊天代码时都会保留末尾换行。"
+      ]
+    },
+    "pt": {
+      "improved": [
+        "As abas do desktop seguem atualizando, salvo se você optar por compartilhar painéis."
+      ],
+      "fixed": [
+        "Contagens de segundo plano do Claude se recuperam de mudanças na transcrição e falhas.",
+        "Histórico atrasado do Claude mantém a espera do turno; selos de tarefa velhos expiram.",
+        "Cartões de conclusão do Claude não se repetem mais na página do chat após atualizações.",
+        "Selecionar código no chat preserva as quebras finais, com destaque ligado ou não."
       ]
     }
   },
@@ -711,6 +869,22 @@
         "在聊天补全前后快速输入时，字符顺序和选区不再被打乱。",
         "可从关联的检出目录打开工作树，并读取能够明确识别的短 Codex 会话。"
       ]
+    },
+    "pt": {
+      "new": [
+        "Acompanhe subagentes e comandos em segundo plano do Claude Code direto no chat.",
+        "Escolha um idioma de ditado e dê a cada app instalado de PC o seu próprio nome.",
+        "Reordene projetos por toque e leia código destacado e listas de tarefas no chat."
+      ],
+      "improved": [
+        "Ache comandos de barra por trechos do nome, descrições ou letras correspondentes."
+      ],
+      "fixed": [
+        "Turnos do Claude que esperam trabalho em segundo plano não anunciam fim antecipado.",
+        "Abas inativas do navegador soltam os painéis, e o terminal do servidor mantém o tamanho.",
+        "Digitar rápido durante a conclusão do chat mantém cada tecla e seleção no lugar.",
+        "Abra worktrees de checkouts vinculados e leia sessões curtas e identificáveis do Codex."
+      ]
     }
   },
   "0.4.3": {
@@ -776,6 +950,22 @@
         "同一提醒在所有打开的标签页中只响一次,该标签页关闭后仍能听到",
         "在后台打开的标签页不再改变你在别处使用的窗格大小",
         "herdr 从图形界面应用启动时插件也能找到 Bun;请通过 herdr 重新安装插件"
+      ]
+    },
+    "pt": {
+      "improved": [
+        "Painéis omp iniciados com perfil, ou ativos há muito tempo, mostram o chat.",
+        "Um PC remoto lista o novo agente de um painel na hora, após atualizar a ponte."
+      ],
+      "fixed": [
+        "Painéis do Claude mostram o chat em Macs com formato de hora não americano, como coreano.",
+        "Uma mensagem na fila não é mais colada sobre o que você digita na caixa do Claude Code.",
+        "Setas funcionam em less, git log e man, e cliques chegam a programas que leem o mouse.",
+        "Aprovações e perguntas do Claude Code 2.1.29x voltam a aparecer como cartões.",
+        "Os botões de copiar do chat funcionam em endereços LAN http simples.",
+        "Um alerta toca uma vez entre as abas abertas, e ainda se ouve se essa aba fecha.",
+        "Uma aba aberta em segundo plano não redimensiona mais o painel que você usa em outra.",
+        "O plugin acha o Bun quando o servidor inicia por um app gráfico; reinstale o plugin."
       ]
     }
   },
@@ -866,6 +1056,28 @@
         "在 Claude Code 聊天中发送未知的斜杠命令不再消失,而是显示 Claude 的回答",
         "命令面板的快捷键提示跟随你改过的绑定,非拉丁键盘布局下快捷键也可用",
         "即使浏览器中已打开的记录损坏,“清除已打开的完成标记”也能正常工作"
+      ]
+    },
+    "pt": {
+      "new": [
+        "Instalações e atualizações são contadas de forma anônima; Configurações → Sobre desliga.",
+        "Clicar na notificação de um agente abre o painel no chat, onde está a resposta.",
+        "Painéis do Devin CLI mostram a conversa no chat.",
+        "Painéis do OpenCode 2 viram conversa no chat; o OpenCode 1.x mantém o texto do terminal.",
+        "Claude Code retém mensagem com caracteres invisíveis: cartão para enviar ou descartar."
+      ],
+      "improved": [
+        "A barra de teclas do celular começa com Esc, Tab e Ctrl+C; layouts salvos mantêm a ordem.",
+        "Configurações → Atalhos explica as teclas do app e marca as que o navegador ou o SO retêm.",
+        "vim, tmux e Claude Code num painel voltam a copiar para a área de transferência.",
+        "O site original mudou de domínio e lê em chinês simplificado; links antigos funcionam.",
+        "As versões no GitHub abrem com notas de versão curtas como estas."
+      ],
+      "fixed": [
+        "Digitar coreano no Safari não perde mais sílabas, também após trocar do inglês.",
+        "Um comando de barra desconhecido no chat do Claude Code mostra a resposta, não some.",
+        "Dicas de atalho da paleta seguem seus atalhos, e funcionam em teclados não latinos.",
+        "Marcar concluídos funciona mesmo se o navegador guardou um registro de abertos danificado."
       ]
     }
   },

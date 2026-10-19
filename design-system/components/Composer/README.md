@@ -6,7 +6,7 @@ The chat's message input: one raised card (`--radius-2xl`, `--shadow-card`) with
 
 ## Anatomy
 - `.composer` (region; transparent inside `.terminal-stack.is-chat`) > optional `.composer-greeting`, `.composer-quick`, then `.composer-surface` (grid: attachments / text / left · status · right).
-- `.composer-resize` grip on the card's top edge; `.composer-attachments` strip; `textarea.composer-text`.
+- `.composer-attachments` strip; `textarea.composer-text`.
 - `.composer-controls.composer-controls-left`: `.icon-button.composer-attach` (lucide Plus), `.voice-mic-wrap` > `.voice-mic` (lucide Mic), background-task chip.
 - `.composer-status` (`role="status"`, `data-status`): `.composer-status-meta` > visually-hidden agent name/state, `strong` (DONE only drawn), `.composer-pill` (`.agent-mark`, `.composer-model`, `.composer-reasoning`, `.composer-context` ring).
 - `.composer-controls.composer-controls-right`: `.composer-queue-button` (lucide Clock + "Queue") and `.composer-action.composer-send` (lucide ArrowUp) or `.composer-action.composer-stop` (lucide Square).

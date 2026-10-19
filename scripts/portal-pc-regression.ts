@@ -18,11 +18,13 @@ let me: unknown = { authenticated: true };
 const setups: string[] = [];
 const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
   const path = new URL(request.url).pathname;
+  // fixed wait: a slow portal answer is what this case stages
   if (path === "/api/portal/me") { if (meDelay) await Bun.sleep(meDelay); return Response.json(me); }
   if (path === "/api/health") return Response.json({ ok: true, auth: { authenticated: true, required: false, role: "drive" }, herdr: { version: "0.9.3", protocol: 22 }, web_ui: { revision: null, boot_id: "qa" } });
   if (path === "/api/machines") return Response.json({ machines: [local, { ...remote, action_required: remoteAction }] });
   if (path === "/api/session") return Response.json({ snapshot });
   if (path === "/api/machines/settings") return Response.json({ auto_update_bridges: false });
+  // fixed wait: a bridge update that takes a moment is what this case stages
   if (path === "/api/machines/qa-remote/update-bridge") { updatePosts++; await Bun.sleep(300); } if (path === "/api/machines/qa-remote/update-bridge") return Response.json({ error: { code: "qa", message: "Bridge update refused" } }, { status: 500 });
   if (path === "/api/machines/setup") { setups.push(request.method); return Response.json({ error: { code: "add_pc_disabled", message: "off" } }, { status: 403 }); }
   if (path.startsWith("/api/") || path === "/ws") return Response.json({ error: { code: "qa", message: "Unavailable in fixture" } }, { status: 404 });
@@ -44,7 +46,7 @@ try {
   };
   const buttons = async (page: import("playwright-core").Page) => {
     const count = (name: string) => page.getByRole("button", { name, exact: true }).count();
-    const result = { footer: await count("Add PC"), notice: await page.locator(".machine-action").getByRole("button", { name: "Set up…", exact: true }).count(), banner: await page.locator(".update-notice").getByRole("button", { name: "Set up…", exact: true }).count() };
+    const result = { footer: await count("Add PC"), notice: await page.locator(".machine-action").getByRole("button", { name: "Set up web access", exact: true }).count(), banner: await page.locator(".update-notice").getByRole("button", { name: "Set up web access", exact: true }).count() };
     await page.getByRole("button", { name: "Manage QA remote" }).click();
     const manage = { reconnect: await count("Reconnect / setup"), update: await count("Update bridge…"), disconnect: await count("Disconnect"), remove: await count("Remove PC") };
     const dialog = page.getByRole("dialog", { name: "Command palette", exact: true });
@@ -62,7 +64,8 @@ try {
   for (const answer of [{ authenticated: true }, { authenticated: true, pc: null }, { authenticated: true, pc: { name: null, add_pc: true } }]) {
     const page = await open(answer);
     const on = await buttons(page);
-    assert.deepEqual(on, { footer: 1, notice: 1, banner: 1, reconnect: 1, update: 1, disconnect: 1, remove: 1, palette: 1, settings: 1 }, JSON.stringify(answer));
+    // a PC waiting on its first setup offers Set up web access, not Reconnect / setup (upstream since v0.4.12)
+    assert.deepEqual(on, { footer: 1, notice: 1, banner: 1, reconnect: 0, update: 1, disconnect: 1, remove: 1, palette: 1, settings: 1 }, JSON.stringify(answer));
     await page.getByText("QA host", { exact: true }).first().waitFor();
     await page.close();
   }

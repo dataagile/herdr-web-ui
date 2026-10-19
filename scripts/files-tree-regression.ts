@@ -2,8 +2,8 @@
  * The Files dialog's tree, its filter, and the viewer's drawn formats, on a real herdr pane whose
  * folder is a temp tree: folders open and close, the keys of a tree, open folders remembered, the
  * server's 500-entry cut, the filter (a folder the tree never opened, folded chain, empty state,
- * Esc twice), markdown drawn (hostile markup stays text) with Edit only under Code, html in an
- * empty sandbox where its script does not run, and a 390 px phone without horizontal overflow.
+ * Esc twice), a Markdown file in upstream's Preview with the fork's Edit on its source, and a 390 px
+ * phone without horizontal overflow.
  */
 import "./test-herdr.ts";
 import assert from "node:assert/strict";
@@ -173,58 +173,20 @@ try {
   await dialog.waitFor({ state: "hidden" });
   console.log("PASS Esc clears the filter and a second Esc closes the dialog");
 
-  // ---- markdown drawn
+  // ---- the viewer: upstream's Markdown Preview, the fork's Edit on its source
   dialog = await openFiles(page);
   await row("README.md").click();
   const viewer = page.getByRole("dialog", { name: "README.md", exact: true });
-  await viewer.locator(".file-viewer-render").waitFor();
-  assert.equal(await viewer.getByRole("button", { name: "View", exact: true }).getAttribute("aria-pressed"), "true");
-  assert.equal(await viewer.locator(".file-viewer-render .markdown-h1").textContent(), "Project title");
-  assert.equal(await viewer.locator(".file-viewer-render li").count(), 2);
-  assert.equal(await viewer.locator(".file-viewer-render script, .file-viewer-render img").count(), 0, "raw html in markdown makes no element");
-  assert.match(await viewer.locator(".file-viewer-render").textContent() ?? "", /<script>window\.__pwned = 1<\/script>/);
-  assert.equal(await viewer.getByRole("button", { name: "Edit", exact: true }).count(), 0, "no Edit while the file is drawn");
-  const links = await viewer.locator(".file-viewer-render a").evaluateAll((anchors) => anchors.map((a) => [a.getAttribute("href"), a.getAttribute("target"), a.getAttribute("rel")]));
-  assert.deepEqual(links, [["https://example.com/", "_blank", "noopener noreferrer"]]);
-  // (a script that was going to run has run by the time two frames are painted)
-  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
-  assert.equal(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned), undefined, "nothing in the markdown ran");
-  assert.equal(await viewer.locator(".file-viewer-render").evaluate((el) => el.closest("[data-feedback-private]") !== null), true, "the drawn file sits in a private surface");
+  await viewer.locator(".file-viewer-content .markdown").waitFor();
+  assert.equal(await viewer.getByRole("button", { name: "Edit", exact: true }).count(), 0, "no Edit while the Preview shows");
+  assert.equal(await viewer.locator(".file-viewer-content").evaluate((el) => el.closest("[data-feedback-private]") !== null), true, "the drawn file sits in a private surface");
   await shot(page, "md.png");
-  console.log("PASS markdown is drawn, hostile markup stays text, links open safely, and there is no Edit");
-
-  await viewer.getByRole("button", { name: "Code", exact: true }).click();
+  await viewer.getByRole("button", { name: "Show source", exact: true }).click();
   await viewer.locator(".file-viewer-text").waitFor();
   await viewer.getByRole("button", { name: "Edit", exact: true }).waitFor();
   await viewer.getByRole("button", { name: "Close file", exact: true }).click();
-  await row("README.md").click();
-  await viewer.locator(".file-viewer-text").waitFor();
-  assert.equal(await viewer.getByRole("button", { name: "Code", exact: true }).getAttribute("aria-pressed"), "true", "the choice is remembered");
-  await viewer.getByRole("button", { name: "View", exact: true }).click();
-  await viewer.locator(".file-viewer-render").waitFor();
-  assert.equal(await viewer.getByRole("button", { name: "Edit", exact: true }).count(), 0);
-  await viewer.getByRole("button", { name: "Close file", exact: true }).click();
-  console.log("PASS Code shows the text with Edit (only there), and the choice is remembered");
-
-  // ---- html in an empty sandbox
-  await row("page.html").click();
-  const html = page.getByRole("dialog", { name: "page.html", exact: true });
-  const frame = html.locator("iframe.file-viewer-html");
-  await frame.waitFor();
-  assert.equal(await frame.getAttribute("sandbox"), "", "an empty sandbox: no allow-* at all");
-  assert.equal(await html.getByRole("button", { name: "View", exact: true }).getAttribute("aria-pressed"), "true");
-  await html.getByText("Scripts are off in this view").waitFor();
-  const inside = html.frameLocator("iframe.file-viewer-html");
-  await inside.getByRole("heading", { name: "Report" }).waitFor();
-  await page.waitForLoadState("networkidle"); // the image and the stylesheet would have been asked for by now
-  assert.deepEqual(remote, [], "the html file fetched nothing from outside (the CSP blocks the image and the stylesheet)");
-  assert.equal(await inside.locator("head > meta").first().getAttribute("http-equiv"), "Content-Security-Policy", "the policy is the first element of the head");
-  assert.equal(await inside.locator("#x").textContent(), "script off", "the page's script did not run");
-  assert.equal(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned), undefined);
-  await shot(page, "html.png");
-  console.log("PASS html is drawn in an empty sandbox and its script does not run");
-  await html.getByRole("button", { name: "Close file", exact: true }).click();
   await page.keyboard.press("Escape");
+  console.log("PASS a Markdown file opens in its Preview, and Edit is on its source");
 
   // ---- a phone
   const phone = await open(true);
@@ -246,7 +208,7 @@ try {
   await shot(phone, "phone-tree.png");
   await sheet.locator(".tree-row", { hasText: "README.md" }).click();
   const small = phone.getByRole("dialog", { name: "README.md", exact: true });
-  await small.locator(".file-viewer-render").waitFor();
+  await small.locator(".file-viewer-content .markdown").waitFor();
   const body = await phone.evaluate(() => { const b = document.querySelector<HTMLElement>(".file-viewer-body")!; return [b.scrollWidth, b.clientWidth, document.documentElement.scrollWidth, window.innerWidth]; });
   assert.ok(body[0]! <= body[1]! && body[2]! <= body[3]!, `the viewer overflows on a phone: ${body.join("/")}`);
   console.log("PASS phone 390: tree and drawn markdown without horizontal overflow, touch-size rows, no hints");

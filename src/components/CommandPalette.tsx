@@ -700,7 +700,7 @@ export function CommandPalette({ open, initialQuery = "", onClose, machines, onS
             {footerPath && <span className="palette-footer-path" title={footerPath}>{footerPath}</span>}
           </div>
           <div className="palette-footer-keys" aria-hidden="true">
-            <span className="palette-footer-key"><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd>{t("Workspace")}</span>
+            <span className="palette-footer-key"><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd>{t("Project")}</span>
             <span className="palette-footer-key"><kbd className="kbd">&gt;</kbd>{t("Actions")}</span>
           </div>
         </footer>

@@ -322,7 +322,7 @@ function AppearancePage() {
       <SettingsRow label={t("Agent logos")} description={t("Draw each agent's logo in its brand colors, or without color")} wide>
         <Segmented label={t("Agent logos")} value={settings.agentMarks} onChange={(agentMarks) => update({ agentMarks })} options={[{ value: "color", label: t("Color") }, { value: "mono", label: t("Mono") }]} />
       </SettingsRow>
-      <SettingsRow label={t("Status indicators")} description={t("Classic marks only the states that ask for a look; Dots and Symbols draw every state as herdr's TUI does")} wide>
+      <SettingsRow label={t("Status indicators")} description={t("Classic marks only the states that ask for a look; Dots and Symbols draw every state as the session server's own terminal view does")} wide>
         <Segmented label={t("Status indicators")} value={settings.statusIndicators} onChange={(statusIndicators) => update({ statusIndicators })} options={[{ value: "classic", label: t("Classic") }, { value: "dots", label: t("Dots") }, { value: "symbols", label: t("Symbols") }]} />
       </SettingsRow>
     </SettingsGroup>
@@ -458,8 +458,8 @@ function TerminalPage({ keyBarButtonRef, onEditKeyBar }: { keyBarButtonRef: RefO
       <SettingsRow label={t("Clipboard from a pane")} description={t("A program in a pane that copies (vim, tmux, Claude Code) puts its text on this device's clipboard, as a copy you made yourself would. Turn it off if a pane runs output you do not trust: it could replace what you paste next.")}>
         <Toggle label={t("Clipboard from a pane")} checked={settings.paneClipboard} onChange={(paneClipboard) => update({ paneClipboard })} />
       </SettingsRow>
-      <SettingsRow label={t("Use alongside herdr's own window")} description={t("Turn this on if this PC also shows herdr in a terminal window. A second after you switch to another window, this tab only watches the pane, so herdr's window keeps the pane at its own size instead of this window's. Click the tab to type again. While it watches, the pane is drawn at herdr's size and may not fill this window.")}>
-        <Toggle label={t("Use alongside herdr's own window")} checked={settings.releasePaneAway} onChange={(releasePaneAway) => update({ releasePaneAway })} />
+      <SettingsRow label={t("Use alongside the session server's own window")} description={t("Turn this on if this PC also shows the session server in a terminal window. A second after you switch to another window, this tab only watches the pane, so the session server's window keeps the pane at its own size instead of this window's. Click the tab to type again. While it watches, the pane is drawn at the session server's size and may not fill this window.")}>
+        <Toggle label={t("Use alongside the session server's own window")} checked={settings.releasePaneAway} onChange={(releasePaneAway) => update({ releasePaneAway })} />
       </SettingsRow>
     </SettingsGroup>
   );
@@ -591,7 +591,7 @@ function LaunchModesGroup() {
   const { settings, update } = useSettings();
   const t = useT();
   return (
-    <SettingsGroup title={t("New agents")} section="launch-modes" note={t("Applies to agents started from New workspace, New tab and New worktree. Agent default adds no flag, so the agent's own configuration decides.")}>
+    <SettingsGroup title={t("New agents")} section="launch-modes" note={t("Applies to agents started from New project, New tab and New worktree. Agent default adds no flag, so the agent's own configuration decides.")}>
       <SettingsRow label="Claude Code" description={t("Permission mode")} htmlFor="settings-claude-launch-mode">
         <select id="settings-claude-launch-mode" className="select settings-select" value={settings.claudeLaunchMode} onChange={(event) => update({ claudeLaunchMode: event.target.value as ClaudeLaunchMode })}>
           {CLAUDE_LAUNCH_MODES.map((mode) => <option key={mode} value={mode}>{claudeModeName(mode, t)}</option>)}
@@ -617,7 +617,7 @@ function IntegrationsList() {
     return () => { live = false; };
   }, [api, machineId]);
   const outcome = outcomeFor(result, machineId);
-  const note = t("herdr's integrations let it resume each agent's session after a restart. This page only reads them: run a command in a terminal on the PC herdr runs on, then reopen this page.");
+  const note = t("The session server's integrations let it resume each agent's session after a restart. This page only reads them: run a command in a terminal on the PC the session server runs on, then reopen this page.");
   if (outcome === null) return <SettingsGroup note={note}><p className="settings-item settings-hint" role="status">{t("Loading…")}</p></SettingsGroup>;
   if (outcome.kind === "unsupported") return <SettingsGroup><p className="settings-item settings-hint" role="status">{t("This PC's bridge does not offer agent integrations yet. It will after its next runtime update.")}</p></SettingsGroup>;
   if (outcome.kind === "error") return <SettingsGroup note={note}><p className="settings-item settings-hint" role="alert">{outcome.message}</p></SettingsGroup>;
@@ -661,7 +661,7 @@ function IntegrationRow({ integration }: { integration: AgentIntegration }) {
     window.clearTimeout(copiedTimer.current);
     copiedTimer.current = window.setTimeout(() => setCopied(false), 1600);
   };
-  const state = integration.state === "outdated" ? t("Installed, but older than this herdr: run this to update it") : t("Not installed");
+  const state = integration.state === "outdated" ? t("Installed, but older than this session server: run this to update it") : t("Not installed");
   return (
     <SettingsRow label={name} description={<>{state}<code ref={commandRef} className="settings-integration-command">{command}</code></>}>
       <button type="button" className="btn" aria-label={t("Copy the command for {name}", { name })} onClick={() => void copy()}>{t(copied ? "Copied" : "Copy")}</button>
@@ -871,7 +871,7 @@ function PluginsGroup() {
   }, [api]);
   if (plugins.length === 0) return null;
   return (
-    <SettingsGroup title={t("herdr plugins")} note={t("The command palette and its plugin actions are not available in the phone touch UI. Use a wider screen or a keyboard's command palette shortcut.")} className="settings-plugins">
+    <SettingsGroup title={t("Session server plugins")} note={t("The command palette and its plugin actions are not available in the phone touch UI. Use a wider screen or a keyboard's command palette shortcut.")} className="settings-plugins">
       {plugins.map((plugin) => (
         <SettingsRow key={plugin.plugin_id} label={`${plugin.name} ${plugin.version}`} description={plugin.actions.length > 0 ? plugin.actions.map((action) => action.title).join(" · ") : t("No actions")}>
           <span className="settings-hint">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>

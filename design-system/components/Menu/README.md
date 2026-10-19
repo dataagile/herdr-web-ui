@@ -1,7 +1,7 @@
 A bordered popover list of actions: icon, ellipsized label and optional hint per row, with headings, hairlines and a danger item.
 
 ## When to use
-- The sidebar row's `⋯` menu (`.row-menu`), the tab strip's pane picker, split menus.
+- The sidebar row's `⋯` menu (`.row-menu`), the tab strip's `⋯` tab menu and a pane header's menu (Split right / Split down, Zoom, Rename pane, Close pane). The fork's header has no More menu.
 - The same `.menu` surface backs completion lists (composer slash and @ menus) and the command palette's rows.
 - Not for choosing between 2-3 view modes (use the segmented control).
 
@@ -11,7 +11,7 @@ A bordered popover list of actions: icon, ellipsized label and optional hint per
 - `.menu-item` — `--control-h` row, `--radius-md`, `--fs-sm`; contains a 16px lucide icon (`--text-dim`), `.menu-item-main` (ellipsized) and optional `.menu-item-hint` (`--fs-xs`, dim).
 - `.menu-heading` — dim uppercase `--fs-2xs` micro label above a group.
 - `.row-menu-divider` (`role="separator"`) — the hairline above Close.
-- `.row-menu-header` — an optional ruled-off header (a split menu's direction toggle).
+- `.row-menu-header` — an optional ruled-off header above the items.
 
 ## States & variants
 - Hover (pointer devices) and `aria-selected="true"` (keyboard/active row): `--bg-hover` fill, `--text-strong`.

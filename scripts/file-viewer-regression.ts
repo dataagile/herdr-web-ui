@@ -562,13 +562,13 @@ try {
   // a file chosen in the Files dialog opens in the panel, and the dialog, which would cover it, closes
   await openFiles(page);
   const filesDialog = page.getByRole("dialog", { name: "Files", exact: true });
-  await filesDialog.getByRole("button", { name: /preview\.webm/ }).click();
+  await filesDialog.getByRole("treeitem", { name: /preview\.webm/ }).click();
   await page.locator(".modal.file-viewer video").waitFor();
   assert.equal(await filesDialog.count(), 1, "a media popup stacks over Files");
   await preview.getByRole("button", { name: "Close file", exact: true }).click();
   await preview.waitFor({ state: "detached" });
   await filesDialog.waitFor();
-  await filesDialog.getByRole("button", { name: /notes\.txt/ }).click();
+  await filesDialog.getByRole("treeitem", { name: /notes\.txt/ }).click();
   await filesDialog.waitFor({ state: "detached" });
   await panel.getByText("File preview history regression", { exact: true }).waitFor();
   await panel.getByRole("button", { name: "Close file", exact: true }).click();
@@ -609,7 +609,7 @@ try {
   });
   await page.reload();
   await panel.getByText("File preview history regression", { exact: true }).waitFor();
-  const showSidebar = page.getByRole("button", { name: "Show workspace list", exact: true });
+  const showSidebar = page.getByRole("button", { name: "Show project list", exact: true });
   if (await showSidebar.count()) await showSidebar.click();
   for (const width of [1280, 981, 980]) {
     await page.setViewportSize({ width, height: 800 });

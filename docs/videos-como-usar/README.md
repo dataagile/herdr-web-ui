@@ -10,7 +10,7 @@ Série de 7 vídeos curtos (9:16, pt-BR) para a página `/ajuda` do portal. Os v
 | 2 | `devda-arquivos` | pronto | nada |
 | 3 | `devda-arquivos-modificados` | pronto | nada |
 | 4 | `devda-feedback` | roteiro e prévia (`previa/index.html`, 9 prints) | aprovação do João e render |
-| 5 | `devda-precisa-de-voce` | prints em pt-BR (18/10, com `prep-ptbr.py`) | roteiro, prévia, aprovação do João e render |
+| 5 | `devda-precisa-de-voce` | roteiro e prévia (`previa/index.html`, 12 quadros) | aprovação do João e render |
 | 6 | `devda-celular` | não começou (já existe `_captura/shoot-celular.ts`) | captura, roteiro e render. Mostrar o sino de Alertas |
 | 7 | `devda-barra-lateral` | não começou (já existe `_captura/shoot-barra.ts`) | captura, roteiro e render. Mostrar os Agentes dentro de cada PC (PR #20) |
 

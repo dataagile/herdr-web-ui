@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prévia · devda-celular</title>
+<style>body{background:#0b1512;color:#e6ece9;font:16px system-ui;margin:16px}.g{display:flex;flex-wrap:wrap;gap:12px}figure{margin:0;width:min(270px,100%)}img{width:100%;border-radius:8px}figcaption{text-align:center;color:#8aa}pre{white-space:pre-wrap;background:#13201c;padding:12px;border-radius:8px;font-size:13px}</style>
+<h1>Prévia: devda-celular (vídeo 6, 42 s)</h1><div class="g"><figure><img src="s002.60.png" loading="lazy"><figcaption>2.60 s</figcaption></figure><figure><img src="s008.00.png" loading="lazy"><figcaption>8.00 s</figcaption></figure><figure><img src="s009.15.png" loading="lazy"><figcaption>9.15 s</figcaption></figure><figure><img src="s010.20.png" loading="lazy"><figcaption>10.20 s</figcaption></figure><figure><img src="s013.40.png" loading="lazy"><figcaption>13.40 s</figcaption></figure><figure><img src="s014.35.png" loading="lazy"><figcaption>14.35 s</figcaption></figure><figure><img src="s020.00.png" loading="lazy"><figcaption>20.00 s</figcaption></figure><figure><img src="s026.00.png" loading="lazy"><figcaption>26.00 s</figcaption></figure><figure><img src="s030.60.png" loading="lazy"><figcaption>30.60 s</figcaption></figure><figure><img src="s031.55.png" loading="lazy"><figcaption>31.55 s</figcaption></figure><figure><img src="s033.00.png" loading="lazy"><figcaption>33.00 s</figcaption></figure><figure><img src="s035.00.png" loading="lazy"><figcaption>35.00 s</figcaption></figure><figure><img src="s040.50.png" loading="lazy"><figcaption>40.50 s</figcaption></figure></div><h2>Roteiro</h2><pre># DevDA no celular (série &quot;Veja em ação&quot; do DevDA, vídeo 6)
+
+- **Formato:** 9:16 (1080x1920), **42 s**, sem áudio, paleta Data Agile. Material de treinamento.
+- **Para que serve:** no celular, o sino de Alertas avisa quando um agente precisa de você, o menu abre a lista de projetos com o bloco &quot;Precisa de você&quot;, &quot;Instalar app&quot; põe o DevDA na tela inicial (no iPhone, os alertas com o app fechado só chegam por ele) e a pergunta do agente se responde com um toque.
+- **Material:** prints da **sessão de demonstração** com textos fictícios em pt-BR (`_captura/prep-ptbr.py`). Celular 390x844 @3x. Captura: `_captura/shoot-celular.ts`, que desliga os Alertas antes do primeiro print para o vídeo mostrar o toque que liga. No celular não há cursor: o toque aparece como um círculo.
+- **Rótulos exatos** (`i18n.pt.ts`): &quot;Alertas&quot; (o sino; ao tocar: &quot;Alertas ativados no app. Toque para desativar&quot;), &quot;Abrir lista de projetos&quot; (o botão ☰), &quot;Precisa de você&quot;, &quot;ENTRADA&quot;, &quot;Instalar app&quot;, &quot;Permitir o comando?&quot;.
+- **Instalar app:** a legenda diz &quot;no iPhone, para receber alertas&quot; porque, no iPhone, os alertas com o app fechado só chegam pelo app da tela inicial (`i18n.pt.ts`); no Android e no computador basta o https.
+- **Fora do vídeo:** a troca Chat/Terminal. Na demo o Terminal mostra um aviso em inglês, que não serve de material.
+
+## Gramática de movimento
+
+Igual aos vídeos 1 a 5. Barra de 5 passos.
+
+## Tabela
+
+| tempo | passo | câmera | objetos e motion | legenda (título / apoio · rótulo) |
+|---|---|---|---|---|
+| 0–4,4 | Capa | — | — | **O DevDA / no celular** / acompanhe e responda os agentes de onde estiver |
+| 4,4–11,0 | 1 | topo, zoom no sino (5,6) | contorno no sino riscado; toque (9,0); o sino liga | Ligue os Alertas / o sino avisa quando um agente precisa de você · &quot;Alertas&quot; |
+| 11,0–16,6 | 2 | canto esquerdo do topo (11,2), lista (14,6) | contorno no ☰; toque (14,2); a lista abre | Abra a lista de projetos / no canto de cima, à esquerda · &quot;Abrir lista de projetos&quot; |
+| 16,6–22,6 | 3 | lista | contorno no bloco | Quem espera por você / perguntas e trabalhos já prontos · &quot;Precisa de você&quot; |
+| 22,6–28,6 | 4 | fim da lista (22,8) | contorno em Instalar app | Instale o app / no iPhone, para receber alertas · &quot;Instalar app&quot; |
+| 28,6–37,0 | 5 | lista (28,8), a pergunta (31,8) | contorno na ENTRADA; toque (31,4); a pergunta abre (31,8); contorno no cartão (32,6) | Responda pelo celular / toque numa das opções · &quot;ENTRADA&quot;; &quot;Permitir o comando?&quot; |
+| 37,0–42 | Fechamento | — | círculo, visto, frase | **Seus agentes, / no seu bolso** / alerta, lista e resposta no celular |
+</pre>

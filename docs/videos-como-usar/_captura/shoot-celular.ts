@@ -31,14 +31,14 @@ const all = (p: any, sel: string) => p.evaluate((sel: string) => [...document.qu
 const shot = async (p: any, n: string) => { await p.waitForTimeout(500); await p.screenshot({ path: out + n + ".png" }); console.log("shot", n); };
 const hdr = async (p: any) => ({ header: await all(p, "header .icon-button, header .context-title, header .context-sub, .tab-strip, .tab-strip-tab"), bell: await all(p, ".header-bell .icon-button"), bellTitle: await p.locator(".header-bell .icon-button").getAttribute("title").catch(() => null), dot: await box(p, ".header-bell-dot") });
 await ctx({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 }, async (p) => {
+  // a demo abre com os Alertas ligados: desliga antes do primeiro print, para o vídeo mostrar o toque que liga
+  await p.locator(".header-bell .icon-button").tap(); await p.waitForTimeout(800);
   console.log("full", JSON.stringify(await hdr(p)));
   await shot(p, "p-full");
   await p.locator(".header-bell .icon-button").tap(); await p.waitForTimeout(800); await shot(p, "p-bell-on");
   console.log("bell", JSON.stringify(await hdr(p)));
-  await p.locator(".view-toggle").tap(); await p.waitForTimeout(2500); await shot(p, "p-terminal");
-  console.log("term", JSON.stringify({ toggle: await all(p, ".view-toggle") }));
-  await p.locator(".view-toggle").tap(); await p.waitForTimeout(1500); await shot(p, "p-chat");
   await p.locator(".drawer-toggle").tap(); await p.waitForTimeout(800); await shot(p, "p-drawer");
+  console.log("install", JSON.stringify(await all(p, "#workspace-drawer button")));
   console.log("drawer", JSON.stringify({ items: await all(p, "#workspace-drawer .needs-input-toggle, #workspace-drawer .needs-input-select, #workspace-drawer .sidebar-section-header, #workspace-drawer .drawer-path, .drawer-toggle") }));
   await p.locator("#workspace-drawer .needs-input-select", { hasText: "Proteger" }).tap(); await p.waitForTimeout(2500); await shot(p, "p-blocked");
   console.log("blocked", JSON.stringify({ title: await all(p, ".context-title"), prompt: await all(p, "[class*=prompt] button") }));

@@ -30,21 +30,18 @@ const box = async (p: any, sel: string) => { if (!(await p.locator(sel).count())
 const all = (p: any, sel: string) => p.evaluate((sel: string) => [...document.querySelectorAll(sel)].map((e) => { const b = e.getBoundingClientRect(); return [(e.getAttribute("aria-label") || e.textContent || "").trim().slice(0, 70), [b.x, b.y, b.width, b.height].map(Math.round)]; }), sel);
 const shot = async (p: any, n: string) => { await p.waitForTimeout(500); await p.screenshot({ path: out + n + ".png" }); console.log("shot", n); };
 const side = async (p: any) => ({ sidebar: await all(p, "aside, .sidebar, nav.sidebar"), heads: await all(p, ".sidebar-section-header, .machine-header, .machine-row"), btns: await all(p, ".sidebar .icon-button, aside .icon-button, .sidebar-toggle, .sidebar-resizer, [role=separator]"), rows: await all(p, ".workspace-row, .agent-row") });
-await ctx({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }, async (p) => {
-  console.log("full", JSON.stringify(await side(p)));
+// 1000 de altura: os 5 agentes do pc-dev cabem acima do rodapé da barra
+await ctx({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2 }, async (p) => {
+  const heads = () => all(p, "nav .sidebar-section-header, nav [aria-label^='Recolher'], nav [aria-label^='Expandir'], nav .agent-row, nav .needs-input-toggle");
+  console.log("full", JSON.stringify(await heads()));
   await shot(p, "d-full");
-  const row = p.locator(".workspace-row", { hasText: "Pagamentos" }).first();
-  await row.hover(); await shot(p, "d-row-hover");
-  console.log("hover", JSON.stringify(await all(p, ".workspace-row .icon-button")));
-  await p.getByRole("button", { name: /^Mais para Pagamentos/ }).first().click(); await p.waitForTimeout(400); await shot(p, "d-row-menu");
-  console.log("menu", JSON.stringify(await all(p, "[role=menu], [role=menuitem]")));
-  await p.keyboard.press("Escape"); await p.waitForTimeout(300);
-  const sep = p.locator("[role=separator]").first(); const b = await sep.boundingBox();
-  await p.mouse.move(b.x + b.width / 2, 450); await shot(p, "d-resize-hover");
-  await p.mouse.down(); await p.mouse.move(b.x + 80, 450, { steps: 10 }); await p.mouse.up(); await p.mouse.move(1100, 600); await shot(p, "d-wide");
-  console.log("wide", JSON.stringify(await side(p)));
-  await p.locator(".sidebar-toggle").hover(); await shot(p, "d-toggle-hover");
-  await p.locator(".sidebar-toggle").click(); await p.waitForTimeout(600); await p.mouse.move(1100, 600); await shot(p, "d-collapsed");
-  console.log("collapsed", JSON.stringify({ toggle: await all(p, ".sidebar-toggle") }));
+  const pc = p.getByRole("button", { name: "Recolher pc-dev" });
+  await pc.hover(); await shot(p, "d-pc-hover");
+  await pc.click(); await p.waitForTimeout(600); await p.mouse.move(1100, 600); await shot(p, "d-pc-folded");
+  console.log("folded", JSON.stringify(await heads()));
+  const ag = p.locator("nav .sidebar-section-header", { hasText: "Agentes · 2" });
+  await ag.hover(); await shot(p, "d-agents-hover");
+  await ag.click(); await p.waitForTimeout(600); await p.mouse.move(1100, 600); await shot(p, "d-agents-folded");
+  console.log("agents", JSON.stringify(await heads()));
 });
 await br.close(); server.stop();

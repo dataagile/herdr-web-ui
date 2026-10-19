@@ -11,8 +11,8 @@ Série de 7 vídeos curtos (9:16, pt-BR) para a página `/ajuda` do portal. Os v
 | 3 | `devda-arquivos-modificados` | pronto | nada |
 | 4 | `devda-feedback` | roteiro e prévia (`previa/index.html`, 9 prints) | aprovação do João e render |
 | 5 | `devda-precisa-de-voce` | roteiro e prévia (`previa/index.html`, 12 quadros) | aprovação do João e render |
-| 6 | `devda-celular` | não começou (já existe `_captura/shoot-celular.ts`) | captura, roteiro e render. Mostrar o sino de Alertas |
-| 7 | `devda-barra-lateral` | não começou (já existe `_captura/shoot-barra.ts`) | captura, roteiro e render. Mostrar os Agentes dentro de cada PC (PR #20) |
+| 6 | `devda-celular` | roteiro e prévia (`previa/index.html`, 13 quadros) | aprovação do João e render |
+| 7 | `devda-barra-lateral` | roteiro e prévia (`previa/index.html`, 11 quadros) | aprovação do João e render |
 
 Os vídeos 1 a 3 já foram entregues à sessão do portal (branch `docs/ajuda-videos` do herdr-portal), que vai publicar os 7 de uma vez. Quando cada vídeo novo ficar pronto, mandar o `.mp4` e o `-poster.webp` para lá.
 
@@ -34,7 +34,7 @@ bun docs/videos-como-usar/_captura/shoot-precisa.ts docs/videos-como-usar/devda-
 python3 docs/videos-como-usar/_captura/previa-index.py devda-precisa-de-voce "Precisa de você"                    # gera previa/index.html
 ```
 
-- Os vídeos 5 a 7 usam `prep-ptbr.py` no lugar do `prep.py`: ele traduz as conversas e a pergunta "Permitir o comando?".
+- Os vídeos 5 e 6 usam `prep-ptbr.py` no lugar do `prep.py`: ele traduz as conversas e a pergunta "Permitir o comando?". O vídeo 7 usa `prep-barra.py`, que roda o `prep-ptbr.py` e acrescenta um segundo PC fictício ("notebook").
 - Na VM sem as libs gráficas (sem sudo), use o `chrome-headless-shell` do Playwright com as libs baixadas por `apt-get download` + `dpkg-deb -x` em `~/.local/share/devda-chrome-libs/root`, e `export LD_LIBRARY_PATH=~/.local/share/devda-chrome-libs/root/usr/lib/x86_64-linux-gnu`.
 - O script de captura de cada vídeo é `shoot-<nome>.ts`.
 - O `prep-<nome>.py` acrescenta as trocas de texto específicas daquele vídeo.

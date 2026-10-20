@@ -11,7 +11,7 @@
  * type; agent panes show one notice instead of a TUI. A message sent from a chat gets a demo answer.
  * What does not: files, images, push and remote PCs, which need a real machine.
  */
-import type { AgentStatus, ConversationTurn, Machine, MachineEvent, PendingMessage, ServerMessage, SessionSnapshot, UsageReport, WorkspaceCreated, WorkspaceInfo, WorktreeEntry, WorktreeListing, WorktreeOpened, WorktreeRemoved } from "../../shared/protocol.ts";
+import type { AgentStatus, ConversationTurn, Machine, MachineEvent, PendingMessage, ServerMessage, MachineResources, SessionSnapshot, UsageReport, WorkspaceCreated, WorkspaceInfo, WorktreeEntry, WorktreeListing, WorktreeOpened, WorktreeRemoved } from "../../shared/protocol.ts";
 import { VOICE_DEFAULTS, type VoiceStatus } from "../../shared/voice.ts";
 import { rollupStatus } from "../../src/lib/status.ts";
 import { CHATS, PROMPT, SPECS } from "./fixtures.ts";
@@ -317,6 +317,19 @@ function usageReport(): UsageReport {
   ] };
 }
 
+/** The workstation's line under its name: an agent busy on a build, the rest light; the CPU wobbles a little each poll. */
+function machineResources(panes: string[]): MachineResources {
+  const GB = 1024 ** 3;
+  const wobble = Math.round(Math.random() * 6);
+  return {
+    cpu: 64 + wobble,
+    memory: { used: 9.6 * GB, total: 16 * GB },
+    swap: { used: 0.4 * GB, total: 8 * GB },
+    disk: { used: 212 * GB, total: 512 * GB },
+    panes: panes.map((pane_id, index) => ({ pane_id, cpu: index === 0 ? 52 + wobble : Math.max(0, 6 - index), memory: (index === 0 ? 1.9 : 0.6 / (index + 1)) * GB })),
+  };
+}
+
 async function route(url: URL, method: string, init: RequestInit | undefined, input: RequestInfo | URL): Promise<Response> {
   const path = url.pathname;
   const query = url.searchParams;
@@ -337,6 +350,7 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
   if (path === "/api/herdr/update") return json({ supported: false, phase: "idle", server_version: null, binary_version: null, stale: false, output: null, finished_at: null }, 200, { "cache-control": "no-store" });
   if (path === "/api/access") return json({ port: 7317, tailscale: { state: "running", dns_name: "workstation.example.ts.net", serving_url: "https://workstation.example.ts.net", serve_command: null, serve_url: null } });
   if (path === "/api/usage") return json(usageReport(), 200, { "cache-control": "no-store" });
+  if (path === "/api/system/resources") return json(machineResources((query.get("panes") ?? "").split(",").filter(Boolean)), 200, { "cache-control": "no-store" });
   if (path === "/api/push" || path.startsWith("/api/push/")) return error("push_unavailable", "the demo sends no alerts", 404);
   if (path === "/api/machines/settings") return json({ auto_update_bridges: true });
   if (path.startsWith("/api/machines/")) return error("demo", "remote PCs need a real machine", 404);

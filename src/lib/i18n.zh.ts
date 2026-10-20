@@ -1003,4 +1003,15 @@ export const ZH: Record<string, string> = {
   "View": "查看",
   "Code": "代码",
   "Scripts are off in this view": "此视图中已禁用脚本",
+  // the PC's resources under its name (MachineResources.tsx)
+  "PC resources": "PC 资源",
+  "Mem": "内存",
+  "Memory": "内存",
+  "Disk": "磁盘",
+  "Swap": "交换",
+  "{name} {used} of {total}": "{name} {used} / {total}",
+  "Who is using it": "谁在占用",
+  "No project measured yet": "尚未测量任何项目",
+  "Outside projects: {size} (browser, system…)": "项目之外：{size}（浏览器、系统…）",
+  "This project: CPU {cpu} · memory {memory}": "此项目：CPU {cpu} · 内存 {memory}",
 };

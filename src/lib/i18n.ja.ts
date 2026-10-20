@@ -1001,4 +1001,15 @@ export const JA: Record<string, string> = {
   "View": "表示",
   "Code": "コード",
   "Scripts are off in this view": "この表示ではスクリプトは無効です",
+  // the PC's resources under its name (MachineResources.tsx)
+  "PC resources": "PC のリソース",
+  "Mem": "メモリ",
+  "Memory": "メモリ",
+  "Disk": "ディスク",
+  "Swap": "スワップ",
+  "{name} {used} of {total}": "{name} {total} 中 {used}",
+  "Who is using it": "使用しているもの",
+  "No project measured yet": "まだ計測したプロジェクトはありません",
+  "Outside projects: {size} (browser, system…)": "プロジェクト以外: {size}（ブラウザ、システム…）",
+  "This project: CPU {cpu} · memory {memory}": "このプロジェクト: CPU {cpu} · メモリ {memory}",
 };

@@ -981,4 +981,15 @@ export const PT: Record<string, string> = {
   "View": "Visualizar",
   "Code": "Código",
   "Scripts are off in this view": "Scripts desativados nesta visualização",
+  // the PC's resources under its name (MachineResources.tsx)
+  "PC resources": "Recursos do PC",
+  "Mem": "RAM",
+  "Memory": "Memória",
+  "Disk": "Disco",
+  "Swap": "Swap",
+  "{name} {used} of {total}": "{name} {used} de {total}",
+  "Who is using it": "Quem está consumindo",
+  "No project measured yet": "Nenhum projeto medido ainda",
+  "Outside projects: {size} (browser, system…)": "Fora dos projetos: {size} (navegador, sistema…)",
+  "This project: CPU {cpu} · memory {memory}": "Este projeto: CPU {cpu} · memória {memory}",
 };

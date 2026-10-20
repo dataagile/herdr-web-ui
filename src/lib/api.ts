@@ -31,6 +31,7 @@ import type {
   ZoomMode,
   TabCreated,
   UsageReport,
+  MachineResources,
   WorkspaceCreated,
   WorkspaceHistory,
   WorktreeListing,
@@ -52,6 +53,16 @@ export function fetchRemoteAccess(): Promise<RemoteAccess> {
 /** The sidebar's plan meters; `refresh` asks the providers again instead of the server's recent answer. */
 export function fetchUsage(refresh = false): Promise<UsageReport> {
   return getJson<UsageReport>(refresh ? "/api/usage?refresh=1" : "/api/usage");
+}
+
+/** A PC's CPU, memory, swap and disk and its panes' share; null for a bridge that predates the route. */
+export async function fetchMachineResources(machineId: string, paneIds: readonly string[]): Promise<MachineResources | null> {
+  try {
+    return await getJson<MachineResources>(machinePath(machineId, `system/resources?panes=${paneIds.map(encodeURIComponent).join(",")}`));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 export function fetchUpdateStatus(): Promise<UpdateStatus> {

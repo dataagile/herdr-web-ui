@@ -76,6 +76,8 @@ describe("ResourceService", () => {
     expect(first.panes).toEqual([{ pane_id: "p1", cpu: null, memory: expect.any(Number) }]);
     expect(first.panes[0]!.memory).toBeGreaterThan(1024 * 1024);
     now += 2_500;
+    // the clock above is the test's; the kernel's CPU counters only move with real time, in 10 ms ticks
+    for (const start = performance.now(); performance.now() - start < 50;) Math.sqrt(Math.random());
     const second = await service.read(["p1"]);
     expect(second.cpu).toEqual(expect.any(Number));
     expect(second.panes[0]!.cpu).toEqual(expect.any(Number));

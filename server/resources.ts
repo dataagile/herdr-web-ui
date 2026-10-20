@@ -11,17 +11,24 @@ const FRESH_MS = 2_000;
 const WINDOWS_TABLE_MS = 10_000;
 const WINDOWS_TIMEOUT_MS = 10_000;
 const MAX_PANES = 200;
+/** A pane herdr named no shell for is asked again after this long, not on every read. */
+const NO_SHELL_MS = 10_000;
+/** CPU over a longer gap (a page hidden for an hour) is an average, not "now": it reads as unknown instead. */
+const MAX_CPU_GAP_MS = 20_000;
 const PANE_ID = /^[\w.:-]{1,100}$/;
 // ponytail: Linux's USER_HZ is 100 on every mainstream kernel and no API outside sysconf exposes it
 const LINUX_TICK_MS = 10;
 /**
  * The page file in MB, as Win32_PageFileUsage reports it, and per process its parent, working set
- * (bytes) and CPU time (100 ns units), all as numbers.
+ * (bytes), CPU time (100 ns units) and start (ms since 1970, 0 when Windows gives none), all as numbers.
  */
-const WINDOWS_SCRIPT = "$u=0;$t=0;Get-CimInstance Win32_PageFileUsage | ForEach-Object { $u+=$_.CurrentUsage; $t+=$_.AllocatedBaseSize }; @{swap=@($u,$t); procs=@(Get-CimInstance Win32_Process | ForEach-Object { ,@($_.ProcessId, $_.ParentProcessId, [double]$_.WorkingSetSize, [double]($_.UserModeTime + $_.KernelModeTime)) })} | ConvertTo-Json -Compress -Depth 3";
+const WINDOWS_SCRIPT = "$u=0;$t=0;Get-CimInstance Win32_PageFileUsage | ForEach-Object { $u+=$_.CurrentUsage; $t+=$_.AllocatedBaseSize }; @{swap=@($u,$t); procs=@(Get-CimInstance Win32_Process | ForEach-Object { ,@($_.ProcessId, $_.ParentProcessId, [double]$_.WorkingSetSize, [double]($_.UserModeTime + $_.KernelModeTime), $(if ($_.CreationDate) { [double]([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } else { 0 })) })} | ConvertTo-Json -Compress -Depth 3";
 
-/** A process as the per-pane sums need it: CPU time in ms since it started, resident memory in bytes (null: not read yet). */
-export interface ProcessRow { pid: number; parent: number; cpuMs: number; rss: number | null }
+/**
+ * A process as the per-pane sums need it: CPU time in ms since it started, resident memory in bytes
+ * (null: not read yet), and when it started (comparable within one table only; absent when unknown).
+ */
+export interface ProcessRow { pid: number; parent: number; cpuMs: number; rss: number | null; started?: number }
 interface ProcessTable { at: number; rows: ProcessRow[]; /** per pid, share of all cores since the previous table, 0–100 */ cpu: Map<number, number> }
 
 interface CpuSample { idle: number; total: number }
@@ -51,7 +58,7 @@ export function cpuPercent(before: CpuSample, after: CpuSample): number | null {
 // ponytail: a build that starts and ends between two reads never shows; per-pane accounting needs a kernel feed (cgroups, ETW) to see it
 export function processCpu(before: ProcessTable | null, rows: readonly ProcessRow[], at: number, cores: number): Map<number, number> {
   const cpu = new Map<number, number>();
-  if (!before || at <= before.at || cores <= 0) return cpu;
+  if (!before || at <= before.at || at - before.at > MAX_CPU_GAP_MS || cores <= 0) return cpu;
   const earlier = new Map(before.rows.map((row) => [row.pid, row.cpuMs]));
   const capacity = (at - before.at) * cores;
   for (const row of rows) {
@@ -61,7 +68,11 @@ export function processCpu(before: ProcessTable | null, rows: readonly ProcessRo
   return cpu;
 }
 
-/** Every process at or below `root`, nearest first; nothing when `root` is not in the table. */
+/**
+ * Every process at or below `root`, nearest first; nothing when `root` is not in the table. A child
+ * older than its parent is not its child: Windows does not reparent orphans, so they keep naming a
+ * pid that a newer process may have been given.
+ */
 export function processTree(rows: readonly ProcessRow[], root: number): ProcessRow[] {
   const children = new Map<number, ProcessRow[]>();
   for (const row of rows) if (row.pid !== row.parent) children.set(row.parent, [...(children.get(row.parent) ?? []), row]);
@@ -69,7 +80,10 @@ export function processTree(rows: readonly ProcessRow[], root: number): ProcessR
   const seen = new Set([root]);
   for (let index = 0; index < found.length; index++) {
     for (const child of children.get(found[index]!.pid) ?? []) {
-      if (!seen.has(child.pid)) { seen.add(child.pid); found.push(child); }
+      const parent = found[index]!;
+      if (seen.has(child.pid) || (child.started !== undefined && parent.started !== undefined && child.started < parent.started)) continue;
+      seen.add(child.pid);
+      found.push(child);
     }
   }
   return found;
@@ -89,9 +103,9 @@ export function parseMeminfo(text: string): { memory: ResourceMeter | null; swap
 /** A /proc/<pid>/stat line; the command name may hold spaces and parentheses, so fields count from its last `)`. */
 export function parseProcStat(pid: number, text: string): ProcessRow | null {
   const fields = text.slice(text.lastIndexOf(")") + 2).split(" ");
-  const parent = Number(fields[1]), utime = Number(fields[11]), stime = Number(fields[12]);
+  const parent = Number(fields[1]), utime = Number(fields[11]), stime = Number(fields[12]), start = Number(fields[19]);
   if (!Number.isFinite(parent) || !Number.isFinite(utime) || !Number.isFinite(stime)) return null;
-  return { pid, parent, cpuMs: (utime + stime) * LINUX_TICK_MS, rss: null };
+  return { pid, parent, cpuMs: (utime + stime) * LINUX_TICK_MS, rss: null, ...(Number.isFinite(start) ? { started: start * LINUX_TICK_MS } : {}) };
 }
 
 /** WINDOWS_SCRIPT's answer; null for anything it could not have printed. */
@@ -103,9 +117,9 @@ export function parseWindowsTable(text: string): { swap: ResourceMeter | null; r
   const mb = 1024 * 1024;
   const pageFile = Array.isArray(swap) && typeof swap[0] === "number" && typeof swap[1] === "number" && swap[1] > 0 ? { used: swap[0] * mb, total: swap[1] * mb } : null;
   const rows = (Array.isArray(procs) ? procs : []).flatMap((entry): ProcessRow[] => {
-    if (!Array.isArray(entry) || entry.length !== 4 || !entry.every((item) => typeof item === "number")) return [];
-    const [pid, parent, rss, cpu100ns] = entry as number[];
-    return [{ pid: pid!, parent: parent!, rss: rss!, cpuMs: cpu100ns! / 10_000 }];
+    if (!Array.isArray(entry) || entry.length < 4 || entry.length > 5 || !entry.every((item) => typeof item === "number")) return [];
+    const [pid, parent, rss, cpu100ns, started] = entry as number[];
+    return [{ pid: pid!, parent: parent!, rss: rss!, cpuMs: cpu100ns! / 10_000, ...(started ? { started } : {}) }];
   });
   return { swap: pageFile, rows };
 }
@@ -135,7 +149,6 @@ async function herdrShellPid(paneId: string): Promise<number | null> {
 
 export interface ResourceOptions {
   platform?: string;
-  home?: string;
   now?: () => number;
   /** the pane's shell, from herdr's `pane.process_info`; tests pass their own */
   shellPid?: (paneId: string) => Promise<number | null>;
@@ -147,22 +160,21 @@ interface Reading { at: number; pc: Omit<MachineResources, "panes">; table: Proc
 
 /** CPU, memory, swap and disk of this PC, and CPU and memory of the panes asked for, as numbers only. */
 export class ResourceService {
-  private lastCpu: CpuSample | null = null;
+  private lastCpu: { at: number; sample: CpuSample } | null = null;
   private reading: Reading | null = null;
   private pendingReading: Promise<Reading> | null = null;
   private linuxTable: ProcessTable | null = null;
   private windows: { at: number; swap: ResourceMeter | null; table: ProcessTable | null } | null = null;
   // one PowerShell at a time: every caller of a slow read shares it
   private pendingWindows: Promise<void> | null = null;
-  private readonly shells = new Map<string, number>();
+  /** per pane its shell, with the shell's start so a pid handed to a newer process is not mistaken for it; a null pid is "herdr named none" */
+  private readonly shells = new Map<string, { pid: number | null; started?: number; at: number }>();
   private readonly pendingShells = new Map<string, Promise<number | null>>();
   private readonly platform: string;
-  private readonly home: string;
   private readonly now: () => number;
 
   constructor(private readonly options: ResourceOptions = {}) {
     this.platform = options.platform ?? process.platform;
-    this.home = options.home ?? homedir();
     this.now = options.now ?? Date.now;
   }
 
@@ -180,9 +192,10 @@ export class ResourceService {
 
   private async takeReading(): Promise<Reading> {
     const sample = cpuSample();
-    // since the last reading; the first one has nothing to compare with and says so
-    const cpu = this.lastCpu ? cpuPercent(this.lastCpu, sample) : null;
-    this.lastCpu = sample;
+    const at = this.now();
+    // since the last reading; the first one, or one after a long gap, has no "now" to say and says null
+    const cpu = this.lastCpu && at - this.lastCpu.at <= MAX_CPU_GAP_MS ? cpuPercent(this.lastCpu.sample, sample) : null;
+    this.lastCpu = { at, sample };
     const [memory, disk, table] = await Promise.all([this.memory(), this.disk(), this.processTable()]);
     return { at: this.now(), pc: { cpu, ...memory, disk }, table };
   }
@@ -197,7 +210,7 @@ export class ResourceService {
 
   private async disk(): Promise<ResourceMeter | null> {
     try {
-      const stats = await statfs(this.home);
+      const stats = await statfs(homedir());
       const total = stats.blocks * stats.bsize;
       return total > 0 ? { used: total - stats.bavail * stats.bsize, total } : null;
     } catch { return null; }
@@ -239,13 +252,14 @@ export class ResourceService {
 
   private async shellPid(paneId: string, table: ProcessTable): Promise<number | null> {
     const known = this.shells.get(paneId);
-    // a shell that left the table belonged to a pane that restarted: ask herdr again
-    if (known !== undefined && table.rows.some((row) => row.pid === known)) return known;
+    if (known?.pid === null && this.now() - known.at < NO_SHELL_MS) return null;
+    // a shell that left the table (or whose pid a newer process now holds) belonged to a pane that restarted: ask herdr again
+    if (known && known.pid !== null && table.rows.some((row) => row.pid === known.pid && row.started === known.started)) return known.pid;
     // two clients asking at once share the one RPC
     let pending = this.pendingShells.get(paneId);
     if (!pending) {
       pending = (this.options.shellPid ?? herdrShellPid)(paneId).then((pid) => {
-        if (pid === null) this.shells.delete(paneId); else this.shells.set(paneId, pid);
+        this.shells.set(paneId, { pid, started: table.rows.find((row) => row.pid === pid)?.started, at: this.now() });
         return pid;
       }).finally(() => this.pendingShells.delete(paneId));
       this.pendingShells.set(paneId, pending);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type { MachineResources, SessionSnapshot } from "../../shared/protocol.ts";
+import { fetchMachineResources } from "./api.ts";
 import { formatSize, isHeavy, meterPercent, outsideProjects, projectLoads } from "./resources.ts";
 
 const GB = 1024 ** 3;
@@ -54,5 +55,24 @@ describe("resources", () => {
     expect(formatSize(1.8 * GB, "pt-BR")).toBe("1,8 GB");
     expect(meterPercent({ used: 1, total: 3 })).toBe(33);
     expect(meterPercent(null)).toBeNull();
+  });
+});
+
+describe("fetchMachineResources", () => {
+  const answer = (status: number) => async () => Response.json({ error: { code: status === 404 ? "not_found" : "unauthorized", message: "x" } }, { status });
+  const real = globalThis.fetch;
+
+  it("reads an older remote bridge's 401 or 403 as no such route, so the PC stops being asked", async () => {
+    try {
+      for (const status of [401, 403, 404]) {
+        globalThis.fetch = answer(status) as unknown as typeof fetch;
+        expect(await fetchMachineResources("pc-old", ["p1"])).toBeNull();
+      }
+      // on this PC a 401 is a signed-out client, not a missing route
+      globalThis.fetch = answer(401) as unknown as typeof fetch;
+      await expect(fetchMachineResources("local", [])).rejects.toThrow();
+      globalThis.fetch = answer(500) as unknown as typeof fetch;
+      await expect(fetchMachineResources("pc-old", [])).rejects.toThrow();
+    } finally { globalThis.fetch = real; }
   });
 });

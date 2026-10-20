@@ -71,6 +71,8 @@ export interface ResourcesState {
 export function useMachineResources(machineId: string, online: boolean, snapshot: SessionSnapshot | null): ResourcesState {
   const [state, setState] = useState<ResourcesState & { machineId: string }>({ machineId, resources: null, supported: true });
   const visible = usePageVisible();
+  // a PC that reconnects may be running a newer bridge: ask it again
+  useEffect(() => { if (!online) setState((current) => (current.supported ? current : { ...current, supported: true })); }, [online]);
   const panes = useMemo(() => (snapshot?.panes ?? []).map((pane) => pane.pane_id).sort().join(","), [snapshot]);
 
   useEffect(() => {

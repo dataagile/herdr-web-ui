@@ -21,12 +21,16 @@ describe("resource parsers", () => {
 
   it("counts /proc stat fields from the command name's last parenthesis", () => {
     const line = "42 (tmux: (server) x) S 7 42 42 0 -1 4194560 100 0 0 0 250 50 0 0 20 0 1 0 100 1000 200";
-    expect(parseProcStat(42, line)).toEqual({ pid: 42, parent: 7, cpuMs: 3000, rss: null });
+    expect(parseProcStat(42, line)).toEqual({ pid: 42, parent: 7, cpuMs: 3000, rss: null, started: 1000 });
   });
 
   it("reads the Windows script's numbers and drops anything else", () => {
     const text = JSON.stringify({ swap: [512, 2048], procs: [[4, 0, 1048576, 20_000_000], [8, 4, "x", 1], [9, 4]] });
     expect(parseWindowsTable(text)).toEqual({ swap: { used: 512 * 1048576, total: 2048 * 1048576 }, rows: [{ pid: 4, parent: 0, rss: 1048576, cpuMs: 2000 }] });
+    // the start, when Windows gives one
+    expect(parseWindowsTable(JSON.stringify({ swap: [0, 0], procs: [[4, 0, 0, 0, 1700000000000], [5, 4, 0, 0, 0]] }))?.rows).toEqual([
+      { pid: 4, parent: 0, rss: 0, cpuMs: 0, started: 1700000000000 }, { pid: 5, parent: 4, rss: 0, cpuMs: 0 },
+    ]);
     expect(parseWindowsTable("not json")).toBeNull();
     expect(parseWindowsTable(JSON.stringify({ swap: [0, 0], procs: [] }))?.swap).toBeNull();
   });
@@ -44,12 +48,17 @@ describe("resource parsers", () => {
     expect(cpu.get(2)).toBe(10);
     expect(cpu.has(3)).toBe(false);
     expect(processCpu(null, [row(1, 0)], 1000, 4).size).toBe(0);
+    // after a long gap (a page hidden for a while) the average says nothing about now
+    expect(processCpu(before, [row(1, 0, 3000)], 60_000, 4).size).toBe(0);
   });
 
   it("walks a shell's descendants and nothing beside it", () => {
     const rows = [row(1, 0), row(10, 1), row(11, 10), row(12, 11), row(20, 1), row(13, 10)];
     expect(processTree(rows, 10).map((r) => r.pid)).toEqual([10, 11, 13, 12]);
     expect(processTree(rows, 99)).toEqual([]);
+    // Windows keeps an orphan's parent pid: one older than the shell that now holds that pid is not its child
+    const reused = [{ ...row(10, 1), started: 500 }, { ...row(11, 10), started: 100 }, { ...row(12, 10), started: 600 }];
+    expect(processTree(reused, 10).map((r) => r.pid)).toEqual([10, 12]);
   });
 });
 
@@ -78,6 +87,18 @@ describe("ResourceService", () => {
     expect(a.cpu).toBe(b.cpu);
     // the pane's shell is asked for once and kept while it is in the table
     if (process.platform === "linux") expect(asked).toBe(1);
+  });
+
+  it("asks herdr again for a pane with no shell only after a while", async () => {
+    let now = 0, asked = 0;
+    const service = new ResourceService({ platform: "linux", now: () => now, shellPid: async () => { asked++; return null; } });
+    await service.read(["p"]);
+    now += 2_500;
+    await service.read(["p"]);
+    expect(asked).toBe(1);
+    now += 10_000;
+    await service.read(["p"]);
+    expect(asked).toBe(2);
   });
 
   it("refuses pane IDs that are not IDs and caps how many", async () => {

@@ -1,4 +1,4 @@
-import { machinePath, type BridgeHealth, type HerdrIdentity, type Machine, type SetupAction, type SetupJob, type SetupRequest } from "../../shared/machines.ts";
+import { LOCAL_MACHINE, machinePath, type BridgeHealth, type HerdrIdentity, type Machine, type SetupAction, type SetupJob, type SetupRequest } from "../../shared/machines.ts";
 import type {
   ChangedFileDiff,
   ChangedFilesResponse,
@@ -55,12 +55,15 @@ export function fetchUsage(refresh = false): Promise<UsageReport> {
   return getJson<UsageReport>(refresh ? "/api/usage?refresh=1" : "/api/usage");
 }
 
-/** A PC's CPU, memory, swap and disk and its panes' share; null for a bridge that predates the route. */
+/**
+ * A PC's CPU, memory, swap and disk and its panes' share; null for a bridge that predates the route.
+ * An older remote bridge does not take the route as a bridge route, so it answers 401 or 403 instead of 404.
+ */
 export async function fetchMachineResources(machineId: string, paneIds: readonly string[]): Promise<MachineResources | null> {
   try {
     return await getJson<MachineResources>(machinePath(machineId, `system/resources?panes=${paneIds.map(encodeURIComponent).join(",")}`));
   } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null;
+    if (error instanceof ApiError && (error.status === 404 || (machineId !== LOCAL_MACHINE && (error.status === 401 || error.status === 403)))) return null;
     throw error;
   }
 }

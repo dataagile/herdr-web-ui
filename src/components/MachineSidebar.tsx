@@ -15,7 +15,7 @@ import { AgentSidebar } from "./AgentSidebar.tsx";
 import { SidebarActivityProvider, useSidebarActivityState } from "../lib/sidebarActivity.tsx";
 import { UsageMeters } from "./UsageMeters.tsx";
 import { HeavyProject, MachineResources } from "./MachineResources.tsx";
-import { projectLoads, useMachineResources } from "../lib/resources.ts";
+import { isHeavy, projectLoads, useMachineResources } from "../lib/resources.ts";
 import "./Machines.css";
 import { useT } from "../lib/i18n.ts";
 
@@ -122,7 +122,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
     {/* outside the fold: a waiting agent is never hidden by a collapsed PC */}
     <NeedsInput machine={machine} waiting={waiting} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} onSelect={props.onSelect} />
     {!collapsed && <div className={online ? "" : "machine-offline"} {...(!online ? { inert: "" } : {})}>
-      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} projectNote={(workspaceId) => { const load = loadByWorkspace.get(workspaceId); return load ? <HeavyProject load={load} memoryTotal={resources?.memory?.total} /> : null; }} agents={<AgentSidebar machine={machine} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(m) => t(STATE_WORD[m.state])} onSelect={props.onSelect} />} /></MachineContext.Provider>}
+      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} projectNote={(workspaceId) => { const load = loadByWorkspace.get(workspaceId); return load && isHeavy(load, resources?.memory?.total) ? <HeavyProject load={load} /> : null; }} agents={<AgentSidebar machine={machine} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(m) => t(STATE_WORD[m.state])} onSelect={props.onSelect} />} /></MachineContext.Provider>}
     </div>}
   </section>;
 }

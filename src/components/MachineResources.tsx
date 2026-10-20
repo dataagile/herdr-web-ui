@@ -5,7 +5,7 @@ import "./MachineResources.css";
 
 import type { MachineResources as Resources, ResourceMeter } from "../../shared/protocol.ts";
 import { useT } from "../lib/i18n.ts";
-import { formatSize, HEAVY_CPU, HIGH_PERCENT, isHeavy, meterPercent, outsideProjects, type ProjectLoad } from "../lib/resources.ts";
+import { formatSize, HEAVY_CPU, HIGH_PERCENT, meterPercent, outsideProjects, type ProjectLoad } from "../lib/resources.ts";
 import { AgentMark } from "./AgentMark.tsx";
 
 /** How many projects the list names before it stops. */
@@ -85,10 +85,9 @@ export function MachineResources({ resources, loads, onSelect }: { resources: Re
   );
 }
 
-/** The project row's warning: what makes it heavy, CPU first, else memory. */
-export function HeavyProject({ load, memoryTotal }: { load: ProjectLoad; memoryTotal: number | undefined }) {
+/** A heavy project's warning (`isHeavy`): what makes it heavy, CPU first, else memory. */
+export function HeavyProject({ load }: { load: ProjectLoad }) {
   const t = useT();
-  if (!isHeavy(load, memoryTotal)) return null;
   const text = (load.cpu ?? 0) >= HEAVY_CPU ? `${load.cpu}%` : formatSize(load.memory);
   return (
     <span className="resource-heavy" title={t("This project: CPU {cpu} · memory {memory}", { cpu: load.cpu === null ? "—" : `${load.cpu}%`, memory: formatSize(load.memory) })}>

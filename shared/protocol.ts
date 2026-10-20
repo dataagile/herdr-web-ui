@@ -151,6 +151,9 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *  DELETE /api/push/subscribe { endpoint }      -> 204
  *  POST   /api/push/test      { endpoint }      -> 204 | 404 subscription_not_found | 502 push_failed
  *  GET    /api/usage[?refresh=1]         -> UsageReport (plan limits of the AI subscriptions signed in on this PC)
+ *  GET    /api/system/resources[?panes=a,b] -> MachineResources (this PC's CPU, memory, swap and disk, and CPU and
+ *         memory of each listed pane's process tree; numbers and the pane IDs asked for only. A bridge route, also
+ *         through /api/machines/<id>/; one reading serves every client for 2 s, Windows' for 10 s)
  *  Errors: non-2xx with { error: { code, message } }
  *
  *  Access: every route above except /api/health, /api/auth and /api/devices/pair, plus the
@@ -207,6 +210,25 @@ export interface ProviderUsage {
   readonly problem: UsageProblem | null;
   /** ISO 8601 time `windows` were read; null when they never were */
   readonly checked_at: string | null;
+}
+
+/** Bytes in use and in all. */
+export interface ResourceMeter { used: number; total: number }
+
+/** One pane's shell and everything below it: `cpu` is a share of the whole PC, like `MachineResources.cpu`. */
+export interface PaneResources { pane_id: string; cpu: number | null; memory: number }
+
+/**
+ * GET /api/system/resources. `cpu` is the busy share of all cores, 0–100, since the previous reading;
+ * the first reading after a start has none and says null, as does a pane's. A meter this PC cannot read is
+ * null (swap on macOS, a page file Windows did not report). `panes` lists only panes whose shell was found.
+ */
+export interface MachineResources {
+  cpu: number | null;
+  memory: ResourceMeter | null;
+  swap: ResourceMeter | null;
+  disk: ResourceMeter | null;
+  panes: PaneResources[];
 }
 
 /** GET /api/usage: only providers a CLI on this PC is signed in to are listed, once per account. */

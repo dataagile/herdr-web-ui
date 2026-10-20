@@ -72,6 +72,7 @@ export function useMachineResources(machineId: string, online: boolean, snapshot
   const [state, setState] = useState<ResourcesState & { machineId: string }>({ machineId, resources: null, supported: true });
   const visible = usePageVisible();
   // a PC that reconnects may be running a newer bridge: ask it again
+  // ponytail: a passing 401 (a rotated token) or a reconnect this client never saw as offline leaves the line off until a reload; retry with a backoff if that bites
   useEffect(() => { if (!online) setState((current) => (current.supported ? current : { ...current, supported: true })); }, [online]);
   const panes = useMemo(() => (snapshot?.panes ?? []).map((pane) => pane.pane_id).sort().join(","), [snapshot]);
 

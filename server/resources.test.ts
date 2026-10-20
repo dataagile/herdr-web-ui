@@ -50,6 +50,8 @@ describe("resource parsers", () => {
     expect(processCpu(null, [row(1, 0)], 1000, 4).size).toBe(0);
     // after a long gap (a page hidden for a while) the average says nothing about now
     expect(processCpu(before, [row(1, 0, 3000)], 60_000, 4).size).toBe(0);
+    // Windows' tables are 10–25 s apart on a busy PC: that is still "now" there
+    expect(processCpu(before, [row(1, 0, 3000)], 24_000, 4, 25_000).get(1)).toBeCloseTo(2.08, 1);
   });
 
   it("walks a shell's descendants and nothing beside it", () => {
@@ -120,6 +122,17 @@ describe("ResourceService", () => {
     // fresh for 10 s: nothing new runs
     await service.windowsTable();
     expect(readFileSync(log, "utf8").trim().split("\n")).toHaveLength(1);
+  });
+
+  it("keeps a Windows process's CPU across tables 22 s apart, as a busy PC spaces them", async () => {
+    const counter = join(root, "tables.count");
+    let now = 0;
+    const service = new ResourceService({ platform: "win32", now: () => now, windowsCommand: ["sh", "-c", `n=$(cat ${counter} 2>/dev/null || echo 0); n=$((n+1)); echo $n > ${counter}; echo "{\\"swap\\":[0,0],\\"procs\\":[[1,0,0,$((n*10000000))]]}"`] });
+    await service.windowsTable();
+    now = 22_000;
+    await service.windowsTable(); // stale: answered at once while the next table is read
+    while ((service as unknown as { pendingWindows: Promise<void> | null }).pendingWindows) await (service as unknown as { pendingWindows: Promise<void> }).pendingWindows;
+    expect((await service.windowsTable()).table?.cpu.has(1)).toBe(true);
   });
 
   it("gives up on a PowerShell that stalls, within its deadline", async () => {

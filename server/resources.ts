@@ -15,6 +15,8 @@ const MAX_PANES = 200;
 const NO_SHELL_MS = 10_000;
 /** CPU over a longer gap (a page hidden for an hour) is an average, not "now": it reads as unknown instead. */
 const MAX_CPU_GAP_MS = 20_000;
+/** Two PowerShell tables sit up to the cache, a stalled run and a client's 5 s poll apart, even on a PC that is busy. */
+const WINDOWS_MAX_CPU_GAP_MS = WINDOWS_TABLE_MS + WINDOWS_TIMEOUT_MS + 5_000;
 const PANE_ID = /^[\w.:-]{1,100}$/;
 // ponytail: Linux's USER_HZ is 100 on every mainstream kernel and no API outside sysconf exposes it
 const LINUX_TICK_MS = 10;
@@ -56,9 +58,9 @@ export function cpuPercent(before: CpuSample, after: CpuSample): number | null {
  * sum sits on the same scale as the PC's line. A process the earlier table did not have counts 0.
  */
 // ponytail: a build that starts and ends between two reads never shows; per-pane accounting needs a kernel feed (cgroups, ETW) to see it
-export function processCpu(before: ProcessTable | null, rows: readonly ProcessRow[], at: number, cores: number): Map<number, number> {
+export function processCpu(before: ProcessTable | null, rows: readonly ProcessRow[], at: number, cores: number, maxGapMs = MAX_CPU_GAP_MS): Map<number, number> {
   const cpu = new Map<number, number>();
-  if (!before || at <= before.at || at - before.at > MAX_CPU_GAP_MS || cores <= 0) return cpu;
+  if (!before || at <= before.at || at - before.at > maxGapMs || cores <= 0) return cpu;
   const earlier = new Map(before.rows.map((row) => [row.pid, row.cpuMs]));
   const capacity = (at - before.at) * cores;
   for (const row of rows) {
@@ -246,7 +248,7 @@ export class ResourceService {
       if (code === 0) parsed = parseWindowsTable(out);
     } catch { /* answered as unknown below */ }
     const at = this.now();
-    const table = parsed && parsed.rows.length > 0 ? { at, rows: parsed.rows, cpu: processCpu(this.windows?.table ?? null, parsed.rows, at, cpus().length) } : null;
+    const table = parsed && parsed.rows.length > 0 ? { at, rows: parsed.rows, cpu: processCpu(this.windows?.table ?? null, parsed.rows, at, cpus().length, WINDOWS_MAX_CPU_GAP_MS) } : null;
     this.windows = { at, swap: parsed?.swap ?? null, table };
   }
 

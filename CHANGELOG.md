@@ -13,6 +13,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   used outside them, and a project that weighs on the PC (half its CPU or a quarter of its memory) shows a warning on
   its row. Linux reads `/proc`, Windows one PowerShell query at a time (page file and process table, every 10 s);
   remote PCs answer through their own bridge (`GET /api/system/resources`), and an older bridge shows no line.
+  ([#22](https://github.com/dataagile/herdr-web-ui/pull/22))
 - Behind the Data Agile portal, the portal can name the local PC for its user (`pc.name` in `/api/portal/me`) and turn
   adding PCs off for them (`pc.add_pc: false`). With it off, Add PC (sidebar footer, command palette, Settings →
   Remote PCs) and every control that starts a PC setup (Reconnect / setup, Update bridge…, Set up…, Sign in and

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Download, LogOut, Monitor, Settings, SlidersHorizontal, X } from "lucide-react";
 import type { Machine, MachineState, MachineUpdate } from "../../shared/machines.ts";
 import { MachineContext } from "../lib/machineContext.tsx";
@@ -14,6 +14,8 @@ import { panesNeedingYou, type PaneNeedingYou } from "../lib/needsInput.ts";
 import { AgentSidebar } from "./AgentSidebar.tsx";
 import { SidebarActivityProvider, useSidebarActivityState } from "../lib/sidebarActivity.tsx";
 import { UsageMeters } from "./UsageMeters.tsx";
+import { HeavyProject, MachineResources } from "./MachineResources.tsx";
+import { isHeavy, projectLoads, useMachineResources } from "../lib/resources.ts";
 import "./Machines.css";
 import { useT } from "../lib/i18n.ts";
 
@@ -68,6 +70,9 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const online = machine.state === "connected";
+  const { resources, supported } = useMachineResources(machine.id, online, machine.snapshot);
+  const loads = useMemo(() => projectLoads(machine.snapshot, resources), [machine.snapshot, resources]);
+  const loadByWorkspace = useMemo(() => new Map(loads.map((load) => [load.workspaceId, load])), [loads]);
   // one request at a time: a double-clicked Disconnect/Connect can otherwise race and leave this
   // UI's idea of the state opposite the server's until the next refetch
   const [busy, setBusy] = useState(false);
@@ -105,6 +110,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
       <span className="machine-state-word">{t(STATE_WORD[machine.state])}</span>
       {machine.error && <span className="machine-state-detail">{machine.error}</span>}
     </p>}
+    {supported && resources && <MachineResources resources={resources} loads={loads} onSelect={(paneId) => props.onSelect(machine.id, paneId)} />}
     {editing && <div className="machine-controls">
       <form onSubmit={(e) => { e.preventDefault(); void mutate("PATCH", { name }); }}><label className="field"><span className="field-label">{t("PC name")}</span><input className="input" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} /></label><button className="btn" type="submit" disabled={busy}>{t("Rename")}</button></form>
       {/* the first click only arms the removal, so it does not look destructive; the second one
@@ -116,7 +122,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
     {/* outside the fold: a waiting agent is never hidden by a collapsed PC */}
     <NeedsInput machine={machine} waiting={waiting} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} onSelect={props.onSelect} />
     {!collapsed && <div className={online ? "" : "machine-offline"} {...(!online ? { inert: "" } : {})}>
-      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} agents={<AgentSidebar machine={machine} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(m) => t(STATE_WORD[m.state])} onSelect={props.onSelect} />} /></MachineContext.Provider>}
+      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} projectNote={(workspaceId) => { const load = loadByWorkspace.get(workspaceId); return load && isHeavy(load, resources?.memory?.total) ? <HeavyProject load={load} /> : null; }} agents={<AgentSidebar machine={machine} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(m) => t(STATE_WORD[m.state])} onSelect={props.onSelect} />} /></MachineContext.Provider>}
     </div>}
   </section>;
 }

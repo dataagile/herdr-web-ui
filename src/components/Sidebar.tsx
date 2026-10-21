@@ -147,13 +147,15 @@ export interface SidebarProps {
   machineName?: string;
   /** This PC's Agents list; it sits between Projects and History. */
   agents?: ReactNode;
+  /** A project's resource warning, drawn before its folder name (MachineResources.tsx). */
+  projectNote?: (workspaceId: string) => ReactNode;
 }
 
 /**
  * Spaces follow herdr's workspace roster. A workspace opens its current pane; tabs and split
  * panes are navigated through the tab strip, while Agents is an independent API-backed list.
  */
-export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName, agents: agentsList }: SidebarProps) {
+export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName, agents: agentsList, projectNote }: SidebarProps) {
   const t = useT();
   const { settings } = useSettings();
   const twoLine = settings.sidebarRows === "two";
@@ -538,6 +540,7 @@ export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName
     // a checkout that waits or has finished must not hide behind the fold
     const statusPanes = collapsed ? [...panes, ...children.flatMap((child) => roster.filter((candidate) => candidate.workspace_id === child.workspace_id))] : panes;
     // on two lines the row says what its pane is doing, and the workspace it has named until now sits under that
+    const note = online ? projectNote?.(workspace.workspace_id) : null;
     const lines = twoLine ? taskRowLines({ paneTitle: displayPaneTitle(pane), labelled: Boolean(pane.label?.trim()), folder: cwdBasename(pane.cwd), workspace: rowTitle, alias: secondaryBranch }) : null;
     // a folded group still shows the checkout that is open; the count is of the ones put away
     const foldedCount = collapsed ? children.filter((child) => !roster.some((candidate) => candidate.workspace_id === child.workspace_id && candidate.pane_id === selectedPaneId)).length : 0;
@@ -621,9 +624,10 @@ export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName
               <span className="workspace-name">{lines.title}</span>
               {foldedCount > 0 && <span className="workspace-fold-count" aria-hidden="true">+{foldedCount}</span>}
             </span>
-            {lines.place && <span className="workspace-place">{lines.place}</span>}
+            {(lines.place || note) && <span className="workspace-place">{note}{lines.place}</span>}
           </span> : <span className="workspace-copy">
             <span className="workspace-name">{rowTitle}</span>
+            {note}
             {secondaryBranch && <span className="worktree-workspace-label">{secondaryBranch}</span>}
             {foldedCount > 0 && <span className="workspace-fold-count" aria-hidden="true">+{foldedCount}</span>}
           </span>}

@@ -999,4 +999,15 @@ export const KO: Record<string, string> = {
   "View": "보기",
   "Code": "코드",
   "Scripts are off in this view": "이 보기에서는 스크립트가 꺼져 있습니다",
+  // the PC's resources under its name (MachineResources.tsx)
+  "PC resources": "PC 리소스",
+  "Mem": "메모리",
+  "Memory": "메모리",
+  "Disk": "디스크",
+  "Swap": "스왑",
+  "{name} {used} of {total}": "{name} {total} 중 {used}",
+  "Who is using it": "사용 중인 항목",
+  "No project measured yet": "아직 측정된 프로젝트가 없습니다",
+  "Outside projects: {size} (browser, system…)": "프로젝트 외: {size} (브라우저, 시스템…)",
+  "This project: CPU {cpu} · memory {memory}": "이 프로젝트: CPU {cpu} · 메모리 {memory}",
 };

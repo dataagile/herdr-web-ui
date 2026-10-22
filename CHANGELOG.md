@@ -16,7 +16,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   ([#22](https://github.com/dataagile/herdr-web-ui/pull/22))
 - Each row of the Agents list shows the memory its agent uses (its pane's shell and everything under it), and the CPU
   in red with a warning once that one agent weighs on the PC, by the same thresholds as a project. The tooltip has
-  both.
+  both. ([#23](https://github.com/dataagile/herdr-web-ui/pull/23))
 - Behind the Data Agile portal, the portal can name the local PC for its user (`pc.name` in `/api/portal/me`) and turn
   adding PCs off for them (`pc.add_pc: false`). With it off, Add PC (sidebar footer, command palette, Settings →
   Remote PCs) and every control that starts a PC setup (Reconnect / setup, Update bridge…, Set up…, Sign in and

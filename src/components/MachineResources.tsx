@@ -96,7 +96,7 @@ export function HeavyProject({ load }: { load: ProjectLoad }) {
   );
 }
 
-/** What one agent's pane uses, on its row: the memory, with the CPU and in the blocked color once it is heavy (`isHeavy`). */
+/** What one agent's pane uses, on its row: CPU and memory, in the blocked color once it is heavy (`isHeavy`). */
 export function AgentResources({ reading, heavy }: { reading: PaneResources; heavy: boolean }) {
   const t = useT();
   // a pane's processes are summed, each one clamped: the sum can pass 100, as projectLoads also caps
@@ -106,7 +106,7 @@ export function AgentResources({ reading, heavy }: { reading: PaneResources; hea
   return (
     <span className={`resource-agent${heavy ? " is-heavy" : ""}`} title={sentence}>
       <span className="visually-hidden">{sentence}</span>
-      <span aria-hidden="true">{heavy && <TriangleAlert />}{(value ?? 0) >= HEAVY_CPU ? `${cpu} · ` : ""}{formatSize(reading.memory)}</span>
+      <span aria-hidden="true">{heavy && <TriangleAlert />}{value === null ? "" : `${cpu} · `}{formatSize(reading.memory)}</span>
     </span>
   );
 }

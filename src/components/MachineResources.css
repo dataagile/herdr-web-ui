@@ -39,7 +39,8 @@
 
 .machine-resource-value,
 .resource-project-value,
-.resource-heavy {
+.resource-heavy,
+.resource-agent {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -133,8 +134,10 @@
   font-size: var(--fs-2xs);
 }
 
-/* in the project row, before the folder name: it is the part that must not be cut */
-.resource-heavy {
+/* in the project row, before the folder name: it is the part that must not be cut; an agent's row
+   leads its context line with its own use the same way, in the line's color until it is heavy */
+.resource-heavy,
+.resource-agent {
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -144,7 +147,11 @@
   font-size: var(--fs-2xs);
 }
 
-.resource-heavy svg {
+.resource-agent { margin-right: var(--space-2); }
+.resource-agent:not(.is-heavy) { color: inherit; }
+
+.resource-heavy svg,
+.resource-agent svg {
   width: 12px;
   height: 12px;
 }

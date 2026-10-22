@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { Terminal } from "lucide-react";
 
 import type { Machine } from "../../shared/machines.ts";
@@ -21,18 +21,20 @@ interface AgentRowBodyProps {
   context: string;
   backgroundTasks?: number;
   status?: AgentStatus;
+  /** what the pane uses (MachineResources.tsx), leading the context line */
+  note?: ReactNode;
 }
 
 /**
  * One agent in a list: the coding agent's mark, what it is working on, who and where it is, and
  * how it is doing.
  */
-function AgentRowBody({ mark, title, context, backgroundTasks, status }: AgentRowBodyProps) {
+function AgentRowBody({ mark, title, context, backgroundTasks, status, note }: AgentRowBodyProps) {
   return <>
     <span className="sidebar-mark" aria-hidden="true">{mark !== null ? <AgentMark agent={mark} size={18} /> : <Terminal />}</span>
     <span className="agent-copy">
       <span className="agent-title">{title}</span>
-      {context && <span className="agent-context">{context}</span>}
+      {(context || note) && <span className="agent-context">{note}{context}</span>}
     </span>
     <span className="agent-row-status"><BackgroundBadge count={backgroundTasks} /><StatusBadge status={status} compact /></span>
   </>;
@@ -45,6 +47,8 @@ export interface AgentSidebarProps {
   /** a PC's state in words, for the tooltip of a row whose PC is not connected */
   stateWord(machine: Machine): string;
   onSelect(machineId: string, paneId: string): void;
+  /** a pane's resource use, drawn on its row while the PC is connected */
+  paneNote?: (paneId: string) => ReactNode;
 }
 
 /** the width under which the sidebar is a drawer (src/styles.css) */
@@ -54,7 +58,7 @@ const DRAWER_QUERY = "(max-width: 768px)";
  * One PC's live agents, drawn inside that PC between Projects and History: the project folds do
  * not hide these rows, the PC's own fold does. In the phone's drawer the list starts folded.
  */
-export function AgentSidebar({ machine, selectedMachineId, selectedPaneId, stateWord, onSelect }: AgentSidebarProps) {
+export function AgentSidebar({ machine, selectedMachineId, selectedPaneId, stateWord, onSelect, paneNote }: AgentSidebarProps) {
   const t = useT();
   const listId = useId();
   const foldKey = `herdr-web-ui:sidebar-section:${machine.id}:agents`;
@@ -96,7 +100,7 @@ export function AgentSidebar({ machine, selectedMachineId, selectedPaneId, state
           return <li className={`agent-item${selected ? " is-selected" : ""}${online ? "" : " is-offline"}`} key={paneStorageId(machine.id, pane.pane_id)} data-machine={machine.id} data-pane={pane.pane_id}>
             <button type="button" className="agent-select agent-row" disabled={!online} aria-current={selected ? "true" : undefined} title={tooltip} onClick={() => onSelect(machine.id, pane.pane_id)}>
               {/* a saved roster's state is not news: a PC that is away says nothing about its agents */}
-              <AgentRowBody mark={paneMark(entry)} title={title} context={context} backgroundTasks={online ? pane.background_tasks : 0} status={online ? activity.status(machine.id, pane) : undefined} />
+              <AgentRowBody mark={paneMark(entry)} title={title} context={context} backgroundTasks={online ? pane.background_tasks : 0} status={online ? activity.status(machine.id, pane) : undefined} note={online ? paneNote?.(pane.pane_id) : null} />
             </button>
           </li>;
         })}

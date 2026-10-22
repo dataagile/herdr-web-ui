@@ -14,7 +14,7 @@ import { panesNeedingYou, type PaneNeedingYou } from "../lib/needsInput.ts";
 import { AgentSidebar } from "./AgentSidebar.tsx";
 import { SidebarActivityProvider, useSidebarActivityState } from "../lib/sidebarActivity.tsx";
 import { UsageMeters } from "./UsageMeters.tsx";
-import { HeavyProject, MachineResources } from "./MachineResources.tsx";
+import { AgentResources, HeavyProject, MachineResources } from "./MachineResources.tsx";
 import { isHeavy, projectLoads, useMachineResources } from "../lib/resources.ts";
 import "./Machines.css";
 import { useT } from "../lib/i18n.ts";
@@ -73,6 +73,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
   const { resources, supported } = useMachineResources(machine.id, online, machine.snapshot);
   const loads = useMemo(() => projectLoads(machine.snapshot, resources), [machine.snapshot, resources]);
   const loadByWorkspace = useMemo(() => new Map(loads.map((load) => [load.workspaceId, load])), [loads]);
+  const readingByPane = useMemo(() => new Map((resources?.panes ?? []).map((reading) => [reading.pane_id, reading])), [resources]);
   // one request at a time: a double-clicked Disconnect/Connect can otherwise race and leave this
   // UI's idea of the state opposite the server's until the next refetch
   const [busy, setBusy] = useState(false);
@@ -122,7 +123,7 @@ function MachineGroup({ machine, waiting, ...props }: Props & { machine: Machine
     {/* outside the fold: a waiting agent is never hidden by a collapsed PC */}
     <NeedsInput machine={machine} waiting={waiting} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} onSelect={props.onSelect} />
     {!collapsed && <div className={online ? "" : "machine-offline"} {...(!online ? { inert: "" } : {})}>
-      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} projectNote={(workspaceId) => { const load = loadByWorkspace.get(workspaceId); return load && isHeavy(load, resources?.memory?.total) ? <HeavyProject load={load} /> : null; }} agents={<AgentSidebar machine={machine} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(m) => t(STATE_WORD[m.state])} onSelect={props.onSelect} />} /></MachineContext.Provider>}
+      {!online && !machine.snapshot ? <p className="tree-state machine-empty" role="status">{t("No saved sessions")}</p> : <MachineContext.Provider value={machine.id}><Sidebar snapshot={machine.snapshot} online={online} selectedPaneId={props.selectedMachineId === machine.id ? props.selectedPaneId : null} actions={actions} machineName={machine.name} projectNote={(workspaceId) => { const load = loadByWorkspace.get(workspaceId); return load && isHeavy(load, resources?.memory?.total) ? <HeavyProject load={load} /> : null; }} agents={<AgentSidebar machine={machine} selectedMachineId={props.selectedMachineId} selectedPaneId={props.selectedPaneId} stateWord={(m) => t(STATE_WORD[m.state])} onSelect={props.onSelect} paneNote={(paneId) => { const reading = readingByPane.get(paneId); return reading ? <AgentResources reading={reading} heavy={isHeavy(reading, resources?.memory?.total)} /> : null; }} />} /></MachineContext.Provider>}
     </div>}
   </section>;
 }

@@ -1014,4 +1014,5 @@ export const ZH: Record<string, string> = {
   "No project measured yet": "尚未测量任何项目",
   "Outside projects: {size} (browser, system…)": "项目之外：{size}（浏览器、系统…）",
   "This project: CPU {cpu} · memory {memory}": "此项目：CPU {cpu} · 内存 {memory}",
+  "This agent: CPU {cpu} · memory {memory}": "此代理：CPU {cpu} · 内存 {memory}",
 };

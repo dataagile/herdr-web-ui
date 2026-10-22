@@ -134,10 +134,8 @@
   font-size: var(--fs-2xs);
 }
 
-/* in the project row, before the folder name: it is the part that must not be cut; an agent's row
-   leads its context line with its own use the same way, in the line's color until it is heavy */
-.resource-heavy,
-.resource-agent {
+/* in the project row, before the folder name: it is the part that must not be cut */
+.resource-heavy {
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -147,8 +145,10 @@
   font-size: var(--fs-2xs);
 }
 
-.resource-agent { margin-right: var(--space-2); }
-.resource-agent:not(.is-heavy) { color: inherit; }
+/* an agent's row leads its context line with its own use the same way, in the line's color until it is heavy */
+.resource-agent { margin-right: var(--space-2); font-size: var(--fs-2xs); }
+.resource-agent > [aria-hidden] { display: inline-flex; align-items: center; gap: 2px; }
+.resource-agent.is-heavy { color: var(--status-blocked); }
 
 .resource-heavy svg,
 .resource-agent svg {

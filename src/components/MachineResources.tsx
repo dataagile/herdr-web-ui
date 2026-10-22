@@ -99,10 +99,14 @@ export function HeavyProject({ load }: { load: ProjectLoad }) {
 /** What one agent's pane uses, on its row: the memory, with the CPU and in the blocked color once it is heavy (`isHeavy`). */
 export function AgentResources({ reading, heavy }: { reading: PaneResources; heavy: boolean }) {
   const t = useT();
-  const cpu = reading.cpu === null ? "—" : `${reading.cpu}%`;
+  // a pane's processes are summed, each one clamped: the sum can pass 100, as projectLoads also caps
+  const value = reading.cpu === null ? null : Math.min(100, reading.cpu);
+  const cpu = value === null ? "—" : `${value}%`;
+  const sentence = t("This agent: CPU {cpu} · memory {memory}", { cpu, memory: formatSize(reading.memory) });
   return (
-    <span className={`resource-agent${heavy ? " is-heavy" : ""}`} title={t("This agent: CPU {cpu} · memory {memory}", { cpu, memory: formatSize(reading.memory) })}>
-      {heavy && <TriangleAlert aria-hidden="true" />}{(reading.cpu ?? 0) >= HEAVY_CPU ? `${cpu} · ` : ""}{formatSize(reading.memory)}
+    <span className={`resource-agent${heavy ? " is-heavy" : ""}`} title={sentence}>
+      <span className="visually-hidden">{sentence}</span>
+      <span aria-hidden="true">{heavy && <TriangleAlert />}{(value ?? 0) >= HEAVY_CPU ? `${cpu} · ` : ""}{formatSize(reading.memory)}</span>
     </span>
   );
 }

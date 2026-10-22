@@ -39,7 +39,8 @@
 
 .machine-resource-value,
 .resource-project-value,
-.resource-heavy {
+.resource-heavy,
+.resource-agent {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -144,7 +145,13 @@
   font-size: var(--fs-2xs);
 }
 
-.resource-heavy svg {
+/* an agent's row leads its context line with its own use the same way, in the line's color until it is heavy */
+.resource-agent { margin-right: var(--space-2); font-size: var(--fs-2xs); }
+.resource-agent > [aria-hidden] { display: inline-flex; align-items: center; gap: 2px; }
+.resource-agent.is-heavy { color: var(--status-blocked); }
+
+.resource-heavy svg,
+.resource-agent svg {
   width: 12px;
   height: 12px;
 }

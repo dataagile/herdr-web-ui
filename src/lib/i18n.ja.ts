@@ -1012,4 +1012,5 @@ export const JA: Record<string, string> = {
   "No project measured yet": "まだ計測したプロジェクトはありません",
   "Outside projects: {size} (browser, system…)": "プロジェクト以外: {size}（ブラウザ、システム…）",
   "This project: CPU {cpu} · memory {memory}": "このプロジェクト: CPU {cpu} · メモリ {memory}",
+  "This agent: CPU {cpu} · memory {memory}": "このエージェント: CPU {cpu} · メモリ {memory}",
 };

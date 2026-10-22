@@ -992,4 +992,5 @@ export const PT: Record<string, string> = {
   "No project measured yet": "Nenhum projeto medido ainda",
   "Outside projects: {size} (browser, system…)": "Fora dos projetos: {size} (navegador, sistema…)",
   "This project: CPU {cpu} · memory {memory}": "Este projeto: CPU {cpu} · memória {memory}",
+  "This agent: CPU {cpu} · memory {memory}": "Este agente: CPU {cpu} · memória {memory}",
 };

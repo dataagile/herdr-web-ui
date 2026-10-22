@@ -48,7 +48,8 @@ export function projectLoads(snapshot: SessionSnapshot | null, resources: Machin
     .sort((a, b) => (b.cpu ?? 0) - (a.cpu ?? 0) || b.memory - a.memory);
 }
 
-export function isHeavy(load: ProjectLoad, memoryTotal: number | undefined): boolean {
+/** A project, or one agent's pane, past HEAVY_CPU or HEAVY_MEMORY_SHARE of the PC. */
+export function isHeavy(load: Pick<ProjectLoad, "cpu" | "memory">, memoryTotal: number | undefined): boolean {
   return (load.cpu ?? 0) >= HEAVY_CPU || (memoryTotal !== undefined && memoryTotal > 0 && load.memory / memoryTotal >= HEAVY_MEMORY_SHARE);
 }
 

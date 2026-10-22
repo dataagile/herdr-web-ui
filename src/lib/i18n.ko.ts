@@ -1010,4 +1010,5 @@ export const KO: Record<string, string> = {
   "No project measured yet": "아직 측정된 프로젝트가 없습니다",
   "Outside projects: {size} (browser, system…)": "프로젝트 외: {size} (브라우저, 시스템…)",
   "This project: CPU {cpu} · memory {memory}": "이 프로젝트: CPU {cpu} · 메모리 {memory}",
+  "This agent: CPU {cpu} · memory {memory}": "이 에이전트: CPU {cpu} · 메모리 {memory}",
 };

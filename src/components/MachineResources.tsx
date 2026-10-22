@@ -3,7 +3,7 @@ import { Terminal, TriangleAlert } from "lucide-react";
 
 import "./MachineResources.css";
 
-import type { MachineResources as Resources, ResourceMeter } from "../../shared/protocol.ts";
+import type { MachineResources as Resources, PaneResources, ResourceMeter } from "../../shared/protocol.ts";
 import { useT } from "../lib/i18n.ts";
 import { formatSize, HEAVY_CPU, HIGH_PERCENT, meterPercent, outsideProjects, type ProjectLoad } from "../lib/resources.ts";
 import { AgentMark } from "./AgentMark.tsx";
@@ -92,6 +92,21 @@ export function HeavyProject({ load }: { load: ProjectLoad }) {
   return (
     <span className="resource-heavy" title={t("This project: CPU {cpu} · memory {memory}", { cpu: load.cpu === null ? "—" : `${load.cpu}%`, memory: formatSize(load.memory) })}>
       <TriangleAlert aria-hidden="true" />{text}
+    </span>
+  );
+}
+
+/** What one agent's pane uses, on its row: CPU and memory, in the blocked color once it is heavy (`isHeavy`). */
+export function AgentResources({ reading, heavy }: { reading: PaneResources; heavy: boolean }) {
+  const t = useT();
+  // a pane's processes are summed, each one clamped: the sum can pass 100, as projectLoads also caps
+  const value = reading.cpu === null ? null : Math.min(100, reading.cpu);
+  const cpu = value === null ? "—" : `${value}%`;
+  const sentence = t("This agent: CPU {cpu} · memory {memory}", { cpu, memory: formatSize(reading.memory) });
+  return (
+    <span className={`resource-agent${heavy ? " is-heavy" : ""}`} title={sentence}>
+      <span className="visually-hidden">{sentence}</span>
+      <span aria-hidden="true">{heavy && <TriangleAlert />}{value === null ? "" : `${cpu} · `}{formatSize(reading.memory)}</span>
     </span>
   );
 }

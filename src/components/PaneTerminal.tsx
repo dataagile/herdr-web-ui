@@ -599,10 +599,11 @@ export function PaneTerminal({
     });
 
     // herdr's attach stream turns mouse reporting on, so xterm hands every click to the
-    // pty and selects only with Shift (Option on macOS) held. `herdr terminal attach`
-    // ignores left clicks and drags - selection lives in herdr's own TUI client - so a
-    // left drag here selects as if the modifier were held, and letting go copies, as the
-    // herdr TUI does. Touch keeps its drag-to-scroll.
+    // pty and selects only with Shift (Option on macOS) held. Selection lives in herdr's
+    // own TUI client, so a left drag here selects as if the modifier were held, and
+    // letting go copies, as the herdr TUI does. A click that selected nothing is replayed
+    // without the modifier: herdr passes it to the program in the pane (the ✕ of Claude
+    // Code's diff panel, GLPI #272). Touch keeps its drag-to-scroll.
     //
     // xterm keeps no scrollback (herdr owns it), so a drag that outlives one screen is
     // tracked in herdr's history rows: a wheel, or dragging past the top or bottom edge,
@@ -697,7 +698,8 @@ export function PaneTerminal({
       edgeTimer = null;
     };
     const onMouseDown = (event: MouseEvent): void => {
-      if (event.button !== 0) return;
+      // a replayed click (onMouseUp) goes to xterm as it is
+      if (event.button !== 0 || !event.isTrusted) return;
       if ((event as MouseEvent & { sourceCapabilities?: { firesTouchEvents?: boolean } }).sourceCapabilities?.firesTouchEvents) return;
       if (!term.element?.contains(event.target as Node)) return;
       // with reporting off xterm already selects on a plain drag; only the history tracking is ours
@@ -754,7 +756,16 @@ export function PaneTerminal({
       // Window bubble runs after xterm's document listener, still inside the
       // release gesture. A timer here loses clipboard permission in some browsers.
       if (d.scrolled) repaint(d);
-      if (!term.hasSelection()) return;
+      if (!term.hasSelection()) {
+        // a click, not a drag: xterm reports it in the mode the pane asked for
+        const click = !d.scrolled && d.anchor.row === d.cursor.row && d.anchor.col === d.cursor.col;
+        if (click && term.modes.mouseTrackingMode !== "none" && event.target) {
+          const init = { bubbles: true, cancelable: true, button: 0, clientX: event.clientX, clientY: event.clientY };
+          event.target.dispatchEvent(new MouseEvent("mousedown", { ...init, buttons: 1 }));
+          event.target.dispatchEvent(new MouseEvent("mouseup", init));
+        }
+        return;
+      }
       const visibleText = term.getSelection();
       copiedText = visibleText;
       copySelection();

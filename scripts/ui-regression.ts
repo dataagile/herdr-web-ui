@@ -409,6 +409,27 @@ try {
   await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
   await checkTerminalFileInput(page, sockets[0]!);
   const terminalInput = page.locator(".xterm-helper-textarea");
+  // a left click that selects nothing reaches the pane as a mouse report (the ✕ of Claude
+  // Code's diff panel, GLPI #272); a drag selects and sends no click
+  {
+    const screen = (await page.locator(".xterm-screen").boundingBox())!;
+    const [x, y] = [screen.x + screen.width / 2, screen.y + screen.height / 2];
+    const beforeClick = inputs.length;
+    await page.mouse.click(x, y);
+    // herdr asks for SGR reports; a motion report (35) may come before the press
+    const clicks = () => inputs.slice(beforeClick).map((m) => m.text).join("").match(/\x1b\[<0;\d+;\d+[Mm]/g) ?? [];
+    await until(() => clicks().length >= 2, "click as a mouse report");
+    assert.match(clicks().join(""), /^\x1b\[<0;(\d+);(\d+)M\x1b\[<0;\1;\2m$/, "one press and one release on the same cell");
+    const beforeDrag = inputs.length;
+    await page.mouse.move(x - 60, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 60, y, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForTimeout(NO_SEND_WAIT_MS);
+    assert.deepEqual(inputs.slice(beforeDrag).filter((m) => /\x1b\[<0;/.test(m.text)), [], "a drag sends no click report");
+    await page.keyboard.press("Control+c");
+    console.log("PASS a terminal click reaches the pane and a drag sends no click");
+  }
   // Chrome on macOS pastes with ⌘V alone: its Ctrl+V pastes nothing, and must send nothing either
   const mac = process.platform === "darwin";
   if (mac) {

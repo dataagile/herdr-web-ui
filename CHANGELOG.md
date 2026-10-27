@@ -189,7 +189,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 
 ### Fixed
 - A left click in the terminal that selects nothing reaches the program in the pane again, so a mouse-driven
-  control such as the ✕ that closes Claude Code's diff panel works; a drag still selects and copies.
+  control such as the ✕ that closes Claude Code's diff panel works; a drag still selects and copies. ([#24](https://github.com/dataagile/herdr-web-ui/pull/24))
 - The folder browser's POST no longer resolves a relative parent against the server's own
   folder when the pane it belonged to is gone: that path is refused like the listing already
   refuses it. ([#4](https://github.com/dataagile/herdr-web-ui/pull/4) by @tbc-joaovitor)

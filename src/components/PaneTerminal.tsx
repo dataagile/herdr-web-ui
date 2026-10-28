@@ -759,10 +759,13 @@ export function PaneTerminal({
       if (!term.hasSelection()) {
         // a click, not a drag: xterm reports it in the mode the pane asked for
         const click = !d.scrolled && d.anchor.row === d.cursor.row && d.anchor.col === d.cursor.col;
-        if (click && term.modes.mouseTrackingMode !== "none" && event.target) {
+        // on xterm's root, not the target: the screen's link handler would open a link
+        // again, and a release past the edge can be over a neighbour pane
+        const root = term.element;
+        if (click && term.modes.mouseTrackingMode !== "none" && root) {
           const init = { bubbles: true, cancelable: true, button: 0, clientX: event.clientX, clientY: event.clientY };
-          event.target.dispatchEvent(new MouseEvent("mousedown", { ...init, buttons: 1 }));
-          event.target.dispatchEvent(new MouseEvent("mouseup", init));
+          root.dispatchEvent(new MouseEvent("mousedown", { ...init, buttons: 1 }));
+          root.dispatchEvent(new MouseEvent("mouseup", init));
         }
         return;
       }

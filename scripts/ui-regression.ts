@@ -429,6 +429,44 @@ try {
     assert.deepEqual(inputs.slice(beforeDrag).filter((m) => /\x1b\[<0;/.test(m.text)), [], "a drag sends no click report");
     await page.keyboard.press("Control+c");
     console.log("PASS a terminal click reaches the pane and a drag sends no click");
+    // a link opens once: the replayed click goes to xterm's root, past the screen's link handler
+    const url = "https://example.com/glpi-272";
+    await page.evaluate(() => {
+      const opened: string[] = [];
+      Object.assign(window, { opened });
+      window.open = ((target?: string | URL) => { opened.push(String(target)); return null; }) as typeof window.open;
+    });
+    // a fresh prompt: the file-input check above leaves text on the line
+    await herdrRpc("pane.send_keys", { pane_id: paneA, keys: ["ctrl+c"] });
+    // the command line never holds the whole address, only the output does
+    await herdrRpc("pane.send_text", { pane_id: paneA, text: "printf '\\033[2J\\033[H%s%s\\n' https://example.com /glpi-272\r" });
+    let at: { x: number; y: number } | null = null;
+    await until(async () => (at = await page.evaluate((address) => {
+      // a row is painted in several spans: find the address in the row, then its 3rd character
+      for (const row of document.querySelectorAll(".xterm-rows > div")) {
+        let skip = row.textContent!.indexOf(address);
+        if (skip < 0) continue;
+        skip += 2;
+        const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (skip >= node.textContent!.length) { skip -= node.textContent!.length; continue; }
+          const range = document.createRange();
+          range.setStart(node, skip);
+          range.setEnd(node, skip + 1);
+          const box = range.getBoundingClientRect();
+          return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+        }
+      }
+      return null;
+    }, url)) !== null, "the link painted");
+    await page.mouse.move(at!.x, at!.y);
+    await page.locator(".xterm-cursor-pointer").waitFor();
+    await page.mouse.click(at!.x, at!.y);
+    await until(async () => (await page.evaluate(() => (window as unknown as { opened: string[] }).opened.length)) > 0, "the link opened");
+    await page.waitForTimeout(NO_SEND_WAIT_MS);
+    assert.deepEqual(await page.evaluate(() => (window as unknown as { opened: string[] }).opened), [url], "a link opens once");
+    await herdrRpc("pane.send_text", { pane_id: paneA, text: "clear\r" });
+    console.log("PASS a link in the terminal opens once");
   }
   // Chrome on macOS pastes with ⌘V alone: its Ctrl+V pastes nothing, and must send nothing either
   const mac = process.platform === "darwin";

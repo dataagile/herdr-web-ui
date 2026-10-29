@@ -1013,4 +1013,6 @@ export const JA: Record<string, string> = {
   "Outside projects: {size} (browser, system…)": "プロジェクト以外: {size}（ブラウザ、システム…）",
   "This project: CPU {cpu} · memory {memory}": "このプロジェクト: CPU {cpu} · メモリ {memory}",
   "This agent: CPU {cpu} · memory {memory}": "このエージェント: CPU {cpu} · メモリ {memory}",
+  "Read answers aloud": "回答を読み上げる",
+  "For this device, while the chat is open. Claude Code sessions with falacomigo's voice on: this device speaks what it speaks.": "このデバイスで、チャットを開いている間。falacomigo の音声がオンの Claude Code セッション：その音声が話す内容をこのデバイスが話します。",
 };

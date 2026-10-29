@@ -1015,4 +1015,6 @@ export const ZH: Record<string, string> = {
   "Outside projects: {size} (browser, system…)": "项目之外：{size}（浏览器、系统…）",
   "This project: CPU {cpu} · memory {memory}": "此项目：CPU {cpu} · 内存 {memory}",
   "This agent: CPU {cpu} · memory {memory}": "此代理：CPU {cpu} · 内存 {memory}",
+  "Read answers aloud": "朗读回答",
+  "For this device, while the chat is open. Claude Code sessions with falacomigo's voice on: this device speaks what it speaks.": "在此设备上，聊天打开时。开启 falacomigo 语音的 Claude Code 会话：此设备会说出它所说的内容。",
 };

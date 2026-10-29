@@ -8,6 +8,10 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 ## [Unreleased]
 
 ### Added
+- **Read answers aloud** (Settings → Voice, per device, off until chosen): in a Claude Code session with falacomigo's
+  voice on, the open chat speaks what falacomigo speaks (its summary of the answer, its permission announcements) with
+  the device's own voices, so a phone hears the session away from the PC. The server adds falacomigo's last lines
+  (`spoken`) to the newest conversation page; only lines that arrive while the chat is on screen are spoken.
 - Each PC's resources under its name in the sidebar: **CPU, memory, disk and swap**, every 5 s while the app is on
   screen, in red from 90%. A click lists the projects using the most (CPU as a share of the PC, memory) with what is
   used outside them, and a project that weighs on the PC (half its CPU or a quarter of its memory) shows a warning on

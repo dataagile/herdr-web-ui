@@ -1011,4 +1011,6 @@ export const KO: Record<string, string> = {
   "Outside projects: {size} (browser, system…)": "프로젝트 외: {size} (브라우저, 시스템…)",
   "This project: CPU {cpu} · memory {memory}": "이 프로젝트: CPU {cpu} · 메모리 {memory}",
   "This agent: CPU {cpu} · memory {memory}": "이 에이전트: CPU {cpu} · 메모리 {memory}",
+  "Read answers aloud": "답변 소리 내어 읽기",
+  "For this device, while the chat is open. Claude Code sessions with falacomigo's voice on: this device speaks what it speaks.": "이 기기에서 채팅이 열려 있는 동안. falacomigo 음성이 켜진 Claude Code 세션: 이 기기가 그 음성이 말하는 내용을 말합니다.",
 };

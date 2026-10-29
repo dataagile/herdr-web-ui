@@ -23,6 +23,8 @@ import { phaseRows, planRows, taskRows, todoRows, type ChecklistRow } from "../l
 import { isTodoTool, parseTodoAnswer, todoCallSummary, type TodoItem, type TodoStatus } from "../lib/todos.ts";
 import { formatGoalTime, turnGoal, type GoalState, type GoalStatus } from "../lib/goals.ts";
 import { useSettings } from "../lib/settings.ts";
+import { readAloud } from "../lib/readAloud.ts";
+import { paneStorageId } from "../../shared/machines.ts";
 import { statusEdgeRead } from "../lib/status.ts";
 import { usePageVisible } from "../lib/visibility.ts";
 import { dismissKeyboardOn } from "../lib/keyboard.ts";
@@ -494,6 +496,10 @@ export const ChatView = memo(function ChatView({ paneId, refreshKey, sentKey = 0
   const t = useT();
   const { fetchPaneConversation, fetchPanePromptState, fetchPaneTranscript } = useMachineApi();
   const { settings } = useSettings();
+  const machineId = useMachineId();
+  // read inside the poll loop, which a settings change does not restart
+  const readAloudOn = useRef(settings.readAloud);
+  readAloudOn.current = settings.readAloud;
   // polls pause while the page is hidden and pick up at once when it is back
   const visible = usePageVisible();
   /** the answer last laid out: an unchanged poll (a 304) hands back this very object */
@@ -619,6 +625,7 @@ export const ChatView = memo(function ChatView({ paneId, refreshKey, sentKey = 0
           conversation = await fetchPaneConversation(paneId);
         }
         if (cancelled || generation !== olderGeneration.current) return;
+        readAloud(paneStorageId(machineId, paneId), conversation.spoken, readAloudOn.current);
         if (history.current !== conversation.history_id) {
           dropOlder(); generation = olderGeneration.current;
           history.current = conversation.history_id; setHistoryId(conversation.history_id);
@@ -671,7 +678,7 @@ export const ChatView = memo(function ChatView({ paneId, refreshKey, sentKey = 0
     };
     void read();
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [paneId, refreshKey, onMetadata, pollKey, visible]);
+  }, [paneId, machineId, refreshKey, onMetadata, pollKey, visible]);
 
   const loadOlder = useCallback(async (): Promise<void> => {
     const node = scroller.current;

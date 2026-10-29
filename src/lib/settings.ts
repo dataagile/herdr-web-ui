@@ -90,6 +90,8 @@ export interface Settings {
   alertInApp: boolean;
   /** an open tab chimes for the same alerts (lib/alertSound.ts), heard also when a Focus silences notifications; off until chosen */
   alertSound: boolean;
+  /** the chat speaks what falacomigo speaks in a Claude session (lib/readAloud.ts), with this device's voices; off until chosen */
+  readAloud: boolean;
   /** one-tap replies above the composer, in order; blank ones are kept while being typed, never shown */
   quickReplies: string[];
   /** whether the quick replies show above the composer at all */
@@ -140,6 +142,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alertDone: "long",
   alertInApp: true,
   alertSound: false,
+  readAloud: false,
   quickReplies: ["continue", "yes", "no", "commit and push", "retry"],
   showQuickReplies: false,
   showSuggestionChip: true,
@@ -289,6 +292,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     alertDone: record["alertDone"] === "off" || record["alertDone"] === "long" || record["alertDone"] === "always" ? record["alertDone"] : DEFAULT_SETTINGS.alertDone,
     alertInApp: typeof record["alertInApp"] === "boolean" ? record["alertInApp"] : DEFAULT_SETTINGS.alertInApp,
     alertSound: typeof record["alertSound"] === "boolean" ? record["alertSound"] : DEFAULT_SETTINGS.alertSound,
+    readAloud: typeof record["readAloud"] === "boolean" ? record["readAloud"] : DEFAULT_SETTINGS.readAloud,
     // kept as typed (a trailing space is the next word being started), only bounded
     quickReplies: Array.isArray(record["quickReplies"])
       ? record["quickReplies"].filter((reply): reply is string => typeof reply === "string").slice(0, QUICK_REPLIES_MAX).map((reply) => reply.slice(0, QUICK_REPLY_MAX_CHARS))

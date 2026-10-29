@@ -993,4 +993,6 @@ export const PT: Record<string, string> = {
   "Outside projects: {size} (browser, system…)": "Fora dos projetos: {size} (navegador, sistema…)",
   "This project: CPU {cpu} · memory {memory}": "Este projeto: CPU {cpu} · memória {memory}",
   "This agent: CPU {cpu} · memory {memory}": "Este agente: CPU {cpu} · memória {memory}",
+  "Read answers aloud": "Ler respostas em voz alta",
+  "For this device, while the chat is open. Claude Code sessions with falacomigo's voice on: this device speaks what it speaks.": "Neste aparelho, com o chat aberto. Sessões do Claude Code com a voz do falacomigo ligada: este aparelho fala o que ela fala.",
 };

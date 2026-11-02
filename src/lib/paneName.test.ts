@@ -34,24 +34,24 @@ it("finds the folder of a Windows path as of a POSIX one", () => {
   expect(placeLine("api", folderName("C:\\work\\server"))).toBe("api · server");
 });
 
-it("draws a two-line row as the pane's title over its place, without repeating a name", () => {
+it("draws a two-line row as the project over the pane's task and place, without repeating a name", () => {
   expect(taskRowLines({ paneTitle: "Idempotent payments", labelled: false, folder: "api", workspace: "checkout-api" }))
-    .toEqual({ title: "Idempotent payments", place: "checkout-api · api" });
+    .toEqual({ project: "checkout-api", task: "Idempotent payments · api" });
   // the folder is the workspace's name: it is said once
   expect(taskRowLines({ paneTitle: "Guard the export button", labelled: false, folder: "web-dashboard", workspace: "web-dashboard" }))
-    .toEqual({ title: "Guard the export button", place: "web-dashboard" });
-  // a shell titled by its folder leads with the workspace, and the folder follows when it is another name
+    .toEqual({ project: "web-dashboard", task: "Guard the export button" });
+  // a shell titled by its folder says only the folder, when it is another name than the project's
   expect(taskRowLines({ paneTitle: "api", labelled: false, folder: "api", workspace: "checkout-api" }))
-    .toEqual({ title: "checkout-api", place: "api" });
+    .toEqual({ project: "checkout-api", task: "api" });
   expect(taskRowLines({ paneTitle: "release", labelled: false, folder: "release", workspace: "release" }))
-    .toEqual({ title: "release", place: "" });
+    .toEqual({ project: "release", task: "" });
   // a pane the user named keeps its name, also when it is the folder's
   expect(taskRowLines({ paneTitle: "api", labelled: true, folder: "api", workspace: "checkout-api" }))
-    .toEqual({ title: "api", place: "checkout-api" });
-  // a linked worktree is placed by its workspace name, then its branch where the name does not say it
+    .toEqual({ project: "checkout-api", task: "api" });
+  // a linked worktree adds its branch where the project's name does not say it
   expect(taskRowLines({ paneTitle: "session-list", labelled: false, folder: "fix-session-list", workspace: "Hotfix", alias: "fix/session-list" }))
-    .toEqual({ title: "session-list", place: "Hotfix · fix/session-list · fix-session-list" });
-  // a pane named as its worktree's workspace does not have that name said again under it
+    .toEqual({ project: "Hotfix", task: "session-list · fix/session-list · fix-session-list" });
+  // a pane named as its project does not have that name said again under it
   expect(taskRowLines({ paneTitle: "Hotfix", labelled: true, folder: "fix-payment", workspace: "Hotfix", alias: "fix/payment" }))
-    .toEqual({ title: "Hotfix", place: "fix/payment · fix-payment" });
+    .toEqual({ project: "Hotfix", task: "fix/payment · fix-payment" });
 });

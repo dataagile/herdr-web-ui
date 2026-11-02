@@ -20,9 +20,10 @@ export function folderName(path: string): string {
 }
 
 /**
- * A roster row drawn on two lines: what its pane is doing, and where under it. A shell's title
- * is often just its folder, which says nothing a workspace's name does not say better, so that
- * row leads with the workspace and keeps the second line for what is left to say.
+ * A roster row drawn on two lines: the project (workspace) leads, and under it what its pane is
+ * doing and where. The Agents list already leads with the task, so the Projects list leads with the
+ * project. A shell's title is often just its folder, which says nothing the project's name does
+ * not say better, so that row keeps only what is left to say on the second line.
  */
 export function taskRowLines({ paneTitle, labelled, folder, workspace, alias }: {
   /** the pane's title as the roster shows it */
@@ -35,11 +36,11 @@ export function taskRowLines({ paneTitle, labelled, folder, workspace, alias }: 
   workspace: string;
   /** a linked worktree's branch, when the label does not already say it */
   alias?: string | null;
-}): { title: string; place: string } {
-  const title = !labelled && paneTitle === folder ? workspace : paneTitle;
-  const where = [workspace === title ? "" : workspace, alias && alias !== title && alias !== workspace ? alias : ""].filter(Boolean).join(" · ");
-  const said = folder === title || folder === workspace || folder === alias;
-  return { title, place: placeLine(where, said ? "" : folder) };
+}): { project: string; task: string } {
+  const title = (!labelled && paneTitle === folder) || paneTitle === workspace ? "" : paneTitle;
+  const branch = alias && alias !== title && alias !== workspace ? alias : "";
+  const place = folder === title || folder === workspace || folder === branch ? "" : folder;
+  return { project: workspace, task: [title, branch, place].filter(Boolean).join(" · ") };
 }
 
 /** "workspace · folder", without saying the same name twice. */

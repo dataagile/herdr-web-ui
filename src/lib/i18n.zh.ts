@@ -998,6 +998,7 @@ export const ZH: Record<string, string> = {
   "expand": "展开",
   "collapse": "折叠",
   "open": "打开",
+  "select": "选择",
   "close": "关闭",
   "Format": "格式",
   "View": "查看",

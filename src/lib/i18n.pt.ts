@@ -976,6 +976,7 @@ export const PT: Record<string, string> = {
   "expand": "expandir",
   "collapse": "recolher",
   "open": "abrir",
+  "select": "selecionar",
   "close": "fechar",
   "Format": "Formato",
   "View": "Visualizar",

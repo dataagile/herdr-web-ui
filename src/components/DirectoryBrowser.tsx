@@ -47,8 +47,8 @@ export function fieldKeys(event: KeyboardEvent<HTMLInputElement>, on: { enter?: 
 }
 
 /**
- * A folder browser for the new-session dialog: one directory at a time, fetched from the
- * PC the session starts on. Nothing is kept but the folder shown now.
+ * A folder browser for the file viewer: one directory at a time, fetched from the
+ * PC the file lives on. Nothing is kept but the folder shown now.
  */
 export function DirectoryBrowser({ start, onPick, onOpenFile }: DirectoryBrowserProps) {
   const t = useT();

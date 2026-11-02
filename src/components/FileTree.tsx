@@ -356,7 +356,7 @@ export function FileTree({ start, paneId, onOpenFile, onPick }: FileTreeProps) {
           <span><kbd className="kbd">↑</kbd><kbd className="kbd">↓</kbd> {t("move")}</span>
           <span><kbd className="kbd">→</kbd> {t("expand")}</span>
           <span><kbd className="kbd">←</kbd> {t("collapse")}</span>
-          <span><kbd className="kbd">Enter</kbd> {t("open")}</span>
+          <span><kbd className="kbd">Enter</kbd> {t(pick ? "select" : "open")}</span>
           <span><kbd className="kbd">Esc</kbd> {t("close")}</span>
         </span>
       </div>

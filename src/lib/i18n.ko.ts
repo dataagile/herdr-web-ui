@@ -994,6 +994,7 @@ export const KO: Record<string, string> = {
   "expand": "펼치기",
   "collapse": "접기",
   "open": "열기",
+  "select": "선택",
   "close": "닫기",
   "Format": "형식",
   "View": "보기",

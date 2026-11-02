@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -63,15 +63,27 @@ describe("remote bundle sources", () => {
 
   it("reuses a cached release bundle by checksum and never trusts a changed one", async () => {
     const { directory, manifest, bytes, sha256 } = fixture("linux-x64");
-    // an unreachable release URL: only the cache can answer
-    writeFileSync(manifest, JSON.stringify({ version: REMOTE_BUNDLE_VERSION, assets: { "linux-x64": { url: "https://bundles.invalid/bundle.tgz", sha256 } } }));
+    const url = "https://bundles.invalid/bundle.tgz";
+    writeFileSync(manifest, JSON.stringify({ version: REMOTE_BUNDLE_VERSION, assets: { "linux-x64": { url, sha256 } } }));
     const cacheDir = join(directory, "cache"); mkdirSync(cacheDir);
-    writeFileSync(join(cacheDir, `${sha256}.tgz`), bytes);
+    const cachedPath = join(cacheDir, `${sha256}.tgz`);
+    writeFileSync(cachedPath, bytes);
     const options = { directory, manifest: "", cacheDir };
-    const cached = await bundleFile("linux-x64", new AbortController().signal, options);
-    expect(cached.path).toBe(join(cacheDir, `${sha256}.tgz`));
-    writeFileSync(join(cacheDir, `${sha256}.tgz`), "tampered");
-    await expect(bundleFile("linux-x64", new AbortController().signal, options)).rejects.toThrow();
+    // the release is answered here: a real lookup of bundles.invalid can take longer than the test timeout
+    let body: Buffer | string = bytes;
+    const release = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async () => new Response(body), { preconnect: fetch.preconnect }));
+    try {
+      expect((await bundleFile("linux-x64", new AbortController().signal, options)).path).toBe(cachedPath);
+      expect(release).not.toHaveBeenCalled();
+      // a changed cache file is downloaded again, and the download is checked too
+      writeFileSync(cachedPath, "tampered");
+      body = "also tampered";
+      await expect(bundleFile("linux-x64", new AbortController().signal, options)).rejects.toThrow("checksum mismatch");
+      expect(release.mock.calls[0]?.[0]).toBe(url);
+      body = bytes;
+      expect((await bundleFile("linux-x64", new AbortController().signal, options)).path).toBe(cachedPath);
+      expect(readFileSync(cachedPath)).toEqual(bytes);
+    } finally { release.mockRestore(); }
     await expect(bundleFile("linux-x64", new AbortController().signal, { directory, manifest: "" })).rejects.toThrow("No bundle cache directory");
   });
 });

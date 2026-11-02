@@ -187,7 +187,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
   project, …), in English and in the Korean, Japanese and Chinese translations. Only the text
   changes: the API, the protocol, storage keys and herdr itself still say workspace.
 - Sidebar → Projects in **Two lines** mode now leads with the project name (in medium weight) and puts the pane's task,
-  branch and folder under it, since the Agents list already leads with the task.
+  branch and folder under it, since the Agents list already leads with the task. ([#26](https://github.com/dataagile/herdr-web-ui/pull/26))
 
 ### Fixed
 - A left click in the terminal that selects nothing reaches the program in the pane again, so a mouse-driven

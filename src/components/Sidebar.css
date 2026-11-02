@@ -224,6 +224,9 @@ button.sidebar-section-label:focus-visible { outline-offset: calc(var(--ring-off
   gap: var(--space-1);
 }
 
+/* the project leads a two-line row, one weight above the small line */
+.workspace-copy.is-two-line .workspace-name { font-weight: var(--fw-medium); }
+
 .workspace-line {
   display: flex;
   align-items: baseline;

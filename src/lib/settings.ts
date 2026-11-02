@@ -15,7 +15,7 @@ import { DEFAULT_KEY_BAR_ITEMS, migrateKeyBarItems, sanitizeKeyBarItems, type Ke
 export type ThemeSetting = "dark" | "light" | "system";
 export type ResolvedTheme = "dark" | "light";
 export type Density = "compact" | "comfortable";
-/** One line names the workspace; two lines say what its pane is doing, with the workspace under it. */
+/** One line names the workspace; two lines name the project, with what its pane is doing under it. */
 export type SidebarRows = "one" | "two";
 /** the Agents list's order: herdr's workspace order, or a waiting agent first and then the latest change */
 export type AgentOrder = "workspace" | "activity";

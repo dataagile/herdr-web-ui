@@ -269,8 +269,8 @@ export function fileIcon(name: string): FileIcon {
 }
 
 /** Open folders are remembered per PC and per pane folder. */
-export function expandedKey(machineId: string, start: string): string {
-  return `herdr-web-ui:files-tree:${machineId}:${start}`;
+export function expandedKey(machineId: string, start: string, pick = false): string {
+  return `herdr-web-ui:${pick ? "pick-tree" : "files-tree"}:${machineId}:${start}`;
 }
 
 export function readExpanded(key: string): Set<string> {

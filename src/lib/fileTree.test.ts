@@ -129,6 +129,7 @@ describe("memory", () => {
     const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
     Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) } });
     try {
+      expect(expandedKey("local", "/p", true)).not.toBe(expandedKey("local", "/p"));
       const key = expandedKey("local", "/p");
       writeExpanded(key, new Set(["/p/a", "/p/b"]));
       expect([...readExpanded(key)]).toEqual(["/p/a", "/p/b"]);

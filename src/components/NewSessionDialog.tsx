@@ -7,7 +7,7 @@ import type { AgentKind } from "../../shared/protocol.ts";
 import { ApiError } from "../lib/api.ts";
 import { AgentPicker, rememberAgent, rememberedAgent } from "./AgentPicker.tsx";
 import { parseAgentArgs, rememberAgentArgs, rememberedAgentArgs } from "../lib/agentArgs.ts";
-import { DirectoryBrowser } from "./DirectoryBrowser.tsx";
+import { FileTree } from "./FileTree.tsx";
 import { useMachineApi, useMachineId } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
 import { nativeModalOver, useFocusTrap } from "../lib/useFocusTrap.ts";
@@ -181,7 +181,7 @@ export function NewSessionDialog({ open, defaultCwd, tab = null, onClose, onCrea
                   {t("Browse")}
                 </button>
               </div>
-              {browsing && <DirectoryBrowser start={cwd} onPick={(picked) => { setCwd(picked); setBrowsing(false); }} />}
+              {browsing && <FileTree start={cwd} paneId={null} onPick={(picked) => { setCwd(picked); setBrowsing(false); }} />}
               <span className="field-hint">{t("absolute path or ~/…")}</span>
             </div>
           )}

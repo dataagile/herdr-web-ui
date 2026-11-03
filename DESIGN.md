@@ -529,10 +529,11 @@ One set for both themes: the card is island black wherever it shows.
   A disconnected PC's saved workspace and agent rows are dimmed, inert and draw no state until that PC reconnects.
 - Appearance's **Sidebar rows** is **Two lines** by default; on **One line** a workspace row is
   its name. Two lines draws the row as the roster did before it was one line, on an agent row's
-  height and type: the title of the pane the row opens, and under it in `--text-dim` `--fs-xs` the place,
-  "workspace · folder" with no name said twice (`taskRowLines`, lib/paneName.ts). A shell titled
-  by its folder leads with the workspace instead; a linked worktree is placed by its branch,
-  then its own workspace name. The folder, the mark, the status cell, the menu and the fold
+  height and type: the project (workspace name) leads in `--fw-medium`, and under it in `--text-dim`
+  `--fs-xs` what the pane is doing, "task · branch · folder" with no name said twice (`taskRowLines`,
+  lib/paneName.ts), because the Agents list already leads with the task. A shell titled by its folder
+  says only the folder when it is another name than the project's; a linked worktree adds its branch.
+  The folder, the mark, the status cell, the menu and the fold
   count stay where they are, and the menu and rename still act on the workspace. The choice
   is per device and applies at once.
 - Appearance's **Agents order** is **Workspaces** by default: the Agents list in herdr's
@@ -558,7 +559,7 @@ One set for both themes: the card is island black wherever it shows.
   DONE that Quiet opened finishes already draws as ready, and never shows as ready a DONE the
   server still reports when the setting is off.
 - Each workspace row holds its folder (top-level rows), a leading glyph, the name (on two lines,
-  the title over the place) and the compact state at the right. The leading glyph is the brand mark of the agent in the pane the row opens; a row that opens a
+  the project over the task and place) and the compact state at the right. The leading glyph is the brand mark of the agent in the pane the row opens; a row that opens a
   shell shows the terminal glyph, and a linked worktree without an agent the branch glyph. The
   mark never stands for another pane's agent; the row's tooltip lists every agent in the
   workspace. A custom worktree workspace name follows the branch on the same line in dim text.

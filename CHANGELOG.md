@@ -186,7 +186,9 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 - The interface calls herdr's workspaces **projects** (Projects, New project, Rename project, Close
   project, …), in English and in the Korean, Japanese and Chinese translations. Only the text
   changes: the API, the protocol, storage keys and herdr itself still say workspace.
-- **New project → Browse** is the Files tree in pick mode: folders only, with levels, chevrons and guides, the "Filter by name…" field and the keyboard hints. A click selects a folder and opens it, and "Use this folder" takes the selected one (the root folder when none is selected). Its open folders are remembered apart from the Files screen, and its filter searches only the folders already opened. New tab is unchanged.
+- Sidebar → Projects in **Two lines** mode now leads with the project name (in medium weight) and puts the pane's task,
+  branch and folder under it, since the Agents list already leads with the task. ([#26](https://github.com/dataagile/herdr-web-ui/pull/26))
+- **New project → Browse** is the Files tree in pick mode: folders only, with levels, chevrons and guides, the "Filter by name…" field and the keyboard hints. A click selects a folder and opens it, and "Use this folder" takes the selected one (the root folder when none is selected). Its open folders are remembered apart from the Files screen, and its filter searches only the folders already opened. New tab is unchanged. ([#28](https://github.com/dataagile/herdr-web-ui/pull/28))
 
 ### Fixed
 - A left click in the terminal that selects nothing reaches the program in the pane again, so a mouse-driven

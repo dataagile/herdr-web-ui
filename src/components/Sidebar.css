@@ -213,7 +213,7 @@ button.sidebar-section-label:focus-visible { outline-offset: calc(var(--ring-off
 
 .workspace-name { flex: 0 1 auto; }
 
-/* Settings → Sidebar rows → Two lines: a row says what its pane is doing, and where under it,
+/* Settings → Sidebar rows → Two lines: a row names its project, and what its pane is doing and where under it,
    on the height and in the type of an agent's row. */
 .machine-workspaces.is-two-line .workspace-header { min-height: var(--side-row-2); }
 
@@ -223,6 +223,9 @@ button.sidebar-section-label:focus-visible { outline-offset: calc(var(--ring-off
   justify-content: center;
   gap: var(--space-1);
 }
+
+/* the project leads a two-line row, one weight above the small line */
+.workspace-copy.is-two-line .workspace-name { font-weight: var(--fw-medium); }
 
 .workspace-line {
   display: flex;

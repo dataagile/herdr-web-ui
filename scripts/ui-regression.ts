@@ -635,7 +635,7 @@ try {
   assert.deepEqual(await sidebarWidths(), defaultWidths, "a double-click goes back to the default width and forgets the stored one");
   console.log("PASS the sidebar's edge drags, steps from the keyboard, remembers its width and resets on a double-click");
 
-  // Sidebar rows: a workspace row says what its pane is doing over its place, on a taller row,
+  // Sidebar rows: a workspace row names its project over what its pane is doing, on a taller row,
   // until Settings → Sidebar rows → One line gives the workspace its name back
   const twoLineHeight = await page.locator(".workspace-header").first().evaluate((row) => row.getBoundingClientRect().height);
   assert.ok(await page.locator(".workspace-copy.is-two-line").count() > 0, "rows are two lines until one is chosen");

@@ -539,7 +539,7 @@ export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName
     // a folded group's parent stands for its worktrees too, as herdr's collapsed parent does:
     // a checkout that waits or has finished must not hide behind the fold
     const statusPanes = collapsed ? [...panes, ...children.flatMap((child) => roster.filter((candidate) => candidate.workspace_id === child.workspace_id))] : panes;
-    // on two lines the row says what its pane is doing, and the workspace it has named until now sits under that
+    // on two lines the row leads with the project (workspace), and what its pane is doing sits under it
     const note = online ? projectNote?.(workspace.workspace_id) : null;
     const lines = twoLine ? taskRowLines({ paneTitle: displayPaneTitle(pane), labelled: Boolean(pane.label?.trim()), folder: cwdBasename(pane.cwd), workspace: rowTitle, alias: secondaryBranch }) : null;
     // a folded group still shows the checkout that is open; the count is of the ones put away
@@ -621,10 +621,10 @@ export function Sidebar({ snapshot, online, selectedPaneId, actions, machineName
             }}
           /> : lines ? <span className="workspace-copy is-two-line">
             <span className="workspace-line">
-              <span className="workspace-name">{lines.title}</span>
+              <span className="workspace-name">{lines.project}</span>
               {foldedCount > 0 && <span className="workspace-fold-count" aria-hidden="true">+{foldedCount}</span>}
             </span>
-            {(lines.place || note) && <span className="workspace-place">{note}{lines.place}</span>}
+            {(lines.task || note) && <span className="workspace-place">{note}{lines.task}</span>}
           </span> : <span className="workspace-copy">
             <span className="workspace-name">{rowTitle}</span>
             {note}

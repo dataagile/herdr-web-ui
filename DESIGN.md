@@ -768,7 +768,7 @@ One set for both themes: the card is island black wherever it shows.
   open folders and, through `GET /api/pane/files`, the git files below the pane's folder, and says so in `.dir-browser-scope`
   ("Search by name in git files"). Nothing matched shows `.dir-browser-empty`. Keys follow the WAI-ARIA tree pattern (the focusable row is the `treeitem` itself, children in `role=group`); in the filter a click or Enter
   on a folder folds it and opens it again; only files whose own name holds the query are listed. Esc clears
-  the filter before it closes the dialog. The new-project folder picker keeps the flat `DirectoryBrowser`.
+  the filter before it closes the dialog. The new-project folder picker is this tree in pick mode (`onPick`).
 - **Viewer formats**: `.md` / `.markdown` and `.html` / `.htm` open drawn, with a `.segmented` "View | Code" in
   `.file-viewer-toolbar` (the choice kept per format). Markdown is the chat's `.markdown` on a `.file-viewer-render` card (raw html
   stays text; links open in a new tab, `rel="noopener noreferrer"`, http/https/mailto only). Html is an `iframe.file-viewer-html`

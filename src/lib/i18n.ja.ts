@@ -996,6 +996,7 @@ export const JA: Record<string, string> = {
   "expand": "展開",
   "collapse": "折りたたむ",
   "open": "開く",
+  "select": "選択",
   "close": "閉じる",
   "Format": "形式",
   "View": "表示",

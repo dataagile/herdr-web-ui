@@ -2,7 +2,7 @@ The Files dialog's tree (`FileTree`), its filter, and the file viewer's two draw
 
 ## When to use
 - Browsing the pane's folder from the header's Files button: folders open in place, a file opens in the viewer above the dialog.
-- Not the folder picker of New project / New tab (`DirectoryBrowser`, one folder at a time, "Use this folder"); that keeps its flat list.
+- Choosing the folder of a New project (Browse): the same tree in pick mode (below). New tab takes the project's folder and has no picker.
 
 ## Anatomy
 - Dialog: `.modal.files-dialog.is-tree` (`--palette-w`; full height up to `640px`), one `.dir-browser.dir-browser-tree[role=group]` in the body.
@@ -22,6 +22,13 @@ The Files dialog's tree (`FileTree`), its filter, and the file viewer's two draw
 ## Keyboard (WAI-ARIA tree)
 ↑ ↓ move, Home / End jump, → opens a closed folder or steps into an open one, ← closes an open folder or steps out to its parent, Enter / Space open the file or toggle the folder (also while filtering, where it folds or unfolds the folder inside the result). One row is tabbable (`tabindex=0`), the rest `-1`; ↓ in the filter field enters the tree. While filtering, folders start open; a click or Enter on one folds it (and opens it again).
 
+## Pick mode (New project)
+- `onPick` turns the tree into a folder picker: folders only (no files, no sizes), `aria-label` of the list "Choose a folder", the list capped at `--control-h` × 7 inside the form so Name and Start stay reachable.
+- A click (or Enter) selects a folder (the `.is-selected` bar) and opens it; clicking the selected one again closes it.
+- Footer under the hints: `.dir-browser-footer.tree-pick` with the chosen path (`.dir-browser-path`; the root folder while nothing is selected) and the primary "Use this folder" button.
+- Filter: there is no pane, so it matches only the folders already read ("Searching only the open folders").
+- Open folders are remembered apart from the Files screen (`herdr-web-ui:pick-tree:<machine>:<folder>`).
+
 ## Viewer formats
 - `.md` / `.markdown`: `.file-viewer-toolbar` with `.segmented` "View | Code" (`Eye`, `Code`); View is the chat's own `.markdown` on a reading card (`.file-viewer-render`, max `--content-w`). Code is the text with the Edit button at the right of the same bar; Edit exists only in Code, and View is disabled while editing.
 - `.html` / `.htm`: the same bar, and in View a `iframe.file-viewer-html[sandbox=""]` drawn from the text (`srcdoc`; white like the PDF frame) with `.file-viewer-sandbox` "Scripts are off in this view" (`ShieldOff`). No scripts, no forms, no popups, no access to the app. The frame's document starts with a `Content-Security-Policy` meta (`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:`), so nothing is fetched: only inline styles and `data:` images and fonts draw. Relative images and links of the file may not load.
@@ -34,7 +41,7 @@ The Files dialog's tree (`FileTree`), its filter, and the file viewer's two draw
 - Phone (`<=640px`): full height, `--tree-indent` 12px, rows at `--touch-target` on a coarse pointer, hints hidden.
 
 ## What the consumer provides
-- `start` (the pane's folder), `paneId` (for the search), `onOpenFile`. Strings through `t()`.
+- `start` (the pane's folder), `paneId` (for the search; null in pick mode), `onOpenFile` or, for the picker, `onPick`. Strings through `t()`.
 
 ## Tokens used
 `--accent`, `--accent-tint`, `--bg`, `--bg-elevated`, `--bg-hover`, `--border`, `--hairline`, `--rail-w`, `--text`, `--text-dim`, `--text-strong`, `--control-h`, `--touch-target`, `--radius-md`, `--radius-sm`, `--fs-2xs`, `--fs-xs`, `--fs-sm`, `--fw-medium`, `--fw-semibold`, `--space-1` … `--space-6`; the component-local `--tree-indent` (16px; 12px on a phone) and `--tree-row-h` (`--control-h` minus `--space-1`).

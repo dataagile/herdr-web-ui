@@ -1,4 +1,4 @@
-/* the folder (and file) browser: new-session Browse, and the Files dialog */
+/* the folder (and file) browser: the file viewer's folder and file list */
 .dir-browser {
   display: flex;
   flex-direction: column;

@@ -17,6 +17,9 @@
 /* keyboard hints in the footer */
 .dir-browser-hints { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-dim); font-size: var(--fs-xs); }
 .dir-browser-hints span { display: inline-flex; align-items: center; gap: var(--space-1); }
+/* the toggle keeps one line; the hints give way first */
+.dir-browser-tree .dir-browser-hidden { flex: none; white-space: nowrap; }
+.dir-browser-tree .dir-browser-hints { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 
 /* the part that matched: bold plus the accent, never colour alone */
 .dir-browser-hit { background: var(--accent-tint); color: var(--accent); font-weight: var(--fw-semibold); border-radius: var(--radius-sm); }

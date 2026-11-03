@@ -23,7 +23,9 @@ export interface FileTreeProps {
   start: string;
   /** the pane the folder belongs to: its fuzzy file search finds files in folders not opened yet */
   paneId: string | null;
-  onOpenFile: (path: string) => void;
+  onOpenFile?: (path: string) => void;
+  /** pick mode (New project): folders only; a click selects one and "Use this folder" hands it back in the dialog's syntax (`~/…` inside home) */
+  onPick?: (path: string) => void;
 }
 
 const FILE_ICON: Record<FileIcon, typeof File> = { text: FileText, code: FileCode, json: FileBraces, image: ImageIcon, pdf: FileType, file: File };
@@ -34,13 +36,14 @@ const SEARCH_DELAY_MS = 200;
  * each), a filter finds a name in the open folders and, through the pane's file search, in the git
  * files below. Keys follow the WAI-ARIA tree pattern.
  */
-export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
+export function FileTree({ start, paneId, onOpenFile, onPick }: FileTreeProps) {
   const t = useT();
   const machineId = useMachineId();
   const api = useMachineApi();
   const apiRef = useRef(api);
   apiRef.current = api;
-  const storageKey = expandedKey(machineId, start);
+  const pick = onPick !== undefined;
+  const storageKey = expandedKey(machineId, start, pick);
 
   const [rootRequest, setRootRequest] = useState(start);
   const [reload, setReload] = useState(0);
@@ -74,7 +77,8 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
     const mine = ++generation.current;
     requested.current = new Set();
     setLoaded({});
-    apiRef.current.fetchDirectories(rootRequest, hidden, true).then((listing) => {
+    if (pick) setSelected(null);
+    apiRef.current.fetchDirectories(rootRequest, hidden, !pick).then((listing) => {
       if (mine !== generation.current) return;
       homeRoot.current = paneRoot(homeRoot.current, rootRequest, start, listing.path);
       setRoot(listing);
@@ -111,7 +115,7 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
       if (requested.current.has(path)) continue;
       requested.current.add(path);
       setLoaded((state) => ({ ...state, [path]: { status: "loading" } }));
-      apiRef.current.fetchDirectories(path, hidden, true).then((listing) => {
+      apiRef.current.fetchDirectories(path, hidden, !pick).then((listing) => {
         if (mine === generation.current) setLoaded((state) => ({ ...state, [path]: { status: "ok", directories: listing.directories, files: listing.files ?? [], truncated: listing.truncated } }));
       }).catch(() => {
         if (mine === generation.current) setLoaded((state) => ({ ...state, [path]: { status: "error" } }));
@@ -161,7 +165,13 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
     setActive(row.path);
     if (row.type === "file") {
       setSelected(row.path);
-      onOpenFile(row.path);
+      onOpenFile?.(row.path);
+    } else if (pick) {
+      // a folder is chosen by the click; it opens, and closes only when it was already the chosen one
+      const again = selected === row.path;
+      setSelected(row.path);
+      if (!filtering) setOpen(row.path, !row.expanded || !again);
+      else reveal(row.path);
     } else if (!filtering) setOpen(row.path, !row.expanded);
     else if (closed.has(row.path) || row.expanded) {
       // inside the filter a folder with matches under it folds and unfolds in place
@@ -215,7 +225,7 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
       setNewName("");
       setCreateError(null);
       // only the folder it was made in is read again; the others stay as they are
-      apiRef.current.fetchDirectories(parent, hidden, true).then((listing) => {
+      apiRef.current.fetchDirectories(parent, hidden, !pick).then((listing) => {
         if (mine === generation.current) setRoot(listing);
       }).catch(() => { if (mine === generation.current) setReload((n) => n + 1); });
     } catch (reason: unknown) {
@@ -229,6 +239,8 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
   };
 
   const shown = root ? homeRelative(root.path, root.home) : start || "~";
+  // no selection: the root folder
+  const chosen = root === null ? null : { abs: selected ?? root.path, shown: homeRelative(selected ?? root.path, root.home) };
   const first = rows.find((row) => row.type !== "note")?.path ?? null;
   const cursor = rows.some((row) => row.type !== "note" && row.path === active) ? active : first;
   const settled = !canSearch || (found !== null && found.query === query.trim());
@@ -315,7 +327,7 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
         {query !== "" && <button type="button" className="icon-button" aria-label={t("Clear filter")} title={t("Clear filter (Esc)")} onClick={() => { setQuery(""); filterInput.current?.focus(); }}><X aria-hidden="true" /></button>}
       </div>
       {error !== null ? <p className="dir-browser-note dir-browser-error" role="alert">{error}</p> : (
-        <ul className="dir-browser-list" role="tree" aria-label={t("Folders and files")} onKeyDown={onTreeKey}>
+        <ul className="dir-browser-list" role="tree" aria-label={t(pick ? "Choose a folder" : "Folders and files")} onKeyDown={onTreeKey}>
           {root === null && <li className="dir-browser-note" role="status">{t("Loading…")}</li>}
           {nodes.map(renderNode)}
           {root !== null && rows.length === 0 && (filtering
@@ -344,10 +356,16 @@ export function FileTree({ start, paneId, onOpenFile }: FileTreeProps) {
           <span><kbd className="kbd">↑</kbd><kbd className="kbd">↓</kbd> {t("move")}</span>
           <span><kbd className="kbd">→</kbd> {t("expand")}</span>
           <span><kbd className="kbd">←</kbd> {t("collapse")}</span>
-          <span><kbd className="kbd">Enter</kbd> {t("open")}</span>
+          <span><kbd className="kbd">Enter</kbd> {t(pick ? "select" : "open")}</span>
           <span><kbd className="kbd">Esc</kbd> {t("close")}</span>
         </span>
       </div>
+      {onPick !== undefined && (
+        <div className="dir-browser-footer tree-pick">
+          <span className="dir-browser-path" title={chosen?.abs ?? ""}><span dir="ltr">{chosen?.shown ?? ""}</span></span>
+          <button type="button" className="btn btn-primary" disabled={root === null || chosen === null} onClick={() => chosen && onPick(chosen.shown)}>{t("Use this folder")}</button>
+        </div>
+      )}
     </div>
   );
 }

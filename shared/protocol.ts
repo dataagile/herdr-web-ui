@@ -464,8 +464,17 @@ export type ChangedFileDiff =
   | { kind: "session"; path: string; edits: ChangedFileEdit[] }
   | { kind: "git"; path: string; diff: string; truncated: boolean; /** git did not answer in time */ timedOut?: boolean; /** git failed: `diff` is empty because of that, not because nothing differs */ failed?: boolean };
 
+/** One utterance falacomigo (a Claude Code plugin) spoke in the session: `at` in ms since the epoch, `lang` a BCP 47 tag when the voice has one. */
+export interface SpokenLine {
+  at: number;
+  lang?: string;
+  text: string;
+}
+
 /** GET /api/pane/conversation: native conversation with settings, or scrollback fallback. */
 export interface ConversationResponse {
+  /** Claude only, newest page only: falacomigo's last utterances, newest last; absent when it spoke none. A device that reads answers aloud speaks the new ones. */
+  spoken?: SpokenLine[];
   /** Stable across appends; changes on transcript replacement or native context clear. */
   history_id?: string;
   source: "claude-transcript" | "omp-transcript" | "omo-transcript" | "gjc-transcript" | "pi-transcript" | "codex-transcript" | "scrollback";

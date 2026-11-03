@@ -32,7 +32,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { closeSync, openSync, readFileSync, readSync, realpathSync, statSync } from "node:fs";
 import nodePath, { type PlatformPath } from "node:path";
 
-import type { ConversationMetadata, ConversationPart, ConversationTurn, HerdrPane, SessionSnapshot } from "../shared/protocol.ts";
+import type { ConversationMetadata, ConversationPart, ConversationTurn, HerdrPane, SessionSnapshot, SpokenLine } from "../shared/protocol.ts";
 import { herdrRpc, sessionSnapshot } from "./herdr/client.ts";
 import { codexHistorySegments, createCodexTranscriptParser, codexOutputText, codexTranscriptPath, defaultCodexHome, forgetAllCodexState, forgetCodexStateFor, paneCodexHome, codexSessionCwd, parseCodexTranscript, readRange } from "./codex.ts";
 import { CODEX_IMAGE_REF, codexTranscriptImage } from "./codex-images.ts";
@@ -45,6 +45,7 @@ import { trimOutput } from "./tool-output.ts";
 import { parseConversationMetadata } from "./conversation-metadata.ts";
 
 import { invokedSkill } from "./skill-activity.ts";
+import { spokenLines } from "./spoken.ts";
 import { isContextClear, MAX_TURNS, parseOmpTranscript, piImageBlock, piMessage, piResults, toolSummary } from "./transcript-records.ts";
 
 export { isOmoProcess } from "./omo.ts";
@@ -346,6 +347,7 @@ export class HistoryChanged extends Error {
 
 /** What paneConversation resolved: which store the turns came from, and where they start. */
 export type RecognizedConversation = {
+  spoken?: SpokenLine[];
   source: "claude-transcript" | "omp-transcript" | "omo-transcript" | "gjc-transcript" | "pi-transcript" | "codex-transcript";
   turns: ConversationTurn[];
   metadata: ConversationMetadata;
@@ -1037,7 +1039,8 @@ export async function paneConversation(paneId: string, codexHome?: string, page:
   rememberPaneRead(paneId, resolved.path);
   const answer = transcriptPage(resolved.source, resolved.path, page, resolved.codexHome ?? codexHome);
   if (identity !== null) { writtenSessions.add(`${resolved.source}\0${identity}`); rememberPaneSession(paneId, `${resolved.source}\0${identity}`); }
-  return answer;
+  const spoken = resolved.source === "claude-transcript" && identity !== null && page.before === undefined ? spokenLines(identity) : null;
+  return spoken === null ? answer : { ...answer, spoken: spoken.lines, version: answerVersion(answer.version, spoken.signature) };
 }
 
 /** The most pages of a transcript the whole-conversation read walks back (the newest ones); a longer session is cut. */

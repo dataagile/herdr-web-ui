@@ -64,6 +64,7 @@ import { Droplet } from "./components/Droplet.tsx";
 import { ConfirmDialog } from "./components/ConfirmDialog.tsx";
 import { dropletAllows, endedTurn, seedStatuses, showDroplet, trackTurn, type DropletKind } from "./lib/droplet.ts";
 import { playAlertSound, unlockAlertSound, type AlertSoundKind } from "./lib/alertSound.ts";
+import { unlockReadAloud } from "./lib/readAloud.ts";
 
 const APP_TITLE = "DevDA";
 const POLL_MS = 5000;
@@ -412,6 +413,14 @@ export function App() {
 
   // a page plays audio only after a tap or key on it: each one lets the next chime play. A mouse
   // activates the page on press, a touch only on release, so both ends of a tap try
+  useEffect(() => {
+    if (!settings.readAloud) return;
+    const events = ["pointerup", "keydown"] as const;
+    const unlock = () => { unlockReadAloud(); for (const event of events) window.removeEventListener(event, unlock, true); };
+    for (const event of events) window.addEventListener(event, unlock, true);
+    return () => { for (const event of events) window.removeEventListener(event, unlock, true); };
+  }, [settings.readAloud]);
+
   useEffect(() => {
     if (!settings.alertSound) return;
     const unlock = () => { void unlockAlertSound(); };

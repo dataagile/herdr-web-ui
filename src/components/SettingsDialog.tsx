@@ -26,6 +26,7 @@ import { DevicesPanel } from "./DevicesPanel.tsx";
 import { PhonePanel } from "./PhonePanel.tsx";
 import { PushTestControls } from "./PushTestControls.tsx";
 import { previewAlertSound, unlockAlertSound } from "../lib/alertSound.ts";
+import { stopReadAloud, unlockReadAloud } from "../lib/readAloud.ts";
 import { HerdrUpdateControls, UpdateControls } from "./UpdateControls.tsx";
 
 export interface SettingsDialogProps {
@@ -320,6 +321,10 @@ function VoicePage() {
       <SettingsGroup>
         <SettingsRow label={t("Microphone button")} description={<>{t("Auto: in the chat on a desktop, where dictation can work. On: on a phone and in the terminal input line too.")}{micProblem !== null && <span className="voice-error">{micProblem}</span>}</>} wide>
           <Segmented label={t("Microphone button")} value={settings.voiceInput} onChange={(voiceInput) => void chooseVoiceInput(voiceInput)} options={VOICE_BUTTONS.map((voiceInput) => ({ value: voiceInput, label: t(voiceInput === "auto" ? "Auto" : voiceInput === "on" ? "On" : "Off") }))} />
+        </SettingsRow>
+        <SettingsRow label={t("Read answers aloud")} description={t("For this device, while the chat is open. Claude Code sessions with falacomigo's voice on: this device speaks what it speaks.")}>
+          {/* this tap is the gesture a phone needs before a page may speak */}
+          <Toggle label={t("Read answers aloud")} checked={settings.readAloud} onChange={(readAloud) => { update({ readAloud }); if (readAloud) unlockReadAloud(); else stopReadAloud(); }} />
         </SettingsRow>
       </SettingsGroup>
 

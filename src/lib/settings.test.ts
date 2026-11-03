@@ -256,6 +256,9 @@ describe("alert choices", () => {
     expect(DEFAULT_SETTINGS.alertSound).toBe(false);
     expect(sanitizeSettings({ alertSound: true }).alertSound).toBe(true);
     expect(sanitizeSettings({ alertSound: "yes" }).alertSound).toBe(false);
+    expect(DEFAULT_SETTINGS.readAloud).toBe(false);
+    expect(sanitizeSettings({ readAloud: true }).readAloud).toBe(true);
+    expect(sanitizeSettings({ readAloud: "yes" }).readAloud).toBe(false);
   });
 
   it("default to questions and long turns, and drop anything unknown to the default", () => {

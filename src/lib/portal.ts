@@ -31,6 +31,19 @@ export interface PortalSession {
   pc: PortalPc;
 }
 
+let portalSeen = false;
+
+/**
+ * An API 401 on a page the portal signed in means the portal session ended (its 12 h cookie): this
+ * app's own token gate never shows behind the portal. Reload, and the portal answers the same URL with its login.
+ */
+export function reloadIfPortalExpired(status: number, reload: () => void = () => window.location.reload()): boolean {
+  if (status !== 401 || !portalSeen) return false;
+  portalSeen = false;
+  reload();
+  return true;
+}
+
 const NO_PC: PortalPc = { name: null, addPc: true };
 const NO_PORTAL: PortalSession = { portal: false, feedback: { enabled: false, attachments: false }, pc: NO_PC };
 
@@ -47,6 +60,7 @@ export async function fetchPortalSession(request: typeof fetch = fetch, timeoutM
     const enabled = feedback?.enabled === true;
     const pc = (body as { pc?: { name?: unknown; add_pc?: unknown } | null }).pc;
     const name = typeof pc?.name === "string" ? pc.name.trim() : "";
+    portalSeen = true;
     return { portal: true, feedback: { enabled, attachments: enabled && feedback?.attachments === true }, pc: typeof pc === "object" && pc !== null ? { name: name || null, addPc: pc.add_pc !== false } : NO_PC };
   } catch {
     return NO_PORTAL;

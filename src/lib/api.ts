@@ -1,4 +1,5 @@
 import { LOCAL_MACHINE, machinePath, type BridgeHealth, type HerdrIdentity, type Machine, type SetupAction, type SetupJob, type SetupRequest } from "../../shared/machines.ts";
+import { reloadIfPortalExpired } from "./portal.ts";
 import type {
   ChangedFileDiff,
   ChangedFilesResponse,
@@ -129,6 +130,8 @@ async function errorFrom(url: string, response: Response): Promise<ApiError> {
   } catch {
     /* non-JSON error body */
   }
+  // a remote PC's own 401 relays through /api/machines/<id>/: only the portal's answer on the local routes means its session ended
+  if (!url.startsWith("/api/machines/")) reloadIfPortalExpired(response.status);
   return new ApiError(url, response.status, detail, code);
 }
 

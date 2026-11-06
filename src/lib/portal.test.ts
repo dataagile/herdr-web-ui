@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { fetchPortalSession } from "./portal.ts";
+import { fetchPortalSession, reloadIfPortalExpired } from "./portal.ts";
 
 const answer = (body: BodyInit | null, status = 200, type = "application/json"): typeof fetch =>
   (async () => new Response(body, { status, headers: { "content-type": type } })) as unknown as typeof fetch;
@@ -74,5 +74,17 @@ describe("fetchPortalSession pc", () => {
     expect((await fetchPortalSession(me({ name: "Notebook da Ana", add_pc: true }))).pc.name).toBe("Notebook da Ana");
     expect((await fetchPortalSession(me({ name: "  Ana  " }))).pc.name).toBe("Ana");
     for (const name of [null, "", "   ", 7, {}]) expect((await fetchPortalSession(me({ name }))).pc.name).toBeNull();
+  });
+});
+
+describe("reloadIfPortalExpired", () => {
+  it("reloads once on a 401 after the portal answered, never for for other statuses", async () => {
+    let reloads = 0;
+    const reload = (): void => { reloads += 1; };
+    await fetchPortalSession(answer(JSON.stringify({ authenticated: true })));
+    expect(reloadIfPortalExpired(403, reload)).toBe(false);
+    expect(reloadIfPortalExpired(401, reload)).toBe(true);
+    expect(reloadIfPortalExpired(401, reload)).toBe(false);
+    expect(reloads).toBe(1);
   });
 });

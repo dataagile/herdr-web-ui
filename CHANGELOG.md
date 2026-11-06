@@ -191,6 +191,7 @@ between releases do not reach them. Remote-PC runtime bundles are versioned sepa
 - **New project → Browse** is the Files tree in pick mode: folders only, with levels, chevrons and guides, the "Filter by name…" field and the keyboard hints. A click selects a folder and opens it, and "Use this folder" takes the selected one (the root folder when none is selected). Its open folders are remembered apart from the Files screen, and its filter searches only the folders already opened. New tab is unchanged. ([#28](https://github.com/dataagile/herdr-web-ui/pull/28))
 
 ### Fixed
+- Behind the Data Agile portal, an expired portal session no longer shows the old "Pair this device" gate: a 401 on a page the portal signed in reloads it, and the portal serves its own sign-in. ([#29](https://github.com/dataagile/herdr-web-ui/pull/29))
 - A left click in the terminal that selects nothing reaches the program in the pane again, so a mouse-driven
   control such as the ✕ that closes Claude Code's diff panel works; a drag still selects and copies. ([#24](https://github.com/dataagile/herdr-web-ui/pull/24))
 - The folder browser's POST no longer resolves a relative parent against the server's own
